@@ -11,37 +11,34 @@
 #     Real data lands when the full HA stack (sentinel-stack.prod.yml) is deployed.
 #
 # SECRETS vs ENV:
-#   * CLERK_SECRET_KEY is sensitive, so it is supplied as a DOCKER SECRET
-#     (clerk_secret_key) — the same pattern as the full HA prod stack. The image
-#     entrypoint shim (docker-entrypoint.sh) reads /run/secrets/clerk_secret_key
-#     at startup and exports it as the CLERK_SECRET_KEY env var the Clerk SDK
-#     expects. The secret never appears in the stack definition or env editor.
-#   * NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is PUBLIC (it is inlined into the client
-#     bundle), so it stays a plain env var / build-arg — never a secret.
-#   * There is still NO DATABASE_URL here (DB-less validation, see above).
+#   * CLERK_SECRET_KEY is sensitive → supplied as a DOCKER SECRET (clerk_secret_key).
+#     The image entrypoint shim (docker-entrypoint.sh) reads /run/secrets/clerk_secret_key
+#     at startup and exports it as the CLERK_SECRET_KEY env var the Clerk SDK expects.
+#     NOTE: a Swarm secret named `clerk_secret_key` ALREADY EXISTS on this Swarm
+#     (created 2026-06-18, holds the rotated prod sk_live_ for the SAME estate Clerk
+#     instance) — so you likely DON'T need to create it; this stack just references it.
+#   * NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is PUBLIC (inlined into the client bundle),
+#     so it stays a plain env var / build-arg — never a secret.
 #
-# CREATE THE SECRET FIRST (one-time, before deploy):
-#   * Portainer: Secrets → Add secret → name `clerk_secret_key`, value = the
-#     `sk_live_...` Clerk secret key. (Swarm secrets are immutable; to rotate,
-#     delete + recreate the secret and redeploy / `docker service update`.)
-#   * OR via CLI on a manager node:
-#       printf '%s' 'sk_live_...' | docker secret create clerk_secret_key -
-#
-# DEPLOY (Portainer):
-#   1. Create the `clerk_secret_key` secret as above.
+# DEPLOY (Portainer, endpoint Id 3 "local" Swarm):
+#   1. Confirm the `clerk_secret_key` secret exists (Secrets) — reuse it. Only
+#      create it if missing:  printf '%s' 'sk_live_...' | docker secret create clerk_secret_key -
 #   2. Portainer → Stacks → Add stack, name it `sentinel-ops-app` (Swarm mode).
+#      (Per [[feedback-docker-cleanup]] this is a NEW stack — do not touch
+#       yt-transcriber / hermes-agent / springsteen-news.)
 #   3. Paste this file (or point at deploy/sentinel-stack.ops-app.yml).
-#   4. In the stack's Environment variables editor, set the public Clerk value:
+#   4. Stack env editor → set the public Clerk value:
 #        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = pk_live_...   (publishable, not secret)
 #   5. Deploy. The entrypoint turns the secret into CLERK_SECRET_KEY at runtime.
 #
-# INGRESS: the EXISTING nginx HA / NPM tier on the shared external `proxy` overlay
-# must proxy  ops.bentech.dev → app:3000  over that `proxy` network (same pattern
-# as the YT Transcriber stack). No reverse proxy is defined in this file.
+# INGRESS: the LIVE nginx HA / NPM tier lives on the external `yt-shared` overlay
+# (verified live — the YT app uses `yt-shared` for ingress, NOT `proxy`). Add an
+# NPM proxy host  ops.bentech.dev → app:3000  over `yt-shared`. No reverse proxy
+# is defined in this file.
 #
 # NOTE: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is ALSO baked into the image at build
-# time by CI (it's inlined into the client bundle). It's repeated at runtime here
-# so server-side reads + any runtime checks line up; both should be the same key.
+# time by CI (inlined into the client bundle); it's repeated at runtime so server
+# reads line up. Both must be the SAME prod publishable key.
 # =============================================================================
 
 version: "3.8"
@@ -49,8 +46,8 @@ version: "3.8"
 services:
 
   # ===========================================================================
-  # app — stateless Sentinel API/UI. Fronted by the external nginx HA / NPM tier
-  # on the `proxy` network for ops.bentech.dev. DB-less for validation.
+  # app — stateless Sentinel API/UI. Fronted by the LIVE nginx HA / NPM tier on
+  # the `yt-shared` network for ops.bentech.dev. DB-less for validation.
   # ===========================================================================
   app:
     image: ghcr.io/lewis159/sentinel:latest
@@ -63,8 +60,6 @@ services:
       # CLERK_SECRET_KEY is NOT set here: it comes from the `clerk_secret_key`
       # docker secret below, which the entrypoint shim exports at runtime.
       # NO DATABASE_URL on purpose: lib/db.ts -> hasDb=false, queries return [].
-      # Data pages render EMPTY until the full HA stack (sentinel-stack.prod.yml)
-      # lands. This stack validates Clerk auth + the global_admin gate only.
     secrets:
       - clerk_secret_key
     healthcheck:
@@ -74,7 +69,7 @@ services:
       retries: 3
       start_period: 30s
     networks:
-      - proxy           # external — shared with nginx HA / NPM for ops.bentech.dev routing
+      - yt-shared       # external — LIVE NPM/ingress tier lives here (per deploy-reality; NOT proxy)
     deploy:
       replicas: 1       # validation only; safe to scale up (app is stateless)
       labels:
@@ -89,18 +84,18 @@ services:
         limits: { memory: 512M }
 
 # =============================================================================
-# Secrets — created out-of-band (see header). The entrypoint shim in the image
-# exports /run/secrets/clerk_secret_key into the CLERK_SECRET_KEY env var.
+# Secrets — `clerk_secret_key` already exists on this Swarm (reuse it). The
+# entrypoint shim exports /run/secrets/clerk_secret_key → CLERK_SECRET_KEY.
 # =============================================================================
 secrets:
   clerk_secret_key:
     external: true
 
 # =============================================================================
-# Networks — only the shared external ingress overlay. The nginx HA / NPM tier
-# owns `proxy` and routes ops.bentech.dev → app:3000 over it.
+# Networks — the LIVE external ingress overlay. The nginx HA / NPM tier owns
+# `yt-shared` (verified live) and routes ops.bentech.dev → app:3000 over it.
 # =============================================================================
 networks:
-  proxy:
+  yt-shared:
     external: true
-    name: proxy
+    name: yt-shared
