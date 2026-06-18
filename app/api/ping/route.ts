@@ -2,5 +2,11 @@
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  return Response.json({ ok: true, service: 'sentinel' });
+  // TEMP DEBUG: node-runtime presence of the Clerk keys (booleans only, no values)
+  return Response.json({
+    ok: true,
+    service: 'sentinel',
+    node_sec: Boolean(process.env.CLERK_SECRET_KEY),
+    node_enc: Boolean(process.env.CLERK_ENCRYPTION_KEY),
+  });
 }

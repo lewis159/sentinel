@@ -25,7 +25,13 @@ const GLOBAL_ADMIN = 'global_admin';
 
 export default clerkMiddleware(
   async (auth, req) => {
-    if (isPublicRoute(req)) return;
+    if (isPublicRoute(req)) {
+      // TEMP DEBUG: edge-runtime presence of the Clerk keys (headers, no values)
+      const res = NextResponse.next();
+      res.headers.set('x-dbg-edge-sec', process.env.CLERK_SECRET_KEY ? '1' : '0');
+      res.headers.set('x-dbg-edge-enc', process.env.CLERK_ENCRYPTION_KEY ? '1' : '0');
+      return res;
+    }
 
     const { userId, sessionClaims, redirectToSignIn } = await auth();
 
