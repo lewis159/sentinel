@@ -1,0 +1,86 @@
+# =============================================================================
+# Sentinel — APP-ONLY validation stack for ops.bentech.dev
+# =============================================================================
+# PURPOSE: stand up JUST the Next.js app so we can VALIDATE prod Clerk sign-in /
+# SSO and the global_admin gate end-to-end against ops.bentech.dev — WITHOUT the
+# full HA database tier. There is intentionally NO database here.
+#
+#   * No DATABASE_URL is set. lib/db.ts sets `hasDb = false` when DATABASE_URL is
+#     unset, and q()/q1() return empty results — so every page renders, but all
+#     DATA pages will be EMPTY. That is expected and fine for auth validation.
+#     Real data lands when the full HA stack (sentinel-stack.prod.yml) is deployed.
+#
+# SECRETS vs ENV — IMPORTANT DIFFERENCE FROM PROD:
+#   * The full HA stack (deploy/sentinel-stack.prod.yml) reads Clerk + DB creds
+#     from DOCKER SECRETS (/run/secrets/...). That is the production pattern.
+#   * THIS validation-only stack instead reads the Clerk keys from STACK
+#     ENVIRONMENT VARIABLES (set them in the Portainer stack env editor). This
+#     keeps validation quick — no `docker secret create` round-trips. Do NOT use
+#     this pattern for the real production deployment.
+#
+# DEPLOY (Portainer):
+#   1. Portainer → Stacks → Add stack, name it `sentinel-ops-app` (Swarm mode).
+#   2. Paste this file (or point at deploy/sentinel-stack.ops-app.yml).
+#   3. In the stack's Environment variables editor, set the two Clerk values:
+#        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = pk_live_...   (publishable, not secret)
+#        CLERK_SECRET_KEY                  = sk_live_...    (secret)
+#   4. Deploy.
+#
+# INGRESS: the EXISTING nginx HA / NPM tier on the shared external `proxy` overlay
+# must proxy  ops.bentech.dev → app:3000  over that `proxy` network (same pattern
+# as the YT Transcriber stack). No reverse proxy is defined in this file.
+#
+# NOTE: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is ALSO baked into the image at build
+# time by CI (it's inlined into the client bundle). It's repeated at runtime here
+# so server-side reads + any runtime checks line up; both should be the same key.
+# =============================================================================
+
+version: "3.8"
+
+services:
+
+  # ===========================================================================
+  # app — stateless Sentinel API/UI. Fronted by the external nginx HA / NPM tier
+  # on the `proxy` network for ops.bentech.dev. DB-less for validation.
+  # ===========================================================================
+  app:
+    image: ghcr.io/lewis159/sentinel:latest
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_APP_URL=https://ops.bentech.dev
+      # Clerk keys — set in the Portainer stack env editor (NOT docker secrets;
+      # see header). Publishable key is also baked into the image at build time.
+      - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      - CLERK_SECRET_KEY=${CLERK_SECRET_KEY}
+      # NO DATABASE_URL on purpose: lib/db.ts -> hasDb=false, queries return [].
+      # Data pages render EMPTY until the full HA stack (sentinel-stack.prod.yml)
+      # lands. This stack validates Clerk auth + the global_admin gate only.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/ping || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - proxy           # external — shared with nginx HA / NPM for ops.bentech.dev routing
+    deploy:
+      replicas: 1       # validation only; safe to scale up (app is stateless)
+      labels:
+        - "project=Sentinel"
+        - "project.component=app"
+        - "project.env=ops-validation"
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      resources:
+        limits: { memory: 512M }
+
+# =============================================================================
+# Networks — only the shared external ingress overlay. The nginx HA / NPM tier
+# owns `proxy` and routes ops.bentech.dev → app:3000 over it.
+# =============================================================================
+networks:
+  proxy:
+    external: true
+    name: proxy

@@ -55,9 +55,6 @@ export default clerkMiddleware(
       }
     }
 
-    // TEMP DEBUG — remove after diagnosing the 403.
-    console.log('[AUTH-DEBUG]', JSON.stringify({ path: req.nextUrl.pathname, roleSource, roleRead: role ?? '(none)' }));
-
     if (role !== GLOBAL_ADMIN) {
       if (isApiRoute(req)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       return NextResponse.redirect(new URL('/unauthorized', req.url));

@@ -12,6 +12,11 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+# NEXT_PUBLIC_* env vars are inlined into the client bundle at build time, so the
+# Clerk publishable key must be present BEFORE `next build`. CI passes it via
+# --build-arg (a repo Actions VARIABLE — the publishable key is not secret).
+ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
 RUN npm run build
 
 FROM node:20-alpine AS runner
