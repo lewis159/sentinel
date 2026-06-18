@@ -1,0 +1,36 @@
+# nginx server block for ops.bentech.dev → Sentinel (on the shared `proxy` network).
+# Add to your nginx HA config alongside the yt.bentech.dev block. TLS via your
+# existing cert pipeline (Cloudflare origin cert / certbot).
+
+upstream sentinel_app {
+    # Swarm service name on the `proxy` overlay network, port 3000.
+    server sentinel_app:3000;
+}
+
+server {
+    listen 80;
+    server_name ops.bentech.dev;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name ops.bentech.dev;
+
+    ssl_certificate     /etc/nginx/certs/ops.bentech.dev.crt;
+    ssl_certificate_key /etc/nginx/certs/ops.bentech.dev.key;
+
+    # Internal admin tool — keep it private (allowlist / Cloudflare Access / Zero Trust).
+    # allow 1.2.3.4;  deny all;
+
+    location / {
+        proxy_pass         http://sentinel_app;
+        proxy_http_version 1.1;
+        proxy_set_header   Host $host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_set_header   Upgrade $http_upgrade;
+        proxy_set_header   Connection "upgrade";
+    }
+}

@@ -1,0 +1,72 @@
+# Sentinel — DB HA tier (local test). Two Postgres in active/standby with
+# automatic failover (repmgr) + PgPool as the load-balanced single endpoint.
+#   docker compose -f deploy/db-ha.local.yml up -d
+# Failover test: `docker stop sentinel-pg-0` → repmgr promotes pg-1 → PgPool
+# re-routes; the app (on pgpool:5432) keeps working.
+
+x-pg-env: &pg-env
+  POSTGRESQL_POSTGRES_PASSWORD: adminpass
+  POSTGRESQL_USERNAME: sentinel
+  POSTGRESQL_PASSWORD: sentinel
+  POSTGRESQL_DATABASE: sentinel
+  REPMGR_PASSWORD: repmgrpass
+  REPMGR_PRIMARY_HOST: pg-0
+  REPMGR_PRIMARY_PORT: "5432"
+  REPMGR_PARTNER_NODES: pg-0,pg-1
+  REPMGR_PORT_NUMBER: "5432"
+
+services:
+  pg-0:
+    image: bitnamilegacy/postgresql-repmgr:16
+    container_name: sentinel-pg-0
+    environment:
+      <<: *pg-env
+      REPMGR_NODE_NAME: pg-0
+      REPMGR_NODE_NETWORK_NAME: pg-0
+    volumes:
+      - pg0-data:/bitnami/postgresql
+      - ../db/init:/docker-entrypoint-initdb.d:ro   # schema seeds on primary's first boot
+    networks: [sentinel]
+
+  pg-1:
+    image: bitnamilegacy/postgresql-repmgr:16
+    container_name: sentinel-pg-1
+    environment:
+      <<: *pg-env
+      REPMGR_NODE_NAME: pg-1
+      REPMGR_NODE_NETWORK_NAME: pg-1
+    volumes:
+      - pg1-data:/bitnami/postgresql
+    networks: [sentinel]
+
+  pgpool:
+    image: bitnamilegacy/pgpool:4
+    container_name: sentinel-pgpool
+    ports:
+      - "5433:5432"          # 5433 on host to avoid the single-db on 5432 (app uses pgpool:5432 internally)
+    environment:
+      PGPOOL_BACKEND_NODES: 0:pg-0:5432,1:pg-1:5432
+      PGPOOL_SR_CHECK_USER: sentinel
+      PGPOOL_SR_CHECK_PASSWORD: sentinel
+      PGPOOL_ENABLE_LDAP: "no"
+      PGPOOL_POSTGRES_USERNAME: postgres
+      PGPOOL_POSTGRES_PASSWORD: adminpass
+      PGPOOL_ADMIN_USERNAME: admin
+      PGPOOL_ADMIN_PASSWORD: adminpass
+      PGPOOL_POSTGRES_CUSTOM_USERS: sentinel
+      PGPOOL_POSTGRES_CUSTOM_PASSWORDS: sentinel
+      PGPOOL_ENABLE_LOAD_BALANCING: "yes"
+      PGPOOL_HEALTH_CHECK_PERIOD: "10"
+    depends_on:
+      - pg-0
+      - pg-1
+    networks: [sentinel]
+
+volumes:
+  pg0-data:
+  pg1-data:
+
+networks:
+  sentinel:
+    name: sentinel-ha
+    driver: bridge

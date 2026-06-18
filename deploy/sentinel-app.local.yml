@@ -1,0 +1,81 @@
+# Sentinel — APP tier (joins the running Patroni DB network).
+# Bring the DB up first:  docker compose -f deploy/db-patroni.local.yml up -d
+# Then the app tier (scaled):
+#   docker compose -f deploy/sentinel-app.local.yml up -d --build --scale app=2 --scale worker=2
+# App + worker reach the HA DB via the HAProxy leader endpoint (sentinel-haproxy:5432).
+
+name: sentinel
+
+services:
+  # Stateless app — scale freely; nginx-lb fronts it on :3000 (no published port here).
+  app:
+    image: sentinel:local
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://sentinel:sentinel@sentinel-haproxy:5432/sentinel
+      - DOCKER_HOST=tcp://socket-proxy:2375
+      - OPS_INGEST_SECRET=devsecret123   # local dev; use a real secret + Docker secret in prod
+    expose:
+      - "3000"
+    depends_on:
+      - socket-proxy
+    restart: unless-stopped
+    networks: [patroni, appnet]
+
+  # Round-robin load balancer in front of the app replicas.
+  nginx-lb:
+    image: nginx:1.27-alpine
+    container_name: sentinel-lb
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./nginx-lb.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app
+    restart: unless-stopped
+    networks: [appnet]
+
+  # Worker pool — scale freely; the ops.jobs queue (SKIP LOCKED) prevents double-processing.
+  worker:
+    build: ../worker
+    environment:
+      - DATABASE_URL=postgresql://sentinel:sentinel@sentinel-haproxy:5432/sentinel
+      - DOCKER_HOST=tcp://socket-proxy:2375
+    depends_on:
+      - socket-proxy
+    restart: unless-stopped
+    networks: [patroni, appnet]
+
+  # Read-only Docker API for the Infra module + worker snapshots.
+  socket-proxy:
+    image: tecnativa/docker-socket-proxy:0.2.0
+    container_name: sentinel-app-proxy
+    environment:
+      - CONTAINERS=1
+      - POST=0
+      - INFO=1
+      - IMAGES=0
+      - NETWORKS=0
+      - VOLUMES=0
+      - SERVICES=0
+      - TASKS=0
+      - NODES=0
+      - SWARM=0
+      - SYSTEM=0
+      - EXEC=0
+      - AUTH=0
+      - BUILD=0
+      - COMMIT=0
+      - PLUGINS=0
+      - DISTRIBUTION=0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+    networks: [appnet]
+
+networks:
+  patroni:
+    external: true
+    name: sentinel-patroni     # the DB cluster's network (db-patroni.local.yml)
+  appnet:
+    driver: bridge

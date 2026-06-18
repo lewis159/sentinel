@@ -1,0 +1,13 @@
+{
+  "name": "sentinel-worker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sentinel worker microservice — container snapshots + capacity finding into ops schema",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "pg": "^8.13.1"
+  }
+}

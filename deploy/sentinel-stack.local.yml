@@ -1,0 +1,101 @@
+# Sentinel — LOCAL stack (Docker Compose).
+#   docker compose -f deploy/sentinel-stack.local.yml up -d   → http://localhost:3000
+# Self-contained: Sentinel owns its data in the sentinel-db Postgres container.
+# External systems (Supabase→YT, etc.) are configured at runtime via the
+# Connectors page, NOT baked into env.
+
+services:
+  # Sentinel's own database. (Prod HA path: swap for a replicated/managed
+  # Postgres — the app is stateless and only needs DATABASE_URL.)
+  sentinel-db:
+    image: postgres:16-alpine
+    container_name: sentinel-db
+    environment:
+      - POSTGRES_USER=sentinel
+      - POSTGRES_PASSWORD=sentinel
+      - POSTGRES_DB=sentinel
+    ports:
+      - "5432:5432"        # local dev: lets host seed scripts connect
+    volumes:
+      - sentinel-db-data:/var/lib/postgresql/data
+      - ../db/init:/docker-entrypoint-initdb.d:ro   # schema runs on first start
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sentinel -d sentinel"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - sentinel
+
+  app:
+    image: sentinel:local
+    container_name: sentinel-app
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgres://sentinel:sentinel@sentinel-db:5432/sentinel
+      - DOCKER_HOST=tcp://docker-socket-proxy:2375
+    ports:
+      - "3000:3000"
+    depends_on:
+      sentinel-db:
+        condition: service_healthy
+      docker-socket-proxy:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - sentinel
+
+  # Worker microservice — snapshots + capacity finding, writing to the local DB.
+  # (Prod HA: keep a SINGLE instance, or add leader election, to avoid double-firing.)
+  worker:
+    build: ../worker
+    container_name: sentinel-worker
+    environment:
+      - DATABASE_URL=postgres://sentinel:sentinel@sentinel-db:5432/sentinel
+      - DOCKER_HOST=tcp://docker-socket-proxy:2375
+    depends_on:
+      sentinel-db:
+        condition: service_healthy
+      docker-socket-proxy:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - sentinel
+
+  # Read-only Docker API for the Infra module (monitoring only — POST=0).
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:0.2.0
+    container_name: sentinel-socket-proxy
+    environment:
+      - CONTAINERS=1
+      - POST=0
+      - INFO=1
+      - IMAGES=0
+      - NETWORKS=0
+      - VOLUMES=0
+      - SERVICES=0
+      - TASKS=0
+      - NODES=0
+      - SECRETS=0
+      - CONFIGS=0
+      - SWARM=0
+      - SYSTEM=0
+      - EXEC=0
+      - AUTH=0
+      - BUILD=0
+      - COMMIT=0
+      - PLUGINS=0
+      - DISTRIBUTION=0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+    networks:
+      - sentinel
+
+volumes:
+  sentinel-db-data:
+
+networks:
+  sentinel:
+    driver: bridge

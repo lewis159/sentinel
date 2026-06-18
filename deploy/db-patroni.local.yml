@@ -1,0 +1,70 @@
+# Sentinel — DB HA tier, Patroni edition (maintained: Spilo + etcd + HAProxy).
+#   docker compose -f deploy/db-patroni.local.yml up -d
+# HAProxy routes writes (:5434 host → 5432) to the current Patroni leader via
+# its REST API, so failover routing is automatic and config-free.
+# Failover test: `docker stop sentinel-patroni-1` (if leader) → Patroni promotes
+# the other → HAProxy re-routes; the app (on haproxy:5432) keeps working.
+
+x-spilo-env: &spilo-env
+  SCOPE: sentinel
+  PGVERSION: "16"
+  ETCD3_HOSTS: "etcd:2379"
+  PGPASSWORD_SUPERUSER: superpass
+  PGPASSWORD_ADMIN: adminpass
+  PGPASSWORD_STANDBY: standbypass
+
+services:
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.17
+    container_name: sentinel-etcd
+    command:
+      - etcd
+      - --name=etcd0
+      - --data-dir=/etcd-data
+      - --advertise-client-urls=http://etcd:2379
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --initial-advertise-peer-urls=http://etcd:2380
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --initial-cluster=etcd0=http://etcd:2380
+    networks: [patroni]
+
+  patroni-1:
+    image: ghcr.io/zalando/spilo-16:3.3-p1
+    container_name: sentinel-patroni-1
+    hostname: patroni-1
+    environment: *spilo-env
+    volumes:
+      - patroni1-data:/home/postgres/pgdata
+    depends_on: [etcd]
+    networks: [patroni]
+
+  patroni-2:
+    image: ghcr.io/zalando/spilo-16:3.3-p1
+    container_name: sentinel-patroni-2
+    hostname: patroni-2
+    environment: *spilo-env
+    volumes:
+      - patroni2-data:/home/postgres/pgdata
+    depends_on: [etcd]
+    networks: [patroni]
+
+  haproxy:
+    image: haproxy:2.9-alpine
+    container_name: sentinel-haproxy
+    ports:
+      - "5434:5432"   # writes → leader  (host 5434 to avoid the single-db on 5432)
+      - "5435:5433"   # reads  → replicas
+      - "7000:7000"   # haproxy stats
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    depends_on: [patroni-1, patroni-2]
+    networks: [patroni]
+
+volumes:
+  patroni1-data:
+  patroni2-data:
+
+networks:
+  patroni:
+    name: sentinel-patroni
+    driver: bridge

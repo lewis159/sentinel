@@ -1,0 +1,387 @@
+# =============================================================================
+# Sentinel — PRODUCTION Docker Swarm stack (full HA topology) for ops.bentech.dev
+# =============================================================================
+# Deploy:  docker stack deploy -c deploy/sentinel-stack.prod.yml sentinel
+#   (or via Portainer → Stacks → Add Stack, Swarm mode)
+# This is a config artifact / launch-reference design — heavily commented.
+# It is Swarm-only (uses `deploy:`, configs, secrets, overlay networks).
+#
+# Image is built by GitHub Actions and pushed to GHCR on push to main.
+# Update after a new build:
+#   docker service update --image ghcr.io/lewis159/sentinel:latest --force sentinel_app
+#
+# -----------------------------------------------------------------------------
+# NODE-ROLE PLAN
+# -----------------------------------------------------------------------------
+# Launch on 2 nodes, designed to grow to 3 without re-architecting:
+#
+#   node-1  role=workload  pgnode=a   (manager) — app/worker + Patroni member A
+#   node-2  role=workload  pgnode=b   (manager) — app/worker + Patroni member B
+#   node-3  role=mgmt                 (added later) — Portainer + Sentinel mgmt,
+#                                       3rd etcd member, app/worker spread target
+#
+# Operator MUST set node labels before deploy (run on a manager):
+#   docker node update --label-add role=workload --label-add pgnode=a <node-1-id>
+#   docker node update --label-add role=workload --label-add pgnode=b <node-2-id>
+#   # When the 3rd node joins:
+#   docker node update --label-add role=mgmt <node-3-id>
+#
+# Labels used by this stack:
+#   node.labels.role   in {workload, mgmt}   — app/worker spread + mgmt pinning
+#   node.labels.pgnode in {a, b}             — pins each Patroni member to a
+#                                              distinct node (anti-affinity) so
+#                                              node-local pgdata volumes are stable.
+#
+# -----------------------------------------------------------------------------
+# 2 -> 3 NODE GROWTH NOTES
+# -----------------------------------------------------------------------------
+# * etcd starts at replicas:1 (single-member DCS, fine for 2-node launch). At the
+#   3-node stage, bump to replicas:3 + max_replicas_per_node:1 (see etcd service)
+#   for a true quorum DCS. That is a deliberate, planned migration — going 1 -> 3
+#   members needs a reconfigure (static peers / discovery), not a hot scale.
+# * Patroni stays at exactly 2 members (a/b) pinned by pgnode label. A 3rd DB
+#   member is optional later; the DCS quorum is what gains most from node 3.
+# * app/worker use placement.preferences spread so new nodes absorb replicas
+#   automatically — just `docker service scale` after node 3 joins.
+#
+# -----------------------------------------------------------------------------
+# SECRETS — MUST be Docker secrets, never plaintext
+# -----------------------------------------------------------------------------
+# The local files use plaintext passwords (superpass/adminpass/standbypass) and a
+# baked DATABASE_URL — that is DEV ONLY. In prod, create real secrets first:
+#
+#   printf '%s' 'REDACTED' | docker secret create pg_superuser_password -
+#   printf '%s' 'REDACTED' | docker secret create pg_admin_password -
+#   printf '%s' 'REDACTED' | docker secret create pg_standby_password -
+#   printf '%s' 'postgresql://sentinel:REDACTED@haproxy:5432/sentinel' \
+#       | docker secret create sentinel_database_url -
+#
+# Spilo reads PGPASSWORD_* from *_FILE env vars (secret file paths). The app/worker
+# read DATABASE_URL from a secret file via DATABASE_URL_FILE (or an entrypoint that
+# exports it). Rotate by recreate-secret + `docker service update`.
+#
+# -----------------------------------------------------------------------------
+# CONFIGS — haproxy.cfg ships as a Swarm config (immutable, versioned)
+# -----------------------------------------------------------------------------
+#   docker config create sentinel_haproxy_v1 deploy/haproxy.cfg
+# The prod haproxy.cfg targets the Patroni service DNS names on the overlay. The
+# local cfg names servers `patroni-1/patroni-2` — for prod, point them at
+# `patroni-a` / `patroni-b` (the service names below) before creating the config.
+# Swarm configs are immutable: to change, create a NEW config (…_v2) and update.
+#
+# -----------------------------------------------------------------------------
+# INGRESS — ops.bentech.dev
+# -----------------------------------------------------------------------------
+# Public routing for ops.bentech.dev is handled by the EXISTING nginx HA tier on
+# the shared external `proxy` overlay (same pattern as the YT Transcriber stack) —
+# it is NOT redefined here. That nginx proxies to the `app` service over `proxy`.
+# We deliberately drop the local `nginx-lb` sidecar: Swarm's routing mesh + the
+# external nginx HA already load-balance across app replicas.
+# =============================================================================
+
+version: "3.8"
+
+# -----------------------------------------------------------------------------
+# Shared Spilo env (mirrors x-spilo-env in db-patroni.local.yml; passwords come
+# from secret files in prod, not inline plaintext).
+# -----------------------------------------------------------------------------
+x-spilo-env: &spilo-env
+  SCOPE: sentinel
+  PGVERSION: "16"
+  ETCD3_HOSTS: "etcd:2379"
+  PGPASSWORD_SUPERUSER_FILE: /run/secrets/pg_superuser_password
+  PGPASSWORD_ADMIN_FILE: /run/secrets/pg_admin_password
+  PGPASSWORD_STANDBY_FILE: /run/secrets/pg_standby_password
+
+services:
+
+  # ===========================================================================
+  # etcd — Patroni's Distributed Configuration Store (DCS / leader election)
+  # ===========================================================================
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.17
+    command:
+      - etcd
+      - --name=etcd0
+      - --data-dir=/etcd-data
+      - --advertise-client-urls=http://etcd:2379
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --initial-advertise-peer-urls=http://etcd:2380
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --initial-cluster=etcd0=http://etcd:2380
+    volumes:
+      - etcd-data:/etcd-data
+    networks: [sentinel]
+    deploy:
+      # 2-NODE LAUNCH: single DCS member (quorum-of-one, no DCS fault tolerance).
+      # Patroni tolerates a brief DCS blip, so this is acceptable for launch.
+      replicas: 1
+      labels:
+        - "project=Sentinel"
+        - "project.component=etcd"
+        - "project.env=prod"
+      placement:
+        constraints: [node.labels.role == mgmt]
+        # 3-NODE STAGE — replace the block above with a true 3-member quorum:
+        #   replicas: 3
+        #   placement:
+        #     max_replicas_per_node: 1
+        # AND switch --initial-cluster to static etcd0/1/2 peers (or a discovery
+        # token). This is a planned migration, not a live `service scale`.
+      restart_policy: { condition: any }
+      resources:
+        limits: { memory: 256M }
+
+  # ===========================================================================
+  # patroni-a / patroni-b — Spilo (Patroni + PostgreSQL 16)
+  # Two distinct services so each pins to a different node via the pgnode label
+  # (anti-affinity) and keeps its node-local pgdata volume across restarts.
+  # NOTE: Patroni — not repmgr — runs leader election via etcd. The anti-affinity
+  # is what guarantees a single node loss never takes down both DB members.
+  # ===========================================================================
+  patroni-a:
+    image: ghcr.io/zalando/spilo-16:3.3-p1
+    hostname: patroni-a
+    environment:
+      <<: *spilo-env
+    secrets:
+      - pg_superuser_password
+      - pg_admin_password
+      - pg_standby_password
+    volumes:
+      - patroni-a-data:/home/postgres/pgdata   # node-local; never migrate nodes
+    networks: [sentinel]
+    deploy:
+      replicas: 1
+      labels:
+        - "project=Sentinel"
+        - "project.component=patroni-a"
+        - "project.env=prod"
+      placement:
+        constraints: [node.labels.pgnode == a]   # pin to node A
+      restart_policy: { condition: any }
+      update_config: { order: stop-first }        # let Patroni stop cleanly
+      resources:
+        limits: { memory: 1G }
+
+  patroni-b:
+    image: ghcr.io/zalando/spilo-16:3.3-p1
+    hostname: patroni-b
+    environment:
+      <<: *spilo-env
+    secrets:
+      - pg_superuser_password
+      - pg_admin_password
+      - pg_standby_password
+    volumes:
+      - patroni-b-data:/home/postgres/pgdata
+    networks: [sentinel]
+    deploy:
+      replicas: 1
+      labels:
+        - "project=Sentinel"
+        - "project.component=patroni-b"
+        - "project.env=prod"
+      placement:
+        constraints: [node.labels.pgnode == b]   # pin to node B (anti-affinity)
+      restart_policy: { condition: any }
+      update_config: { order: stop-first }
+      resources:
+        limits: { memory: 1G }
+
+  # ===========================================================================
+  # haproxy — DB entrypoint (writes->leader, reads->replicas). Replicated so the
+  # DB front door is NOT a single point of failure. The app connects to the
+  # `haproxy` service name; overlay DNS / routing mesh load-balances across both
+  # HAProxy tasks, and each task health-checks Patroni REST (:8008) to find the
+  # live leader — identical logic to deploy/haproxy.cfg.
+  # ===========================================================================
+  haproxy:
+    image: haproxy:2.9-alpine
+    configs:
+      - source: sentinel_haproxy_v1
+        target: /usr/local/etc/haproxy/haproxy.cfg
+        mode: 0444
+    networks: [sentinel]
+    # No published ports: app talks to it in-overlay on 5432/5433.
+    deploy:
+      replicas: 2                      # 2 front doors (no SPOF)
+      # mode: global                   # alt: exactly one HAProxy per node
+      labels:
+        - "project=Sentinel"
+        - "project.component=haproxy"
+        - "project.env=prod"
+      placement:
+        preferences:
+          - spread: node.labels.role   # don't stack both on one node
+      restart_policy: { condition: any }
+      update_config: { order: start-first, parallelism: 1 }
+      resources:
+        limits: { memory: 128M }
+
+  # ===========================================================================
+  # app — stateless Sentinel API/UI. Scale freely. Fronted by the external nginx
+  # HA tier on the `proxy` network for ops.bentech.dev.
+  # ===========================================================================
+  app:
+    image: ghcr.io/lewis159/sentinel:latest   # operator: pin to a release tag in prod, not :latest
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_APP_URL=https://ops.bentech.dev
+      - DATABASE_URL_FILE=/run/secrets/sentinel_database_url   # -> haproxy:5432 (leader)
+      - DOCKER_HOST=tcp://socket-proxy:2375
+      # --- Phase 2 wiring (uncomment when functionality lands) ---
+      # - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      # - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      # - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      # - CLERK_SECRET_KEY=${CLERK_SECRET_KEY}
+      # - HERMES_URL=${HERMES_URL}
+      # - OPS_INGEST_SECRET=${OPS_INGEST_SECRET}
+    secrets:
+      - sentinel_database_url
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/ping || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - sentinel        # DB (haproxy) + socket-proxy
+      - proxy           # external — shared with nginx HA for ops.bentech.dev routing
+    deploy:
+      replicas: 3
+      labels:
+        - "project=Sentinel"
+        - "project.component=app"
+        - "project.env=prod"
+      placement:
+        preferences:
+          - spread: node.labels.role   # spread replicas across nodes/roles
+      update_config:
+        order: start-first             # zero-downtime rollouts
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      resources:
+        limits: { memory: 512M }
+
+  # ===========================================================================
+  # worker — queue-based job pool (ops.jobs, SKIP LOCKED). Replicas are safe
+  # because the queue guarantees single-processing — no leader election needed.
+  # ===========================================================================
+  worker:
+    # Operator: confirm the worker image with CI. Either the shared repo with a
+    # :worker tag (shown) or a dedicated build artifact.
+    image: ghcr.io/lewis159/sentinel:worker
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL_FILE=/run/secrets/sentinel_database_url
+      - DOCKER_HOST=tcp://socket-proxy:2375
+    secrets:
+      - sentinel_database_url
+    networks: [sentinel]
+    deploy:
+      replicas: 2
+      labels:
+        - "project=Sentinel"
+        - "project.component=worker"
+        - "project.env=prod"
+      placement:
+        preferences:
+          - spread: node.labels.role
+      restart_policy: { condition: on-failure }
+      resources:
+        limits: { memory: 512M }
+
+  # ===========================================================================
+  # socket-proxy — read-only Docker API for the Infra module + worker snapshots.
+  # GLOBAL: one task per node so Sentinel sees every node's local containers.
+  # POST=0 keeps it strictly read-only (matches local).
+  # ===========================================================================
+  socket-proxy:
+    image: tecnativa/docker-socket-proxy:0.2.0
+    environment:
+      - CONTAINERS=1
+      - POST=0
+      - INFO=1
+      - IMAGES=0
+      - NETWORKS=0
+      - VOLUMES=0
+      - SERVICES=0   # see trade-off note below
+      - TASKS=0
+      - NODES=0
+      - SECRETS=0
+      - CONFIGS=0
+      - SWARM=0
+      - SYSTEM=0
+      - EXEC=0
+      - AUTH=0
+      - BUILD=0
+      - COMMIT=0
+      - PLUGINS=0
+      - DISTRIBUTION=0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [sentinel]
+    deploy:
+      mode: global                     # one per node = full per-node visibility
+      labels:
+        - "project=Sentinel"
+        - "project.component=socket-proxy"
+        - "project.env=prod"
+      # TRADE-OFF: the per-node local Docker API needs no manager pinning, so
+      # `global` is correct for container visibility. BUT the swarm-wide API
+      # (SERVICES/TASKS/NODES/SWARM) is ONLY answered by managers. If Sentinel
+      # needs the cluster-level view, run a SECOND socket-proxy service
+      # constrained to `node.role == manager` with SERVICES=1/TASKS=1/NODES=1,
+      # and keep this global one read-only + container-scoped.
+      restart_policy: { condition: any }
+      resources:
+        limits: { memory: 64M }
+
+# =============================================================================
+# Named volumes — node-local. Patroni volumes live wherever the pgnode label
+# pins them; do NOT use a shared/clustered driver for pgdata.
+# =============================================================================
+volumes:
+  etcd-data:
+  patroni-a-data:
+  patroni-b-data:
+
+# =============================================================================
+# Configs — created out-of-band (immutable). See header for `docker config create`.
+# =============================================================================
+configs:
+  sentinel_haproxy_v1:
+    external: true
+
+# =============================================================================
+# Secrets — created out-of-band. See header for `docker secret create`.
+# =============================================================================
+secrets:
+  pg_superuser_password:
+    external: true
+  pg_admin_password:
+    external: true
+  pg_standby_password:
+    external: true
+  sentinel_database_url:
+    external: true
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  # Internal overlay for DB + app + worker + socket-proxy; encrypted node-to-node.
+  sentinel:
+    driver: overlay
+    attachable: false
+    driver_opts:
+      encrypted: "true"
+  # Shared ingress overlay owned by the existing nginx HA tier (YT pattern).
+  proxy:
+    external: true
+    name: proxy

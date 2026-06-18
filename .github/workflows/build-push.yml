@@ -1,0 +1,43 @@
+name: Build & Push Sentinel
+
+# Builds the Sentinel image and pushes it to GHCR on every push to main,
+# or manually via the Actions tab. Deploy is a separate manual step in
+# Portainer (docker service update / re-pull the stack).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/lewis159/sentinel:latest
+            ghcr.io/lewis159/sentinel:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # NEXT_PUBLIC_* values are baked at build time — add them as build-args
+          # here when the auth/data wiring lands (Phase 2). None needed yet.
+          # build-args: |
+          #   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}

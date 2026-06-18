@@ -1,0 +1,26 @@
+# Local development / single-host run of Sentinel.
+#   docker compose up --build         → http://localhost:3000
+# This builds the image from the local Dockerfile (no GHCR needed).
+
+services:
+  sentinel:
+    build: .
+    image: sentinel:local
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_APP_URL=http://localhost:3000
+      # - DOCKER_HOST=tcp://docker-socket-proxy:2375   # uncomment to test infra monitoring locally
+    restart: unless-stopped
+    # depends_on:
+    #   - docker-socket-proxy
+
+  # Optional: enable to exercise the Infra module against your local Docker.
+  # docker-socket-proxy:
+  #   image: tecnativa/docker-socket-proxy:0.2.0
+  #   environment:
+  #     - CONTAINERS=1
+  #     - POST=0
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock:ro

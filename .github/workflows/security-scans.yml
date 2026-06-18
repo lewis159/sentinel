@@ -1,0 +1,218 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Sentinel · Security scans (webhook-in ingest)
+# ─────────────────────────────────────────────────────────────────────────────
+# These are the REAL scanners that feed Sentinel. Each job runs an external
+# security tool, transforms its output into Sentinel's ingest `findings` shape,
+# signs the JSON body with an HMAC, and POSTs it to the webhook-in ingest API:
+#
+#     POST ${SENTINEL_INGEST_URL}/api/ops/ingest/<source>
+#     header: x-ingest-signature: <hex HMAC-SHA256(body, OPS_INGEST_SECRET)>
+#
+# This is the "webhook-in" path — the scanner pushes findings INTO Sentinel from
+# CI — as opposed to the worker's in-network header scan, where Sentinel reaches
+# out from inside the stack. Sentinel upserts on a stable per-finding fingerprint
+# and self-heals: when a later scan no longer reports a finding, that source's
+# stale findings are auto-marked `fixed` (unless an operator override-locked them).
+#
+# ── Required GitHub repository secrets ───────────────────────────────────────
+#   SENTINEL_INGEST_URL   Base URL of the Sentinel app, e.g. https://sentinel.bentech.dev
+#                         (NO trailing slash — the workflow appends /api/ops/ingest/<source>)
+#   OPS_INGEST_SECRET     Shared HMAC secret. MUST match the OPS_INGEST_SECRET env
+#                         var set on the Sentinel app/container. The ingest route
+#                         returns 503 if it is unset there, 401 on signature mismatch.
+#
+# Note: signature is computed with `openssl dgst -sha256 -hmac` over the EXACT
+# bytes we send (the file on disk), since the ingest route verifies the raw body.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Security scans
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Nightly full re-scan at 02:30 UTC. Re-scans are what drive self-healing:
+    # findings that disappear between runs get auto-resolved by the ingest route.
+    - cron: '30 2 * * *'
+  workflow_dispatch: {}
+
+# Avoid piling up overlapping scan runs on rapid pushes.
+concurrency:
+  group: security-scans-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ───────────────────────────────────────────────────────────────────────────
+  # 1) npm audit → /api/ops/ingest/npm-audit
+  # ───────────────────────────────────────────────────────────────────────────
+  npm-audit:
+    name: npm audit → Sentinel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Produce the audit report. continue-on-error: a non-zero exit just means
+      # vulnerabilities were found — that's the whole point, don't fail the job.
+      - name: Run npm audit
+        id: audit
+        continue-on-error: true
+        run: npm audit --json > npm-audit.json || true
+
+      # Transform npm's advisory map into Sentinel's `findings` array with a small
+      # inline node script (jq struggles with npm's nested vulnerability shape).
+      - name: Transform advisories → findings
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          let raw = {};
+          try { raw = JSON.parse(fs.readFileSync('npm-audit.json', 'utf8')); } catch {}
+          // npm v7+ schema: raw.vulnerabilities is a map keyed by package name.
+          const vulns = raw.vulnerabilities || {};
+          const sevMap = { critical: 'critical', high: 'high', moderate: 'medium', low: 'low', info: 'info' };
+          const findings = [];
+          for (const [name, v] of Object.entries(vulns)) {
+            const via = Array.isArray(v.via) ? v.via.find(x => typeof x === 'object') : null;
+            const cwe = via && Array.isArray(via.cwe) ? via.cwe[0] : '';
+            findings.push({
+              title: `${name}: ${via && via.title ? via.title : (v.severity || 'vulnerability')}`,
+              description: `npm audit: ${name} ${v.range || ''} — fix available: ${!!v.fixAvailable}`,
+              severity: sevMap[v.severity] || 'medium',
+              cvss: via && via.cvss && via.cvss.score ? via.cvss.score : null,
+              cwe: cwe || '',
+              component: name,
+              evidence: { range: v.range || null, fixAvailable: v.fixAvailable || false, source: via && via.source ? via.source : null },
+            });
+          }
+          fs.writeFileSync('payload.json', JSON.stringify({ findings }));
+          console.log(`Prepared ${findings.length} npm-audit findings`);
+          NODE
+
+      - name: Sign and POST to Sentinel
+        env:
+          SENTINEL_INGEST_URL: ${{ secrets.SENTINEL_INGEST_URL }}
+          OPS_INGEST_SECRET: ${{ secrets.OPS_INGEST_SECRET }}
+        run: |
+          SIG=$(openssl dgst -sha256 -hmac "$OPS_INGEST_SECRET" payload.json | awk '{print $NF}')
+          curl -sS -X POST "$SENTINEL_INGEST_URL/api/ops/ingest/npm-audit" \
+            -H "content-type: application/json" \
+            -H "x-ingest-signature: $SIG" \
+            --data-binary @payload.json
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # 2) gitleaks (secret scanning) → /api/ops/ingest/gitleaks
+  # ───────────────────────────────────────────────────────────────────────────
+  gitleaks:
+    name: gitleaks → Sentinel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so gitleaks can scan past commits
+
+      # Use the gitleaks CLI directly so we control the JSON report path. The
+      # gitleaks-action is an alternative but emits SARIF; CLI --report-format json
+      # maps more cleanly to our findings shape. Exit code 1 = leaks found.
+      - name: Run gitleaks
+        id: gitleaks
+        continue-on-error: true
+        run: |
+          curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz \
+            | tar -xz gitleaks
+          ./gitleaks detect --no-banner --redact --report-format json --report-path gitleaks.json || true
+
+      - name: Transform leaks → findings
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          let leaks = [];
+          try { leaks = JSON.parse(fs.readFileSync('gitleaks.json', 'utf8')) || []; } catch {}
+          const findings = leaks.map(l => ({
+            // Stable fingerprint: gitleaks gives us one; reuse it so re-scans converge.
+            fingerprint: l.Fingerprint || undefined,
+            title: `Secret leaked: ${l.RuleID || 'unknown rule'} in ${l.File || '?'}`,
+            description: `${l.Description || 'Potential secret'} (commit ${l.Commit ? l.Commit.slice(0,8) : '?'}, line ${l.StartLine || '?'})`,
+            severity: 'high',
+            cwe: 'CWE-798', // Use of hard-coded credentials
+            component: l.File || '',
+            evidence: { rule: l.RuleID, file: l.File, line: l.StartLine, commit: l.Commit, author: l.Author },
+          }));
+          fs.writeFileSync('payload.json', JSON.stringify({ findings }));
+          console.log(`Prepared ${findings.length} gitleaks findings`);
+          NODE
+
+      - name: Sign and POST to Sentinel
+        env:
+          SENTINEL_INGEST_URL: ${{ secrets.SENTINEL_INGEST_URL }}
+          OPS_INGEST_SECRET: ${{ secrets.OPS_INGEST_SECRET }}
+        run: |
+          SIG=$(openssl dgst -sha256 -hmac "$OPS_INGEST_SECRET" payload.json | awk '{print $NF}')
+          curl -sS -X POST "$SENTINEL_INGEST_URL/api/ops/ingest/gitleaks" \
+            -H "content-type: application/json" \
+            -H "x-ingest-signature: $SIG" \
+            --data-binary @payload.json
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # 3) Trivy (image vulnerability scan) → /api/ops/ingest/trivy
+  # ───────────────────────────────────────────────────────────────────────────
+  trivy:
+    name: Trivy image scan → Sentinel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Build the image we actually ship, then scan THAT (not just the source).
+      - name: Build image
+        run: docker build -t sentinel:scan .
+
+      # aquasecurity/trivy-action emits JSON we transform below. exit-code 0 so a
+      # vulnerable image doesn't fail CI — Sentinel is the system of record.
+      - name: Run Trivy
+        uses: aquasecurity/trivy-action@0.24.0
+        continue-on-error: true
+        with:
+          image-ref: 'sentinel:scan'
+          format: 'json'
+          output: 'trivy.json'
+          severity: 'LOW,MEDIUM,HIGH,CRITICAL'
+          exit-code: '0'
+
+      - name: Transform Trivy results → findings
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          let raw = {};
+          try { raw = JSON.parse(fs.readFileSync('trivy.json', 'utf8')); } catch {}
+          const sevMap = { CRITICAL: 'critical', HIGH: 'high', MEDIUM: 'medium', LOW: 'low', UNKNOWN: 'info' };
+          const findings = [];
+          for (const res of (raw.Results || [])) {
+            for (const v of (res.Vulnerabilities || [])) {
+              const cvss = v.CVSS && (v.CVSS.nvd || v.CVSS.redhat);
+              findings.push({
+                title: `${v.VulnerabilityID}: ${v.PkgName}`,
+                description: v.Title || v.Description || v.VulnerabilityID,
+                severity: sevMap[v.Severity] || 'medium',
+                cvss: cvss && cvss.V3Score ? cvss.V3Score : null,
+                cwe: Array.isArray(v.CweIDs) && v.CweIDs.length ? v.CweIDs[0] : '',
+                component: `${v.PkgName}@${v.InstalledVersion || '?'}`,
+                evidence: { id: v.VulnerabilityID, target: res.Target, fixedVersion: v.FixedVersion || null, primaryURL: v.PrimaryURL || null },
+              });
+            }
+          }
+          fs.writeFileSync('payload.json', JSON.stringify({ findings }));
+          console.log(`Prepared ${findings.length} trivy findings`);
+          NODE
+
+      - name: Sign and POST to Sentinel
+        env:
+          SENTINEL_INGEST_URL: ${{ secrets.SENTINEL_INGEST_URL }}
+          OPS_INGEST_SECRET: ${{ secrets.OPS_INGEST_SECRET }}
+        run: |
+          SIG=$(openssl dgst -sha256 -hmac "$OPS_INGEST_SECRET" payload.json | awk '{print $NF}')
+          curl -sS -X POST "$SENTINEL_INGEST_URL/api/ops/ingest/trivy" \
+            -H "content-type: application/json" \
+            -H "x-ingest-signature: $SIG" \
+            --data-binary @payload.json
