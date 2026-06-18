@@ -1,44 +1,33 @@
 # =============================================================================
 # Sentinel — APP-ONLY validation stack for ops.bentech.dev
 # =============================================================================
-# PURPOSE: stand up JUST the Next.js app so we can VALIDATE prod Clerk sign-in /
-# SSO and the global_admin gate end-to-end against ops.bentech.dev — WITHOUT the
-# full HA database tier. There is intentionally NO database here.
+# PURPOSE: stand up JUST the Next.js app to VALIDATE prod Clerk sign-in / SSO and
+# the global_admin gate end-to-end against ops.bentech.dev — WITHOUT the full HA
+# database tier. There is intentionally NO database here (DB-less validation).
 #
-#   * No DATABASE_URL is set. lib/db.ts sets `hasDb = false` when DATABASE_URL is
-#     unset, and q()/q1() return empty results — so every page renders, but all
-#     DATA pages will be EMPTY. That is expected and fine for auth validation.
-#     Real data lands when the full HA stack (sentinel-stack.prod.yml) is deployed.
+#   * No DATABASE_URL: lib/db.ts sets hasDb=false and queries return [], so pages
+#     render but DATA pages are EMPTY. Real data lands with the full HA stack.
 #
-# SECRETS vs ENV:
-#   * CLERK_SECRET_KEY is sensitive → supplied as a DOCKER SECRET (clerk_secret_key).
-#     The image entrypoint shim (docker-entrypoint.sh) reads /run/secrets/clerk_secret_key
-#     at startup and exports it as the CLERK_SECRET_KEY env var the Clerk SDK expects.
-#     NOTE: a Swarm secret named `clerk_secret_key` ALREADY EXISTS on this Swarm
-#     (created 2026-06-18, holds the rotated prod sk_live_ for the SAME estate Clerk
-#     instance) — so you likely DON'T need to create it; this stack just references it.
-#   * NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is PUBLIC (inlined into the client bundle),
-#     so it stays a plain env var / build-arg — never a secret.
+# SECRETS — nothing to type in the env editor:
+#   * CLERK_SECRET_KEY (sk_live, the ONLY sensitive value) → DOCKER SECRET
+#     `clerk_secret_key` (already exists on this Swarm). The image entrypoint
+#     shim (docker-entrypoint.sh) reads /run/secrets/clerk_secret_key at startup
+#     and exports it as CLERK_SECRET_KEY. It never appears in this file.
+#   * The Clerk PUBLISHABLE key (pk_live) is NOT a secret — it's public, ships in
+#     the client JS bundle, and Next.js INLINES it at BUILD time. CI already baked
+#     it into the image via a build-arg, so it is NOT set here and there is NO env
+#     var to add at deploy. (A runtime secret can't change a build-time-inlined
+#     value anyway.)
 #
-# DEPLOY (Portainer, endpoint Id 3 "local" Swarm):
-#   1. Confirm the `clerk_secret_key` secret exists (Secrets) — reuse it. Only
-#      create it if missing:  printf '%s' 'sk_live_...' | docker secret create clerk_secret_key -
-#   2. Portainer → Stacks → Add stack, name it `sentinel-ops-app` (Swarm mode).
-#      (Per [[feedback-docker-cleanup]] this is a NEW stack — do not touch
+# DEPLOY (Portainer):
+#   1. Confirm the `clerk_secret_key` secret exists (Secrets) — reuse it.
+#   2. Stacks → Add stack, name it `sentinel-ops-app` (Swarm).
+#   3. Paste this file. NO environment variables to set. Deploy.
+#      (Per [[feedback-docker-cleanup]] this is a NEW stack — don't touch
 #       yt-transcriber / hermes-agent / springsteen-news.)
-#   3. Paste this file (or point at deploy/sentinel-stack.ops-app.yml).
-#   4. Stack env editor → set the public Clerk value:
-#        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = pk_live_...   (publishable, not secret)
-#   5. Deploy. The entrypoint turns the secret into CLERK_SECRET_KEY at runtime.
 #
-# INGRESS: the LIVE nginx HA / NPM tier lives on the external `yt-shared` overlay
-# (verified live — the YT app uses `yt-shared` for ingress, NOT `proxy`). Add an
-# NPM proxy host  ops.bentech.dev → app:3000  over `yt-shared`. No reverse proxy
-# is defined in this file.
-#
-# NOTE: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is ALSO baked into the image at build
-# time by CI (inlined into the client bundle); it's repeated at runtime so server
-# reads line up. Both must be the SAME prod publishable key.
+# INGRESS: NPM/nginx HA lives on the external `yt-shared` overlay (verified live).
+# Add an NPM proxy host  ops.bentech.dev → app:3000  over `yt-shared`.
 # =============================================================================
 
 version: "3.8"
@@ -46,20 +35,18 @@ version: "3.8"
 services:
 
   # ===========================================================================
-  # app — stateless Sentinel API/UI. Fronted by the LIVE nginx HA / NPM tier on
-  # the `yt-shared` network for ops.bentech.dev. DB-less for validation.
+  # app — stateless Sentinel API/UI, fronted by the LIVE NPM tier on `yt-shared`.
+  # DB-less for validation. Clerk publishable key is baked into the image.
   # ===========================================================================
   app:
     image: ghcr.io/lewis159/sentinel:latest
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_APP_URL=https://ops.bentech.dev
-      # Publishable key — PUBLIC, set in the Portainer stack env editor. Also
-      # baked into the image at build time (inlined into the client bundle).
-      - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
-      # CLERK_SECRET_KEY is NOT set here: it comes from the `clerk_secret_key`
-      # docker secret below, which the entrypoint shim exports at runtime.
-      # NO DATABASE_URL on purpose: lib/db.ts -> hasDb=false, queries return [].
+      # Clerk PUBLISHABLE key is baked into the image at BUILD time (CI build-arg,
+      # inlined into the bundle) — NOT a runtime secret, NOT set here.
+      # CLERK_SECRET_KEY comes from the `clerk_secret_key` docker secret (below),
+      # exported by the entrypoint shim. NO DATABASE_URL on purpose (hasDb=false).
     secrets:
       - clerk_secret_key
     healthcheck:
@@ -92,8 +79,7 @@ secrets:
     external: true
 
 # =============================================================================
-# Networks — the LIVE external ingress overlay. The nginx HA / NPM tier owns
-# `yt-shared` (verified live) and routes ops.bentech.dev → app:3000 over it.
+# Networks — the LIVE external ingress overlay (nginx HA / NPM owns yt-shared).
 # =============================================================================
 networks:
   yt-shared:
