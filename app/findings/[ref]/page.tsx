@@ -5,10 +5,12 @@ import { sevClass, sevLabel } from '@/lib/mock';
 import { LinksPanel } from '@/components/LinksPanel';
 import { RaiseTicketButton } from '@/components/RaiseTicketButton';
 import { StatusSelect } from '@/components/StatusSelect';
+import { requireGlobalAdminPage } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 export default async function FindingDetail({ params }: { params: Promise<{ ref: string }> }) {
+  await requireGlobalAdminPage();
   const { ref } = await params;
   const { row: f, live } = await getOneFinding(ref);
   if (!f) return notFound();

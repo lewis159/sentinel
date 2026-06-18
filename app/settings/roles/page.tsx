@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { requireGlobalAdminPage } from '@/lib/auth';
 
 const caps = [
   ['View', true, true, true],
@@ -19,7 +20,8 @@ const members = [
 
 const cell = (v: boolean) => (v ? <span style={{ color: 'var(--ok)', fontWeight: 700 }}>✓</span> : <span className="sub">—</span>);
 
-export default function RolesPage() {
+export default async function RolesPage() {
+  await requireGlobalAdminPage();
   return (
     <div>
       <div className="spread mb">

@@ -1,5 +1,6 @@
 import { getFindings, getTickets, getResilienceRuns } from '@/lib/data';
 import { sevLabel, type Severity } from '@/lib/mock';
+import { requireGlobalAdminPage } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +14,7 @@ const recent = [
 ];
 
 export default async function ReportsPage() {
+  await requireGlobalAdminPage();
   const [{ rows: findings, live: fLive }, { rows: tickets }, { rows: runs }] = await Promise.all([
     getFindings(),
     getTickets(),

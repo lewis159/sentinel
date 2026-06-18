@@ -1,3 +1,5 @@
+import { requireGlobalAdminPage } from '@/lib/auth';
+
 const services = [
   { name: 'App', uptime: '99.98%', ok: true },
   { name: 'API', uptime: '99.96%', ok: true },
@@ -6,7 +8,8 @@ const services = [
   { name: 'Workers', uptime: '99.40%', ok: true },
 ];
 
-export default function StatusPage() {
+export default async function StatusPage() {
+  await requireGlobalAdminPage();
   return (
     <div>
       <div className="h1 mb">System status</div>

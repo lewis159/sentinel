@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getContainers } from '@/lib/docker';
+import { requireGlobalAdminPage } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,6 +10,7 @@ const stateTag: Record<string, [string, string]> = {
 };
 
 export default async function InfraPage() {
+  await requireGlobalAdminPage();
   const { rows: containers, live } = await getContainers();
 
   const totalMem = containers.reduce((a, c) => a + c.mem, 0);

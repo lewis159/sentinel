@@ -1,11 +1,13 @@
 import Link from 'next/link';
+import { requireGlobalAdminPage } from '@/lib/auth';
 
 const field: React.CSSProperties = {
   width: '100%', background: '#0b0d12', border: '1px solid var(--border)', borderRadius: 10,
   padding: '10px 12px', color: 'var(--text)', fontSize: 13,
 };
 
-export default function NewTicketPage() {
+export default async function NewTicketPage() {
+  await requireGlobalAdminPage();
   return (
     <div>
       <div className="spread mb">

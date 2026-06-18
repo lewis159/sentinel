@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { requireGlobalAdminPage } from '@/lib/auth';
 
 const cards = [
   { href: '/settings/connectors', icon: '🔗', title: 'Connectors', desc: 'Configure how Sentinel connects to external systems — Supabase, Docker, Hermes and more.' },
@@ -9,7 +10,8 @@ const cards = [
   { href: '/account', icon: '👤', title: 'Account', desc: 'Your operator profile and personal preferences.' },
 ];
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  await requireGlobalAdminPage();
   return (
     <div>
       <div className="spread mb">

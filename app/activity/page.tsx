@@ -1,4 +1,5 @@
 import { activity } from '@/lib/mock';
+import { requireGlobalAdminPage } from '@/lib/auth';
 
 const earlier = [
   { icon: '🎫', text: 'Ticket OPS-0004 created — Roll out CSP + HSTS at nginx', when: 'Yesterday · 4:12 pm' },
@@ -23,7 +24,8 @@ function Feed({ items }: { items: { icon: string; text: string; when: string }[]
   );
 }
 
-export default function ActivityPage() {
+export default async function ActivityPage() {
+  await requireGlobalAdminPage();
   return (
     <div>
       <div className="spread mb">

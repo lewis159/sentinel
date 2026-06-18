@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { requireGlobalAdminPage } from '@/lib/auth';
 
 const toggles = [
   { label: 'Critical & high findings', on: true },
@@ -15,7 +16,8 @@ function Toggle({ on }: { on: boolean }) {
   );
 }
 
-export default function AccountPage() {
+export default async function AccountPage() {
+  await requireGlobalAdminPage();
   return (
     <div>
       <div className="spread mb">

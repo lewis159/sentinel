@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { rules } from '@/lib/mock';
+import { requireGlobalAdminPage } from '@/lib/auth';
 
 const field: React.CSSProperties = {
   width: '100%', background: '#0b0d12', border: '1px solid var(--border)', borderRadius: 10,
@@ -8,6 +9,7 @@ const field: React.CSSProperties = {
 };
 
 export default async function RuleEditor({ params }: { params: Promise<{ id: string }> }) {
+  await requireGlobalAdminPage();
   const { id } = await params;
   const r = rules.find((x) => x.id === id);
   if (!r) return notFound();

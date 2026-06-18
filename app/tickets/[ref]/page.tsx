@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { getOneTicket } from '@/lib/data';
 import { sevClass, sevLabel } from '@/lib/mock';
 import { LinksPanel, type Edge } from '@/components/LinksPanel';
+import { requireGlobalAdminPage } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +20,7 @@ const comments = [
 ];
 
 export default async function TicketDetail({ params }: { params: Promise<{ ref: string }> }) {
+  await requireGlobalAdminPage();
   const { ref } = await params;
   const { row: t, live } = await getOneTicket(ref);
   if (!t) return notFound();

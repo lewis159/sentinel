@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { incidents, sevClass, sevLabel } from '@/lib/mock';
 import { LinksPanel, type Edge } from '@/components/LinksPanel';
+import { requireGlobalAdminPage } from '@/lib/auth';
 
 const statusTag: Record<string, [string, string]> = {
   open: ['st-open', 'Open'], in_progress: ['st-prog', 'In progress'], resolved: ['st-done', 'Resolved'],
@@ -20,6 +21,7 @@ const linkedItems = [
 ];
 
 export default async function IncidentDetail({ params }: { params: Promise<{ id: string }> }) {
+  await requireGlobalAdminPage();
   const { id } = await params;
   const inc = incidents.find((x) => x.id === id);
   if (!inc) return notFound();

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { getAlerts } from '@/lib/data';
 import { sevClass, sevLabel } from '@/lib/mock';
+import { requireGlobalAdminPage } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,6 +10,7 @@ const statusTag: Record<string, [string, string]> = {
 };
 
 export default async function AlertsPage() {
+  await requireGlobalAdminPage();
   const { rows: alerts, live, note } = await getAlerts();
   return (
     <div>

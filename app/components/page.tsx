@@ -1,11 +1,13 @@
 import Link from 'next/link';
 import { components } from '@/lib/mock';
+import { requireGlobalAdminPage } from '@/lib/auth';
 
 const kindTag: Record<string, string> = {
   service: 'st-blue', infra: 'st-mute', route: 'st-prog',
 };
 
-export default function ComponentsPage() {
+export default async function ComponentsPage() {
+  await requireGlobalAdminPage();
   return (
     <div>
       <div className="spread mb">

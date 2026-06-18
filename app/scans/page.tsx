@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getCheckStats, getScanRuns } from '@/lib/data';
+import { requireGlobalAdminPage } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,6 +10,7 @@ const statusTag: Record<string, [string, string]> = {
 };
 
 export default async function ScansPage() {
+  await requireGlobalAdminPage();
   const { rows: checks, live, note } = await getCheckStats();
   const { rows: scanRuns } = await getScanRuns();
   return (

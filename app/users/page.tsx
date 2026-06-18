@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getUsers } from '@/lib/data';
+import { requireGlobalAdminPage } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +18,7 @@ function riskColor(risk: number) {
 }
 
 export default async function UsersPage() {
+  await requireGlobalAdminPage();
   const { rows: users, live, note } = await getUsers();
   const flagged = users.filter((u) => u.risk >= 30).length;
   const disposable = users.filter((u) => u.signals.some((s) => s.includes('Disposable'))).length;

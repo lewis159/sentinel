@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { components, containers, findings, sevClass, sevLabel } from '@/lib/mock';
 import { LinksPanel } from '@/components/LinksPanel';
+import { requireGlobalAdminPage } from '@/lib/auth';
 
 const kindTag: Record<string, string> = { service: 'st-blue', infra: 'st-mute', route: 'st-prog' };
 const stateTag: Record<string, [string, string]> = {
@@ -17,6 +18,7 @@ const runbooks = [
 ];
 
 export default async function ComponentDetail({ params }: { params: Promise<{ key: string }> }) {
+  await requireGlobalAdminPage();
   const { key } = await params;
   const decoded = decodeURIComponent(key);
   const comp = components.find((c) => c.key === decoded);

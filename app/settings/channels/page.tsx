@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { requireGlobalAdminPage } from '@/lib/auth';
 
 const channels = [
   { icon: '✉️', name: 'Email', target: 'sec-alerts@bentech.dev', on: true },
@@ -7,7 +8,8 @@ const channels = [
   { icon: '🪝', name: 'Generic webhook', target: 'https://hooks.bentech.dev/sentinel', on: true },
 ];
 
-export default function ChannelsPage() {
+export default async function ChannelsPage() {
+  await requireGlobalAdminPage();
   return (
     <div>
       <div className="spread mb">
