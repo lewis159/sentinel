@@ -216,3 +216,113 @@ jobs:
             -H "content-type: application/json" \
             -H "x-ingest-signature: $SIG" \
             --data-binary @payload.json
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # 4) AI security review (Claude) → /api/ops/ingest/ai-review
+  #    Semantic review the deterministic scanners miss: authz, injection, IDOR,
+  #    SSRF, business-logic. This source is EXCLUDED from ingest self-heal (AI
+  #    findings are non-deterministic) — operators resolve them manually.
+  #    Runs Claude with a read-only tool allowlist (no file writes, no arbitrary
+  #    shell): it can only read code and emit JSON findings.
+  # ───────────────────────────────────────────────────────────────────────────
+  ai-review:
+    name: AI security review → Sentinel
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Run Claude security review
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          cat > "$RUNNER_TEMP/ai-review-prompt.md" <<'PROMPT'
+          You are an automated security reviewer for this repository (a Next.js
+          app whose source is at the repo root: app/, components/, lib/, worker/,
+          db/, middleware.ts). Review the application source for GENUINE,
+          exploitable security vulnerabilities that dependency/secret/image
+          scanners miss: broken or missing authentication/authorization, SQL or
+          command injection, insecure direct object references (IDOR), SSRF, path
+          traversal, XSS, unsafe deserialization, exposed sensitive endpoints, and
+          insecure session/cookie/CORS handling. Be conservative — report only
+          findings you are confident are real and exploitable. No style nits.
+
+          OUTPUT: print ONLY a single JSON object — no prose, no explanation, no
+          markdown code fences — in exactly this shape:
+          {"findings":[
+            {
+              "title": "<short canonical title>",
+              "description": "<what it is, its impact, and a suggested fix>",
+              "severity": "critical|high|medium|low",
+              "cwe": "<CWE-id if known, else empty string>",
+              "file": "<primary affected file path, relative to repo root>",
+              "vulnClass": "<stable kebab-case class: missing-authz, sql-injection, idor, ssrf, xss, path-traversal, etc.>",
+              "line": <line number or null>
+            }
+          ]}
+          If you find nothing, print exactly {"findings":[]}. Do NOT modify files.
+          PROMPT
+          claude -p "$(cat "$RUNNER_TEMP/ai-review-prompt.md")" \
+            --allowedTools "Read,Grep,Glob" \
+            --max-turns 40 \
+            > "$RUNNER_TEMP/ai-out.txt" || true
+          echo "---- raw model output (first 40 lines) ----"
+          head -40 "$RUNNER_TEMP/ai-out.txt" || true
+
+      - name: Transform AI findings → Sentinel findings
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const crypto = require('crypto');
+          let raw = '';
+          try { raw = fs.readFileSync(process.env.RUNNER_TEMP + '/ai-out.txt', 'utf8'); } catch {}
+          // Strip markdown fences and isolate the JSON object defensively.
+          let txt = raw.replace(/```json/gi, '').replace(/```/g, '').trim();
+          const s = txt.indexOf('{'), e = txt.lastIndexOf('}');
+          let parsed = { findings: [] };
+          if (s !== -1 && e !== -1 && e > s) {
+            try { parsed = JSON.parse(txt.slice(s, e + 1)); }
+            catch (err) { console.log('JSON parse failed:', err.message); }
+          }
+          const sevOk = new Set(['critical', 'high', 'medium', 'low', 'info']);
+          const findings = (Array.isArray(parsed.findings) ? parsed.findings : [])
+            .map(f => {
+              const file = (f.file || '').toString();
+              const vulnClass = (f.vulnClass || '').toString();
+              // Stable fingerprint: keyed on file + vuln-class, independent of
+              // title/line phrasing, so re-runs converge on the same row.
+              const fingerprint = crypto.createHash('sha256')
+                .update(`ai-review:${file}:${vulnClass}`).digest('hex');
+              return {
+                fingerprint,
+                title: (f.title || `${vulnClass || 'security'} in ${file || 'app'}`).toString().slice(0, 300),
+                description: (f.description || '').toString(),
+                severity: sevOk.has((f.severity || '').toLowerCase()) ? f.severity.toLowerCase() : 'medium',
+                cwe: (f.cwe || '').toString(),
+                component: file,
+                evidence: { file, vulnClass, line: f.line ?? null, source: 'claude-ai-review' },
+              };
+            })
+            // Require file + vulnClass so every finding has a stable fingerprint.
+            .filter(f => f.component && f.evidence.vulnClass);
+          fs.writeFileSync('payload.json', JSON.stringify({ findings }));
+          console.log(`Prepared ${findings.length} AI-review findings`);
+          NODE
+
+      - name: Sign and POST to Sentinel
+        env:
+          SENTINEL_INGEST_URL: ${{ secrets.SENTINEL_INGEST_URL }}
+          OPS_INGEST_SECRET: ${{ secrets.OPS_INGEST_SECRET }}
+        run: |
+          SIG=$(openssl dgst -sha256 -hmac "$OPS_INGEST_SECRET" payload.json | awk '{print $NF}')
+          curl -sS -X POST "$SENTINEL_INGEST_URL/api/ops/ingest/ai-review" \
+            -H "content-type: application/json" \
+            -H "x-ingest-signature: $SIG" \
+            --data-binary @payload.json
