@@ -3,9 +3,10 @@
 # Sentinel runtime entrypoint shim (POSIX sh / Alpine)
 # -----------------------------------------------------------------------------
 # Docker/Swarm secrets are mounted as files at /run/secrets/<name>, but app
-# SDKs (e.g. Clerk reading CLERK_SECRET_KEY, pg reading DATABASE_URL) expect
-# ENVIRONMENT variables. This shim bridges that gap: it reads secret files into
-# env vars BEFORE the app starts, then execs the container CMD as PID 1's child.
+# SDKs (e.g. Clerk reading CLERK_SECRET_KEY / CLERK_ENCRYPTION_KEY, pg reading
+# DATABASE_URL) expect ENVIRONMENT variables. This shim bridges that gap: it
+# reads secret files into env vars BEFORE the app starts, then execs the
+# container CMD as PID 1's child.
 #
 # It never prints secret values. Two sources are supported per variable:
 #   1. Explicit pointer:  <VAR>_FILE=/path  -> read that path into <VAR>
@@ -19,22 +20,22 @@ set -e
 load_secret() {
   var_name="$1"
   file_path="$2"
-  # Current value of the named variable (empty if unset).
   eval "current=\${$var_name:-}"
   if [ -z "$current" ] && [ -f "$file_path" ] && [ -r "$file_path" ]; then
-    # Strip a single trailing newline that `docker secret create` may add.
     value="$(cat "$file_path")"
     export "$var_name=$value"
   fi
 }
 
 # 1) Honour explicit *_FILE pointers first.
-[ -n "${CLERK_SECRET_KEY_FILE:-}" ] && load_secret CLERK_SECRET_KEY "$CLERK_SECRET_KEY_FILE"
-[ -n "${DATABASE_URL_FILE:-}" ]     && load_secret DATABASE_URL     "$DATABASE_URL_FILE"
+[ -n "${CLERK_SECRET_KEY_FILE:-}" ]     && load_secret CLERK_SECRET_KEY     "$CLERK_SECRET_KEY_FILE"
+[ -n "${CLERK_ENCRYPTION_KEY_FILE:-}" ] && load_secret CLERK_ENCRYPTION_KEY "$CLERK_ENCRYPTION_KEY_FILE"
+[ -n "${DATABASE_URL_FILE:-}" ]         && load_secret DATABASE_URL         "$DATABASE_URL_FILE"
 
 # 2) Fall back to conventional secret mount paths.
-load_secret CLERK_SECRET_KEY /run/secrets/clerk_secret_key
-load_secret DATABASE_URL     /run/secrets/sentinel_database_url
+load_secret CLERK_SECRET_KEY     /run/secrets/clerk_secret_key
+load_secret CLERK_ENCRYPTION_KEY /run/secrets/clerk_encryption_key
+load_secret DATABASE_URL         /run/secrets/sentinel_database_url
 
 # Hand off to the container CMD (e.g. node server.js) as PID 1's child.
 exec "$@"

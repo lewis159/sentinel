@@ -49,6 +49,7 @@ services:
       # exported by the entrypoint shim. NO DATABASE_URL on purpose (hasDb=false).
     secrets:
       - clerk_secret_key
+      - clerk_encryption_key
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/ping || exit 1"]
       interval: 10s
@@ -76,6 +77,8 @@ services:
 # =============================================================================
 secrets:
   clerk_secret_key:
+    external: true
+  clerk_encryption_key:
     external: true
 
 # =============================================================================
