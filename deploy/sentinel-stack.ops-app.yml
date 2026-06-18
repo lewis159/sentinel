@@ -10,21 +10,30 @@
 #     DATA pages will be EMPTY. That is expected and fine for auth validation.
 #     Real data lands when the full HA stack (sentinel-stack.prod.yml) is deployed.
 #
-# SECRETS vs ENV — IMPORTANT DIFFERENCE FROM PROD:
-#   * The full HA stack (deploy/sentinel-stack.prod.yml) reads Clerk + DB creds
-#     from DOCKER SECRETS (/run/secrets/...). That is the production pattern.
-#   * THIS validation-only stack instead reads the Clerk keys from STACK
-#     ENVIRONMENT VARIABLES (set them in the Portainer stack env editor). This
-#     keeps validation quick — no `docker secret create` round-trips. Do NOT use
-#     this pattern for the real production deployment.
+# SECRETS vs ENV:
+#   * CLERK_SECRET_KEY is sensitive, so it is supplied as a DOCKER SECRET
+#     (clerk_secret_key) — the same pattern as the full HA prod stack. The image
+#     entrypoint shim (docker-entrypoint.sh) reads /run/secrets/clerk_secret_key
+#     at startup and exports it as the CLERK_SECRET_KEY env var the Clerk SDK
+#     expects. The secret never appears in the stack definition or env editor.
+#   * NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is PUBLIC (it is inlined into the client
+#     bundle), so it stays a plain env var / build-arg — never a secret.
+#   * There is still NO DATABASE_URL here (DB-less validation, see above).
+#
+# CREATE THE SECRET FIRST (one-time, before deploy):
+#   * Portainer: Secrets → Add secret → name `clerk_secret_key`, value = the
+#     `sk_live_...` Clerk secret key. (Swarm secrets are immutable; to rotate,
+#     delete + recreate the secret and redeploy / `docker service update`.)
+#   * OR via CLI on a manager node:
+#       printf '%s' 'sk_live_...' | docker secret create clerk_secret_key -
 #
 # DEPLOY (Portainer):
-#   1. Portainer → Stacks → Add stack, name it `sentinel-ops-app` (Swarm mode).
-#   2. Paste this file (or point at deploy/sentinel-stack.ops-app.yml).
-#   3. In the stack's Environment variables editor, set the two Clerk values:
+#   1. Create the `clerk_secret_key` secret as above.
+#   2. Portainer → Stacks → Add stack, name it `sentinel-ops-app` (Swarm mode).
+#   3. Paste this file (or point at deploy/sentinel-stack.ops-app.yml).
+#   4. In the stack's Environment variables editor, set the public Clerk value:
 #        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = pk_live_...   (publishable, not secret)
-#        CLERK_SECRET_KEY                  = sk_live_...    (secret)
-#   4. Deploy.
+#   5. Deploy. The entrypoint turns the secret into CLERK_SECRET_KEY at runtime.
 #
 # INGRESS: the EXISTING nginx HA / NPM tier on the shared external `proxy` overlay
 # must proxy  ops.bentech.dev → app:3000  over that `proxy` network (same pattern
@@ -48,13 +57,16 @@ services:
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_APP_URL=https://ops.bentech.dev
-      # Clerk keys — set in the Portainer stack env editor (NOT docker secrets;
-      # see header). Publishable key is also baked into the image at build time.
+      # Publishable key — PUBLIC, set in the Portainer stack env editor. Also
+      # baked into the image at build time (inlined into the client bundle).
       - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
-      - CLERK_SECRET_KEY=${CLERK_SECRET_KEY}
+      # CLERK_SECRET_KEY is NOT set here: it comes from the `clerk_secret_key`
+      # docker secret below, which the entrypoint shim exports at runtime.
       # NO DATABASE_URL on purpose: lib/db.ts -> hasDb=false, queries return [].
       # Data pages render EMPTY until the full HA stack (sentinel-stack.prod.yml)
       # lands. This stack validates Clerk auth + the global_admin gate only.
+    secrets:
+      - clerk_secret_key
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/ping || exit 1"]
       interval: 10s
@@ -75,6 +87,14 @@ services:
         max_attempts: 3
       resources:
         limits: { memory: 512M }
+
+# =============================================================================
+# Secrets — created out-of-band (see header). The entrypoint shim in the image
+# exports /run/secrets/clerk_secret_key into the CLERK_SECRET_KEY env var.
+# =============================================================================
+secrets:
+  clerk_secret_key:
+    external: true
 
 # =============================================================================
 # Networks — only the shared external ingress overlay. The nginx HA / NPM tier
