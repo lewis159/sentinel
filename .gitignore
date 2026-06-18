@@ -25,3 +25,6 @@ npm-debug.log*
 
 # design/build docs + generated PDFs — never committed
 /documents/
+
+# local tooling (preview server config)
+.claude/
