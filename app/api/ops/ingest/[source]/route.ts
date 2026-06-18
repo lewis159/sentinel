@@ -37,11 +37,15 @@ function signatureMatches(expected: string, provided: string): boolean {
   return crypto.timingSafeEqual(a, b);
 }
 
-// Sources whose findings are non-deterministic (e.g. the AI security review)
-// OPT OUT of auto self-heal: a finding the model simply fails to re-surface on a
-// later run must NOT be silently marked 'fixed'. Operators resolve these manually
-// in the Sentinel UI (and can override-lock to persist a decision).
-const SELF_HEAL_EXCLUDED_SOURCES = new Set(['ai-review']);
+// Any AI-review source (ai-review-sentinel, ai-review-youtube, …) OPTS OUT of
+// auto self-heal: AI findings are non-deterministic, so a finding the model
+// simply fails to re-surface on a later run must NOT be silently marked 'fixed'.
+// Operators resolve these manually in the Sentinel UI (and can override-lock to
+// persist a decision). Matched by PREFIX so a new app's AI source is covered
+// automatically, with no further edits to this route.
+function isSelfHealExcluded(source: string): boolean {
+  return source.startsWith('ai-review');
+}
 
 export async function POST(
   req: Request,
@@ -134,7 +138,7 @@ export async function POST(
     // THIS source that was NOT in this payload is now considered fixed. Guard on
     // a non-empty payload so a failed/empty scan doesn't mass-close real findings.
     let resolved = 0;
-    if (seenFingerprints.length > 0 && !SELF_HEAL_EXCLUDED_SOURCES.has(source)) {
+    if (seenFingerprints.length > 0 && !isSelfHealExcluded(source)) {
       const result = await q1<{ n: string }>(
         `with closed as (
            update ops.findings

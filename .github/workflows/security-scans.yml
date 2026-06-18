@@ -218,7 +218,7 @@ jobs:
             --data-binary @payload.json
 
   # ───────────────────────────────────────────────────────────────────────────
-  # 4) AI security review (Claude) → /api/ops/ingest/ai-review
+  # 4) AI security review (Claude) → /api/ops/ingest/ai-review-sentinel
   #    Semantic review the deterministic scanners miss: authz, injection, IDOR,
   #    SSRF, business-logic. This source is EXCLUDED from ingest self-heal (AI
   #    findings are non-deterministic) — operators resolve them manually.
@@ -299,7 +299,7 @@ jobs:
               // Stable fingerprint: keyed on file + vuln-class, independent of
               // title/line phrasing, so re-runs converge on the same row.
               const fingerprint = crypto.createHash('sha256')
-                .update(`ai-review:${file}:${vulnClass}`).digest('hex');
+                .update(`ai-review-sentinel:${file}:${vulnClass}`).digest('hex');
               return {
                 fingerprint,
                 title: (f.title || `${vulnClass || 'security'} in ${file || 'app'}`).toString().slice(0, 300),
@@ -322,7 +322,7 @@ jobs:
           OPS_INGEST_SECRET: ${{ secrets.OPS_INGEST_SECRET }}
         run: |
           SIG=$(openssl dgst -sha256 -hmac "$OPS_INGEST_SECRET" payload.json | awk '{print $NF}')
-          curl -sS -X POST "$SENTINEL_INGEST_URL/api/ops/ingest/ai-review" \
+          curl -sS -X POST "$SENTINEL_INGEST_URL/api/ops/ingest/ai-review-sentinel" \
             -H "content-type: application/json" \
             -H "x-ingest-signature: $SIG" \
             --data-binary @payload.json
