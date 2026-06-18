@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import { updateFindingStatus } from '@/lib/data';
+import { requireOpsAuth } from '@/lib/auth';
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ ref: string }> }) {
+  const denied = await requireOpsAuth();
+  if (denied) return denied;
   const { ref } = await params;
   try {
     const body = await req.json();

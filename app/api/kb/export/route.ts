@@ -5,9 +5,13 @@
 //
 // Future: a worker job or a Chrome-enabled sidecar could render on-demand and
 // stream the resulting PDF back from here.
+import { requireOpsAuth } from '@/lib/auth';
+
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
+  const denied = await requireOpsAuth();
+  if (denied) return denied;
   return Response.json({
     ok: false,
     note: 'Run `node scripts/build-kb-pdf.js` — PDF generation runs as an operator/CI script, not in the app container.',

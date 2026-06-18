@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { listConnectors, saveConnector } from '@/lib/connectors';
+import { requireOpsAuth } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,12 +13,16 @@ function maskKey(config: any) {
 }
 
 export async function GET() {
+  const denied = await requireOpsAuth();
+  if (denied) return denied;
   const rows = await listConnectors();
   const items = rows.map((c) => ({ ...c, config: maskKey(c.config) }));
   return NextResponse.json({ items });
 }
 
 export async function POST(req: Request) {
+  const denied = await requireOpsAuth();
+  if (denied) return denied;
   try {
     const body = await req.json();
     const { name, type, config, enabled } = body ?? {};
