@@ -1,11 +1,7 @@
-import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
+import { clerkClient, clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 
 // Public routes — no auth at all.
-//   - /sign-in(.*)         : the sign-in page itself
-//   - /api/ping            : container liveness healthcheck
-//   - /api/ops/ingest/(.*) : webhook-in scanners, HMAC-verified in-route (the
-//                            signer has no Clerk cookie — do NOT Clerk-gate)
 const isPublicRoute = createRouteMatcher([
   '/sign-in(.*)',
   '/api/ping',
@@ -15,13 +11,10 @@ const isPublicRoute = createRouteMatcher([
 // API routes get JSON 401/403 instead of HTML redirects.
 const isApiRoute = createRouteMatcher(['/api/(.*)']);
 
-// /unauthorized must render for signed-in NON-admins (it's the role-denied
-// redirect target) — gate it on being signed in, not on the role.
+// /unauthorized must render for signed-in NON-admins (the role-denied target).
 const isUnauthorizedRoute = createRouteMatcher(['/unauthorized']);
 
-// Estate subdomains that share the bentech.dev Clerk instance. Clerk validates
-// the session's `azp` against this list — hardening for the multi-subdomain
-// setup. Add each new *.bentech.dev app here as it onboards.
+// Estate subdomains sharing the bentech.dev Clerk instance (azp validation).
 const AUTHORIZED_PARTIES = [
   'https://yt.bentech.dev',
   'https://ops.bentech.dev',
@@ -36,26 +29,37 @@ export default clerkMiddleware(
 
     const { userId, sessionClaims, redirectToSignIn } = await auth();
 
-    // 1) Authentication — must be signed in.
+    // 1) Authentication.
     if (!userId) {
-      if (isApiRoute(req)) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
+      if (isApiRoute(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       return redirectToSignIn();
     }
 
     // Signed-in users may reach /unauthorized so the role-denied page renders.
     if (isUnauthorizedRoute(req)) return;
 
-    // 2) Authorization (Phase-0) — must be global_admin. Role is read from the
-    // session token's publicMetadata claim (requires the "Customize session
-    // token" claim { "publicMetadata": "{{user.public_metadata}}" } on the
-    // SAME Clerk instance these keys belong to — dev instance for localhost).
-    const role = (sessionClaims?.publicMetadata as { role?: unknown } | undefined)?.role;
-    if (role !== GLOBAL_ADMIN) {
-      if (isApiRoute(req)) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    // 2) Authorization (Phase-0): must be global_admin.
+    // Fast path: read role from the session token's publicMetadata claim (needs
+    // the "Customize session token" claim). Fallback: look the user up via the
+    // Clerk API, so the gate works even without that claim configured.
+    let role = (sessionClaims as { publicMetadata?: { role?: unknown } } | null)?.publicMetadata?.role;
+    let roleSource = 'session';
+    if (role === undefined) {
+      try {
+        const client = await clerkClient();
+        const user = await client.users.getUser(userId);
+        role = (user.publicMetadata as { role?: unknown } | undefined)?.role;
+        roleSource = 'api';
+      } catch {
+        roleSource = 'api-error';
       }
+    }
+
+    // TEMP DEBUG — remove after diagnosing the 403.
+    console.log('[AUTH-DEBUG]', JSON.stringify({ path: req.nextUrl.pathname, roleSource, roleRead: role ?? '(none)' }));
+
+    if (role !== GLOBAL_ADMIN) {
+      if (isApiRoute(req)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       return NextResponse.redirect(new URL('/unauthorized', req.url));
     }
   },

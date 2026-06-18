@@ -1,4 +1,4 @@
-import { auth } from '@clerk/nextjs/server';
+import { auth, clerkClient } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { redirect } from 'next/navigation';
 
@@ -13,10 +13,20 @@ const GLOBAL_ADMIN = 'global_admin';
 
 async function getSessionRole(): Promise<{ userId: string | null; role: unknown }> {
   const { userId, sessionClaims } = await auth();
-  // Clerk surfaces publicMetadata on the session token. (publicMetadata is the
-  // default claim location; if a custom JWT template renames it this is where
-  // to adjust.)
-  const role = (sessionClaims?.publicMetadata as { role?: unknown } | undefined)?.role;
+  if (!userId) return { userId: null, role: undefined };
+  // Fast path: role from the session token's publicMetadata claim (requires the
+  // "Customize session token" claim). Fallback: look the user up via the Clerk
+  // API so this works even without that claim configured.
+  let role = (sessionClaims?.publicMetadata as { role?: unknown } | undefined)?.role;
+  if (role === undefined) {
+    try {
+      const client = await clerkClient();
+      const user = await client.users.getUser(userId);
+      role = (user.publicMetadata as { role?: unknown } | undefined)?.role;
+    } catch {
+      /* leave role undefined → treated as not authorized */
+    }
+  }
   return { userId, role };
 }
 
