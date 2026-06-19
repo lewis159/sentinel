@@ -195,6 +195,21 @@ td .t { font-weight: 600; } td .d { color: var(--muted); font-size: 11.5px; marg
 .sv-row[data-on="true"] { background: rgba(45,108,255,.10); border-left: 2px solid var(--blue); }
 .sv-row .sv-title { font-weight: 600; font-size: 13px; line-height: 1.4; }
 
+/* ---------- Service management: ticket detail (header + two-column body) ---------- */
+.td-grid { display: grid; grid-template-columns: 1fr 320px; gap: 16px; align-items: start; }
+@media (max-width: 900px) { .td-grid { grid-template-columns: 1fr; } }
+
+/* Activity timeline + composer */
+.act-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+.act-item { border-left: 2px solid var(--border); padding: 2px 0 2px 12px; }
+.act-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap; }
+.act-author { font-weight: 600; font-size: 12.5px; color: var(--text); }
+.act-time { color: var(--faint); font-size: 11px; }
+.act-badge { display: inline-flex; align-items: center; padding: 1px 7px; border-radius: 6px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; background: #222838; color: var(--muted); }
+.act-badge.is-update { background: rgba(45,108,255,.14); color: #7fa8ff; }
+.act-body { color: #c8cedb; font-size: 13px; line-height: 1.55; white-space: pre-wrap; }
+.act-composer { border-top: 1px solid var(--border-soft); padding-top: 14px; }
+
 /* ---------- Kanban board ---------- */
 .kanban { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; align-items: flex-start; }
 .kanban-col { flex: 0 0 248px; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; }

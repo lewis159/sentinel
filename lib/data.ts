@@ -567,6 +567,65 @@ export async function updateTicket(
   return { row: data ? mapServiceTicket(data) : null };
 }
 
+// ---------- Ticket activity / updates (ops.comments) ----------
+export type TicketComment = {
+  id: string;
+  author: string;
+  kind: string;
+  body: string;
+  createdAt: string;
+};
+
+function mapComment(r: any): TicketComment {
+  const meta = (typeof r.metadata === 'string' ? safeJson(r.metadata) : r.metadata) ?? {};
+  return {
+    id: String(r.id),
+    author: meta.author ?? 'System',
+    kind: r.kind ?? 'comment',
+    body: r.body ?? '',
+    createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : r.created_at,
+  };
+}
+
+// Timeline of updates/comments for one ITIL ticket (oldest → newest). Resolves
+// ref → ticket id, then reads ops.comments. Mock fallback returns [].
+export async function getTicketComments(ref: string): Promise<TicketComment[]> {
+  if (!hasDb) return [];
+  try {
+    const t = await q1<{ id: string }>('select id from ops.tickets where ref=$1', [ref]);
+    if (!t) return [];
+    const rows = await q<any>(
+      'select id, body, kind, metadata, created_at from ops.comments where ticket_id=$1 order by created_at asc',
+      [t.id]
+    );
+    return rows.map(mapComment);
+  } catch {
+    return [];
+  }
+}
+
+// Append an update/comment to a ticket. The author LABEL (Clerk user name/id, or
+// 'Claude') is stored in metadata->>'author'; author_user_id stays null because
+// ops.comments.author_user_id is a uuid and Clerk ids are text. Returns the new
+// row, or null if the ticket ref doesn't resolve / no DB.
+export async function addTicketComment(
+  ref: string,
+  body: string,
+  author: string,
+  kind = 'update'
+): Promise<TicketComment | null> {
+  if (!hasDb) throw new Error('no DB');
+  const t = await q1<{ id: string }>('select id from ops.tickets where ref=$1', [ref]);
+  if (!t) return null;
+  const row = await q1<any>(
+    `insert into ops.comments (ticket_id, author_user_id, body, kind, metadata)
+     values ($1, null, $2, $3, $4::jsonb)
+     returning id, body, kind, metadata, created_at`,
+    [t.id, body, kind, JSON.stringify({ author })]
+  );
+  return row ? mapComment(row) : null;
+}
+
 // ---------- Roadmap (ops.roadmap_items) ----------
 function mapRoadmap(r: any): RoadmapItem {
   return {
