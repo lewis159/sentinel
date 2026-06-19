@@ -72,6 +72,11 @@ a { color: inherit; text-decoration: none; }
 .nav a:hover { background: rgba(255,255,255,.04); color: var(--text); }
 .nav a.active { background: rgba(45,108,255,.14); color: #fff; font-weight: 600; }
 .nav a .ic { width: 18px; text-align: center; opacity: .9; }
+/* accordion group header (collapsible nav groups) */
+.nav .group.acc { display: flex; align-items: center; justify-content: space-between; width: 100%; background: none; border: none; cursor: pointer; font-family: inherit; }
+.nav .group.acc:hover { color: var(--muted); }
+.nav .group.acc.open { color: var(--blue); }
+.nav .group.acc .acc-caret { font-size: 9px; opacity: .7; }
 
 .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .topbar {
@@ -83,6 +88,14 @@ a { color: inherit; text-decoration: none; }
 .topbar .crumb b { color: var(--text); }
 .topbar .right { display: flex; align-items: center; gap: 10px; }
 .content { padding: 22px; max-width: 1320px; width: 100%; }
+
+/* Page-level breadcrumb (Operations › Service management › Section) */
+.bc { display: flex; align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+.bc-item { display: inline-flex; align-items: center; }
+.bc-link { color: var(--muted); }
+.bc-link:hover { color: var(--text); }
+.bc-cur { color: var(--text); font-weight: 600; }
+.bc-sep { color: var(--faint); margin: 0 8px; }
 
 /* Traversal trail (records the path through links) */
 .trail { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 22px; background: #0c0e13; border-bottom: 1px solid var(--border); font-size: 12.5px; position: sticky; top: 56px; z-index: 25; }
@@ -176,6 +189,34 @@ td .t { font-weight: 600; } td .d { color: var(--muted); font-size: 11.5px; marg
 .placeholder { border: 1px dashed var(--border); border-radius: var(--radius); padding: 40px; text-align: center; color: var(--muted); }
 .placeholder .big { font-size: 30px; margin-bottom: 10px; }
 
+/* ---------- Service management: master-detail list ---------- */
+.sv-row { display: block; width: 100%; text-align: left; background: none; border: none; border-bottom: 1px solid var(--border-soft); padding: 12px 14px; cursor: pointer; color: var(--text); font-family: inherit; }
+.sv-row:hover { background: rgba(255,255,255,.025); }
+.sv-row[data-on="true"] { background: rgba(45,108,255,.10); border-left: 2px solid var(--blue); }
+.sv-row .sv-title { font-weight: 600; font-size: 13px; line-height: 1.4; }
+
+/* ---------- Kanban board ---------- */
+.kanban { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; align-items: flex-start; }
+.kanban-col { flex: 0 0 248px; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; }
+.kanban-col-h { display: flex; align-items: center; justify-content: space-between; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; padding: 2px 4px 10px; }
+.kanban-count { background: var(--panel-2); border-radius: 10px; padding: 1px 8px; font-size: 11px; color: var(--muted); }
+.kanban-cards { display: flex; flex-direction: column; gap: 8px; }
+.kanban-empty { color: var(--faint); font-size: 12px; text-align: center; padding: 10px 0; }
+.kanban-card { display: block; background: var(--panel); border: 1px solid var(--border); border-radius: 9px; padding: 10px 11px; cursor: pointer; }
+.kanban-card:hover { border-color: rgba(45,108,255,.5); }
+.kanban-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.kanban-card-title { font-weight: 600; font-size: 12.5px; line-height: 1.4; }
+
+/* ---------- Change calendar (month / week grid) ---------- */
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.cal-weekday { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; padding: 2px 4px 4px; }
+.cal-cell { min-height: 92px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; padding: 6px; display: flex; flex-direction: column; gap: 4px; }
+.cal-cell[data-dim="true"] { opacity: .4; }
+.cal-cell[data-today="true"] { border-color: rgba(45,108,255,.55); }
+.cal-date { font-size: 11px; color: var(--muted); font-weight: 600; }
+.cal-event { display: flex; align-items: center; gap: 5px; padding: 3px 6px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+.cal-event-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* ---------- KB rendered markdown (marked → HTML) ---------- */
 .kb-prose { color: var(--text); line-height: 1.7; font-size: 14px; max-width: 860px; }
 .kb-prose > :first-child { margin-top: 0; }
@@ -222,5 +263,34 @@ td .t { font-weight: 600; } td .d { color: var(--muted); font-size: 11.5px; marg
 .kb-prose thead th { text-align: left; color: var(--muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: #11141c; }
 .kb-prose tbody td { padding: 11px 14px; font-size: 13px; border-bottom: 1px solid var(--border-soft); vertical-align: top; }
 .kb-prose tbody tr:last-child td { border-bottom: none; }
+
+/* ---------- Form controls (modals, inline edit) ---------- */
+.field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 13px; }
+.field > label { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; font-weight: 600; color: var(--muted); }
+.input, .select, .textarea {
+  width: 100%; background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 11px; font-size: 13px; color: var(--text); font-family: inherit; box-sizing: border-box;
+}
+.input:focus, .select:focus, .textarea:focus { outline: none; border-color: var(--blue); }
+.textarea { resize: vertical; min-height: 78px; line-height: 1.5; }
+.select { cursor: pointer; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.form-err { color: #ff8b8e; font-size: 12px; margin: 2px 0 10px; }
+
+/* ---------- Modal ---------- */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(8,10,14,.66); backdrop-filter: blur(2px);
+  display: flex; align-items: flex-start; justify-content: center; padding: 8vh 16px; z-index: 100;
+}
+.modal {
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  width: 100%; max-width: 540px; max-height: 84vh; overflow-y: auto; box-shadow: 0 24px 60px rgba(0,0,0,.5);
+}
+.modal-h { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid var(--border); }
+.modal-h h3 { font-size: 15px; font-weight: 700; }
+.modal-body { padding: 18px; }
+.modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 18px; border-top: 1px solid var(--border); }
+.modal-x { background: none; border: none; color: var(--muted); font-size: 20px; line-height: 1; cursor: pointer; padding: 0 4px; }
+.modal-x:hover { color: var(--text); }
 
 .kb-prose img { max-width: 100%; height: auto; border: 1px solid var(--border); border-radius: 10px; margin: 14px 0; display: block; }

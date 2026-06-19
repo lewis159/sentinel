@@ -10,10 +10,12 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 //   - /sign-in(.*)            : the sign-in page
 //   - /api/ping               : container liveness healthcheck
 //   - /api/ops/ingest/(.*)    : webhook-in scanners, HMAC-verified in-route
+//   - /api/ingest/issue       : estate-app report-issue widget (token/HMAC in-route)
 const isPublicRoute = createRouteMatcher([
   '/sign-in(.*)',
   '/api/ping',
   '/api/ops/ingest/(.*)',
+  '/api/ingest/issue',
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

@@ -7,31 +7,31 @@ import { MetricCards, sectionMetrics } from '@/components/MetricCards';
 
 export const dynamic = 'force-dynamic';
 
-export default async function IncidentsPage() {
+export default async function ProblemsPage() {
   await requireGlobalAdminPage();
-  const { rows, live, note } = await getTicketsByKind('incident');
-  const open = rows.filter((t) => t.status === 'open' || t.status === 'in_progress').length;
+  const { rows, live, note } = await getTicketsByKind('problem');
+  const knownErrors = rows.filter((t) => t.status === 'known_error').length;
 
   return (
     <div>
       <Breadcrumb items={[
         { label: 'Operations' },
         { label: 'Service management' },
-        { label: 'Incidents' },
+        { label: 'Problems' },
       ]} />
       <div className="spread mb">
         <div>
           <div className="row" style={{ gap: 10 }}>
-            <div className="h1">Incidents</div>
-            <LiveBadge live={live} table="ops.tickets · incident" note={note} />
+            <div className="h1">Problems</div>
+            <LiveBadge live={live} table="ops.tickets · problem" note={note} />
           </div>
-          <div className="sub">{open} open · unplanned interruptions to service</div>
+          <div className="sub">{knownErrors} known errors · root-cause records behind recurring incidents</div>
         </div>
       </div>
 
-      <MetricCards metrics={sectionMetrics('incident', rows)} />
+      <MetricCards metrics={sectionMetrics('problem', rows)} />
 
-      <SectionView kind="incident" tickets={rows} />
+      <SectionView kind="problem" tickets={rows} />
     </div>
   );
 }

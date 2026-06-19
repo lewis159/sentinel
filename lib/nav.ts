@@ -1,6 +1,8 @@
 // Sentinel navigation — two workspaces (Security / Operations) in one app.
 export type NavItem = { label: string; href: string; icon: string };
-export type NavGroup = { group?: string; items: NavItem[] };
+// `collapsible` groups render as accordions in the Sidebar (only one open at a
+// time) so the sidebar width stays fixed as the estate grows.
+export type NavGroup = { group?: string; items: NavItem[]; collapsible?: boolean };
 export type Workspace = 'security' | 'operations';
 
 export const WORKSPACES: Record<Workspace, { label: string; icon: string; home: string; nav: NavGroup[] }> = {
@@ -15,7 +17,6 @@ export const WORKSPACES: Record<Workspace, { label: string; icon: string; home: 
         items: [
           { label: 'Findings', href: '/findings', icon: '⚠' },
           { label: 'Scans & Checks', href: '/scans', icon: '◎' },
-          { label: 'User Audit', href: '/users', icon: '◰' },
         ],
       },
       {
@@ -51,6 +52,31 @@ export const WORKSPACES: Record<Workspace, { label: string; icon: string; home: 
         ],
       },
       {
+        group: 'Service management',
+        collapsible: true,
+        items: [
+          { label: 'Incidents', href: '/incidents', icon: '🚨' },
+          { label: 'Requests', href: '/requests', icon: '📝' },
+          { label: 'Changes', href: '/changes', icon: '🔧' },
+          { label: 'Problems', href: '/problems', icon: '🧩' },
+          { label: 'Releases', href: '/releases', icon: '🚀' },
+        ],
+      },
+      {
+        group: 'Access',
+        items: [
+          { label: 'User Access', href: '/users', icon: '👤' },
+        ],
+      },
+      {
+        group: 'Delivery',
+        collapsible: true,
+        items: [
+          { label: 'Roadmap', href: '/roadmap', icon: '🗺' },
+          { label: 'Changelog', href: '/changelog', icon: '🗒' },
+        ],
+      },
+      {
         group: 'Signals',
         items: [
           { label: 'Alerts', href: '/alerts', icon: '🔔' },
@@ -69,9 +95,14 @@ export const WORKSPACES: Record<Workspace, { label: string; icon: string; home: 
 };
 
 // Routes uniquely owned by one workspace — used to auto-switch when you land there.
+// Service-management sections live in Operations (per the IA brief). `incidents`
+// stays owned by Security for now (the Security/Ops IA review is a later pass).
 const OWNS: Record<string, Workspace> = {
-  findings: 'security', tickets: 'security', users: 'security', incidents: 'security',
+  findings: 'security', tickets: 'security', incidents: 'security',
   infra: 'operations', components: 'operations', activity: 'operations', resilience: 'operations',
+  users: 'operations',
+  requests: 'operations', changes: 'operations', problems: 'operations', releases: 'operations',
+  roadmap: 'operations', changelog: 'operations',
 };
 
 export function inferWorkspace(pathname: string): Workspace | null {

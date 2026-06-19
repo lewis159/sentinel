@@ -8,7 +8,11 @@
 import { hasDb, q, q1 } from './db';
 import { getSupabase } from './connectors';
 import * as mock from './mock';
-import type { Finding, Ticket, AbuseUser, Severity } from './mock';
+import { KIND_STATUSES } from './mock';
+import type {
+  Finding, Ticket, AbuseUser, Severity,
+  ServiceTicket, TicketKind, RoadmapItem, ChangelogEntry,
+} from './mock';
 
 export type Sourced<T> = { rows: T[]; live: boolean; note?: string };
 
@@ -375,6 +379,238 @@ export async function getPlatformStats(): Promise<{ users: number; videos: numbe
     users: u.count ?? 0, videos: v.count ?? 0, transcripts: t.count ?? 0,
     live: !u.error && !v.error,
   };
+}
+
+// ---------- Service management (ITIL) — ops.tickets extended ----------
+function mapServiceTicket(r: any): ServiceTicket {
+  const attrs = (typeof r.attrs === 'string' ? safeJson(r.attrs) : r.attrs) ?? {};
+  return {
+    ref: r.ref,
+    kind: (r.kind ?? 'incident') as TicketKind,
+    title: r.title,
+    description: r.description ?? '',
+    status: r.status ?? 'open',
+    priority: (r.priority ?? 'medium') as Severity,
+    impact: r.impact ?? '—',
+    urgency: r.urgency ?? '—',
+    app: r.app ?? 'Estate',
+    assignee: attrs.assignee ?? '—',
+    source: r.source ?? 'manual',
+    slaDue: r.sla_due ? (r.sla_due instanceof Date ? r.sla_due.toISOString() : r.sla_due) : null,
+    age: rel(r.opened_at ?? r.created_at),
+    attrs,
+  };
+}
+
+function safeJson(s: string): any {
+  try { return JSON.parse(s); } catch { return {}; }
+}
+
+const TICKET_COLS =
+  'ref,kind,title,description,status,priority,impact,urgency,app,source,sla_due,opened_at,created_at,attrs';
+
+// All ITIL records of a given kind (incident|request|change|problem|release).
+export async function getTicketsByKind(kind: TicketKind): Promise<Sourced<ServiceTicket>> {
+  const fallback = () => mock.serviceTickets.filter((t) => t.kind === kind);
+  if (!hasDb) return { rows: fallback(), live: false, note: 'no DB' };
+  try {
+    const data = await q<any>(
+      `select ${TICKET_COLS} from ops.tickets where kind=$1 order by opened_at desc nulls last`,
+      [kind]
+    );
+    if (data.length === 0) return { rows: fallback(), live: false, note: 'empty' };
+    return { rows: data.map(mapServiceTicket), live: true };
+  } catch (e: any) {
+    return { rows: fallback(), live: false, note: e?.message ?? 'error' };
+  }
+}
+
+// Single ITIL record by ref (used by the detail pane / detail route).
+export async function getServiceTicket(ref: string): Promise<{ row: ServiceTicket | null; live: boolean }> {
+  const fallback = () => mock.serviceTickets.find((t) => t.ref === ref) ?? null;
+  if (!hasDb) return { row: fallback(), live: false };
+  try {
+    const data = await q1<any>(`select ${TICKET_COLS} from ops.tickets where ref=$1`, [ref]);
+    if (!data) return { row: fallback(), live: false };
+    return { row: mapServiceTicket(data), live: true };
+  } catch {
+    return { row: fallback(), live: false };
+  }
+}
+
+// ---------- Service management writes (server-only) ----------
+
+// Per-kind ref prefixes — must match ops.next_ticket_ref() in
+// db/init/03_itil_ticket_refs.sql.
+const KIND_PREFIX: Record<TicketKind, string> = {
+  incident: 'INC', request: 'REQ', change: 'CHG', problem: 'PRB', release: 'REL',
+};
+
+// ITIL impact×urgency → priority matrix. Both axes are high|medium|low; the
+// result is one of the Severity bands the UI renders.
+const IMPACT_RANK: Record<string, number> = { high: 3, medium: 2, low: 1 };
+export function derivePriority(impact?: string, urgency?: string): Severity {
+  const score = (IMPACT_RANK[impact ?? ''] ?? 2) + (IMPACT_RANK[urgency ?? ''] ?? 2);
+  if (score >= 6) return 'critical';
+  if (score >= 5) return 'high';
+  if (score >= 3) return 'medium';
+  return 'low';
+}
+
+export type CreateTicketInput = {
+  kind: TicketKind;
+  title: string;
+  description?: string;
+  app?: string;            // YT|Sentinel|Bruce|Estate
+  impact?: string;         // high|medium|low
+  urgency?: string;        // high|medium|low
+  priority?: Severity;     // optional explicit override of the matrix
+  status?: string;
+  source?: string;
+  slaDue?: string | null;
+  attrs?: Record<string, any>;
+};
+
+// Insert a new ITIL record. Mints a per-kind ref (INC-/REQ-/CHG-/PRB-/REL-####)
+// via ops.next_ticket_ref() and passes it explicitly so the legacy OPS- trigger
+// is bypassed. Returns the new ref.
+export async function createTicket(input: CreateTicketInput): Promise<{ ref: string }> {
+  if (!hasDb) throw new Error('no DB');
+  const kind = input.kind;
+  const status = input.status ?? (KIND_STATUSES[kind]?.[0] ?? 'open');
+  const priority = input.priority ?? derivePriority(input.impact, input.urgency);
+
+  // Mint the ref SQL-side (race-safe sequence). Fall back to a counted ref if
+  // the function is missing (e.g. migration 03 not yet applied).
+  let ref: string;
+  try {
+    const minted = await q1<{ ref: string }>('select ops.next_ticket_ref($1) as ref', [kind]);
+    ref = minted?.ref ?? '';
+  } catch {
+    ref = '';
+  }
+  if (!ref) {
+    const prefix = KIND_PREFIX[kind] ?? 'OPS';
+    const row = await q1<{ n: string }>(
+      'select count(*)::text as n from ops.tickets where kind=$1',
+      [kind]
+    );
+    const n = (row ? Number(row.n) : 0) + 1;
+    ref = `${prefix}-${String(n).padStart(4, '0')}`;
+  }
+
+  const inserted = await q1<{ ref: string }>(
+    `insert into ops.tickets
+       (ref, kind, type, title, description, status, priority, impact, urgency, app, source, sla_due, attrs)
+     values
+       ($1, $2, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb)
+     returning ref`,
+    [
+      ref,
+      kind,
+      input.title,
+      input.description ?? null,
+      status,
+      priority,
+      input.impact ?? null,
+      input.urgency ?? null,
+      input.app ?? 'Estate',
+      input.source ?? 'manual',
+      input.slaDue ?? null,
+      JSON.stringify(input.attrs ?? {}),
+    ]
+  );
+  if (!inserted) throw new Error('insert failed');
+  return { ref: inserted.ref };
+}
+
+export type UpdateTicketInput = {
+  status?: string;
+  assignee?: string;       // stored in attrs.assignee (no users table dependency)
+  priority?: Severity;
+  impact?: string;
+  urgency?: string;
+  attrs?: Record<string, any>;  // shallow-merged into existing attrs
+};
+
+// Patch a ticket's workflow fields. `assignee` and any `attrs` are merged into
+// the jsonb attrs column; status/priority/impact/urgency update their columns.
+// Returns the updated row mapped to a ServiceTicket.
+export async function updateTicket(
+  ref: string,
+  patch: UpdateTicketInput
+): Promise<{ row: ServiceTicket | null }> {
+  if (!hasDb) throw new Error('no DB');
+
+  // Merge attrs first (assignee lives in attrs alongside any passed attrs).
+  const attrMerge: Record<string, any> = { ...(patch.attrs ?? {}) };
+  if (patch.assignee !== undefined) attrMerge.assignee = patch.assignee;
+
+  const sets: string[] = [];
+  const vals: any[] = [ref];
+  const add = (frag: string, val: any) => { vals.push(val); sets.push(frag.replace('?', `$${vals.length}`)); };
+
+  if (patch.status !== undefined) add('status = ?', patch.status);
+  if (patch.priority !== undefined) add('priority = ?', patch.priority);
+  if (patch.impact !== undefined) add('impact = ?', patch.impact);
+  if (patch.urgency !== undefined) add('urgency = ?', patch.urgency);
+  if (Object.keys(attrMerge).length > 0) add('attrs = ops.tickets.attrs || ?::jsonb', JSON.stringify(attrMerge));
+
+  if (sets.length === 0) {
+    return getServiceTicket(ref).then((r) => ({ row: r.row }));
+  }
+
+  const data = await q1<any>(
+    `update ops.tickets set ${sets.join(', ')} where ref=$1 returning ${TICKET_COLS}`,
+    vals
+  );
+  return { row: data ? mapServiceTicket(data) : null };
+}
+
+// ---------- Roadmap (ops.roadmap_items) ----------
+function mapRoadmap(r: any): RoadmapItem {
+  return {
+    itemKey: r.item_key,
+    title: r.title,
+    description: r.description ?? '',
+    status: r.status ?? 'backlog',
+    app: r.app ?? 'Estate',
+    sortOrder: Number(r.sort_order) || 0,
+  };
+}
+
+export async function getRoadmap(): Promise<Sourced<RoadmapItem>> {
+  if (!hasDb) return { rows: mock.roadmapItems, live: false, note: 'no DB' };
+  try {
+    const data = await q<any>(
+      'select item_key,title,description,status,app,sort_order from ops.roadmap_items order by sort_order asc, created_at asc'
+    );
+    if (data.length === 0) return { rows: mock.roadmapItems, live: false, note: 'empty' };
+    return { rows: data.map(mapRoadmap), live: true };
+  } catch (e: any) {
+    return { rows: mock.roadmapItems, live: false, note: e?.message ?? 'error' };
+  }
+}
+
+// ---------- Changelog (ops.changelog_entries) ----------
+export async function getChangelog(): Promise<Sourced<ChangelogEntry>> {
+  if (!hasDb) return { rows: mock.changelogEntries, live: false, note: 'no DB' };
+  try {
+    const data = await q<any>(
+      'select version,label,date,body,app from ops.changelog_entries order by date desc'
+    );
+    if (data.length === 0) return { rows: mock.changelogEntries, live: false, note: 'empty' };
+    const rows: ChangelogEntry[] = data.map((r) => ({
+      version: r.version ?? '',
+      label: r.label ?? '',
+      date: r.date instanceof Date ? r.date.toISOString() : r.date,
+      body: r.body ?? '',
+      app: r.app ?? 'Estate',
+    }));
+    return { rows, live: true };
+  } catch (e: any) {
+    return { rows: mock.changelogEntries, live: false, note: e?.message ?? 'error' };
+  }
 }
 
 // ---------- Connectivity probe (for a status badge) ----------
