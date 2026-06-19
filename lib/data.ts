@@ -619,6 +619,90 @@ export async function updateTicket(
   return { row: data ? mapServiceTicket(data) : null };
 }
 
+// ---------- Related-record creation + linking (ops.links) ----------
+
+// Relation labels written into ops.links when one ticket spawns another. The
+// source ticket is always the `src` side; the new/target ticket is the `dst`
+// side, so the linked-records panel reads them via getTicketEdges either way.
+const RELATED_RELATION: Record<'problem' | 'change', string> = {
+  problem: 'has_problem',
+  change: 'has_change',
+};
+
+// Create a new ITIL record (problem|change) FROM an existing source ticket and
+// link the two via ops.links (src=source ticket ref, dst=new ticket ref). Copies
+// the source's app + impact/urgency and derives a sensible title/description. The
+// new record's status defaults to the first workflow state for its kind. Returns
+// the new ref. Idempotency isn't attempted — each click mints a fresh record.
+export async function createRelatedTicket(
+  sourceRef: string,
+  kind: 'problem' | 'change'
+): Promise<{ ok: boolean; ref?: string; error?: string }> {
+  if (!hasDb) throw new Error('no DB');
+
+  const { row: source } = await getServiceTicket(sourceRef);
+  if (!source) return { ok: false, error: `ticket ${sourceRef} not found` };
+
+  const title =
+    kind === 'problem'
+      ? `Problem: ${source.title}`
+      : `Change for ${source.ref}`;
+
+  const description =
+    kind === 'problem'
+      ? `Problem investigation raised from ${source.ref} — ${source.title}.\n\n${source.description ?? ''}`.trim()
+      : `Change raised from ${source.ref} — ${source.title}.\n\n${source.description ?? ''}`.trim();
+
+  const { ref: newRef } = await createTicket({
+    kind,
+    title,
+    description,
+    app: source.app,
+    impact: source.impact && source.impact !== '—' ? source.impact : undefined,
+    urgency: source.urgency && source.urgency !== '—' ? source.urgency : undefined,
+    source: 'related',
+  });
+
+  // Link source → new. Idempotent on the unique key (defensive — a fresh ref
+  // won't collide, but ON CONFLICT keeps this safe if a ref is ever reused).
+  await q(
+    `insert into ops.links (src_type, src_id, dst_type, dst_id, relation)
+     values ('ticket', $1, 'ticket', $2, $3)
+     on conflict (src_type, src_id, dst_type, dst_id, relation) do nothing`,
+    [sourceRef, newRef, RELATED_RELATION[kind]]
+  );
+
+  return { ok: true, ref: newRef };
+}
+
+// Link a source ticket to an EXISTING target ticket (both by ref). Validates the
+// target exists in ops.tickets, then inserts an ops.links row (idempotent on the
+// unique key). Default relation 'related'. Stores src=source, dst=target so the
+// edge surfaces in both tickets' Linked records panels via getTicketEdges.
+export async function linkTicketToTicket(
+  sourceRef: string,
+  targetRef: string,
+  relation = 'related'
+): Promise<{ ok: boolean; error?: string }> {
+  if (!hasDb) throw new Error('no DB');
+
+  const target = await q1<{ ref: string }>('select ref from ops.tickets where ref=$1', [targetRef]);
+  if (!target) return { ok: false, error: `ticket ${targetRef} not found` };
+
+  // Defensive: ensure the source exists too, so we don't create dangling edges.
+  const src = await q1<{ ref: string }>('select ref from ops.tickets where ref=$1', [sourceRef]);
+  if (!src) return { ok: false, error: `ticket ${sourceRef} not found` };
+
+  await q(
+    `insert into ops.links (src_type, src_id, dst_type, dst_id, relation)
+     values ('ticket', $1, 'ticket', $2, $3)
+     on conflict (src_type, src_id, dst_type, dst_id, relation) do nothing`,
+    [sourceRef, targetRef, relation]
+  );
+
+  return { ok: true };
+}
+
 // ---------- Ticket activity / updates (ops.comments) ----------
 export type TicketComment = {
   id: string;
