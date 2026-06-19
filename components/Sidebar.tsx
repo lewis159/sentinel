@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { WORKSPACES, inferWorkspace, type Workspace } from '@/lib/nav';
 import { Mark } from './Brand';
+import { ThemeSwitcher } from './ThemeSwitcher';
 
 export function Sidebar() {
   const path = usePathname();
@@ -87,6 +88,12 @@ export function Sidebar() {
       <div className="nav" style={{ marginTop: 'auto', paddingTop: 12 }}>
         <Link href="/graph" className={isActive('/graph') ? 'active' : ''}><span className="ic">⌗</span>Graph</Link>
         <Link href="/settings" className={isActive('/settings') ? 'active' : ''}><span className="ic">⚙</span>Settings</Link>
+      </div>
+
+      {/* Theme picker (sidebar footer) */}
+      <div style={{ padding: '12px 14px 4px', borderTop: '1px solid var(--border-soft)', marginTop: 8 }}>
+        <div className="group" style={{ padding: '0 0 8px' }}>Theme</div>
+        <ThemeSwitcher compact />
       </div>
     </aside>
   );

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { requireGlobalAdminPage } from '@/lib/auth';
 import AccountSignOut from './SignOutButton';
+import { ThemeSwitcher } from '@/components/ThemeSwitcher';
 
 const toggles = [
   { label: 'Critical & high findings', on: true },
@@ -46,8 +47,9 @@ export default async function AccountPage() {
 
         <div className="card">
           <div className="panel-h"><h3>Preferences</h3></div>
-          <div className="kv mb">
-            <div className="r"><span className="k2">Theme</span><span><span className="chip on">Dark</span><span className="chip">Light</span></span></div>
+          <div className="mb">
+            <div className="k2 mb" style={{ fontSize: 12, color: 'var(--muted)' }}>Theme</div>
+            <ThemeSwitcher />
           </div>
           <div className="h2 mb">Notifications</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
