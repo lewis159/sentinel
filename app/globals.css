@@ -87,7 +87,7 @@ a { color: inherit; text-decoration: none; }
 .topbar .crumb { font-size: 13px; color: var(--muted); }
 .topbar .crumb b { color: var(--text); }
 .topbar .right { display: flex; align-items: center; gap: 10px; }
-.content { padding: 22px; max-width: 1320px; width: 100%; }
+.content { padding: 22px; width: 100%; }
 
 /* Page-level breadcrumb (Operations › Service management › Section) */
 .bc { display: flex; align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-bottom: 14px; }
@@ -198,6 +198,33 @@ td .t { font-weight: 600; } td .d { color: var(--muted); font-size: 11.5px; marg
 /* ---------- Service management: ticket detail (header + two-column body) ---------- */
 .td-grid { display: grid; grid-template-columns: 1fr 320px; gap: 16px; align-items: start; }
 @media (max-width: 900px) { .td-grid { grid-template-columns: 1fr; } }
+
+/* ---------- Ticket detail dashboard (react-grid-layout) ---------- */
+/* Each grid item fills its tile; the panel is a flex column so the body scrolls. */
+.td-rgl .react-grid-item { overflow: visible; }
+.td-panel {
+  height: 100%; display: flex; flex-direction: column;
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden;
+}
+.td-panel-h {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px; border-bottom: 1px solid var(--border-soft);
+  background: #12151d; cursor: move; user-select: none; flex-shrink: 0;
+}
+.td-panel-h h3 { font-size: 13px; font-weight: 700; }
+.td-grip { color: var(--faint); font-size: 14px; line-height: 1; cursor: grab; }
+.td-panel-body { padding: 16px; overflow: auto; flex: 1; min-height: 0; }
+
+/* Placeholder shown while dragging/resizing */
+.td-rgl .react-grid-placeholder {
+  background: rgba(45,108,255,.16); border: 1px dashed rgba(45,108,255,.6);
+  border-radius: var(--radius); opacity: 1;
+}
+/* Make the resize handle visible against the dark theme */
+.td-rgl .react-resizable-handle { opacity: .35; }
+.td-rgl .react-resizable-handle:hover { opacity: .8; }
+.td-rgl .react-grid-item.react-grid-placeholder { z-index: 2; }
 
 /* Activity timeline + composer */
 .act-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }

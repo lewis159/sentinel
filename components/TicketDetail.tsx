@@ -1,7 +1,17 @@
+'use client';
+
+import dynamic from 'next/dynamic';
 import { sevClass, sevLabel, KIND_LABEL, type ServiceTicket } from '@/lib/mock';
 import { AppTag } from './AppTag';
-import { TicketControls } from './TicketControls';
-import { ActivityFeed } from './ActivityFeed';
+
+// react-grid-layout is client-only (touches window/ResizeObserver). Load the
+// dashboard body via a dynamic import with ssr:false so `next build` never tries
+// to render the grid on the server. A lightweight skeleton holds the space until
+// the client chunk hydrates.
+const TicketDashboard = dynamic(() => import('./TicketDashboard').then((m) => m.TicketDashboard), {
+  ssr: false,
+  loading: () => <div className="sub" style={{ padding: 8 }}>Loading layout…</div>,
+});
 
 const statusColor: Record<string, string> = {
   open: '#7fa8ff', draft: '#aab3c4', in_progress: '#ffc05a', investigating: '#ffc05a',
@@ -11,12 +21,12 @@ const statusColor: Record<string, string> = {
   staged: '#7fa8ff', closed: 'var(--muted)',
 };
 
-// Renders the ITIL field set for one record. The kind-specific block (change /
-// problem / release) is driven off `attrs`.
+// Renders the ITIL field set for one record as a draggable/resizable dashboard.
+// The header stays fixed; the body is the react-grid-layout dashboard.
 export function TicketDetail({ t }: { t: ServiceTicket }) {
   return (
     <div>
-      {/* Full-width header */}
+      {/* Full-width header (not part of the grid) */}
       <div className="card mb">
         <div className="row" style={{ gap: 8, marginBottom: 10 }}>
           <span className="tag st-blue">{KIND_LABEL[t.kind] ?? t.kind}</span>
@@ -27,86 +37,10 @@ export function TicketDetail({ t }: { t: ServiceTicket }) {
         <div className="mono">{t.ref}</div>
       </div>
 
-      {/* Two-column body: main (details + activity) | rail (metadata, controls, attrs) */}
-      <div className="td-grid">
-        {/* LEFT — main */}
-        <div>
-          <div className="card mb">
-            <div className="panel-h"><h3>Details</h3></div>
-            <p style={{ color: '#c8cedb', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
-              {t.description || '—'}
-            </p>
-          </div>
-
-          <div className="card mb">
-            <div className="panel-h"><h3>Activity</h3></div>
-            <ActivityFeed ref_={t.ref} />
-          </div>
-        </div>
-
-        {/* RIGHT — rail */}
-        <div>
-          <div className="card mb">
-            <div className="kv">
-              <div className="r"><span className="k2">Ref</span><span className="mono">{t.ref}</span></div>
-              <div className="r"><span className="k2">Status</span><span style={{ fontWeight: 600, color: statusColor[t.status] ?? 'var(--text)' }}>{t.status}</span></div>
-              <div className="r"><span className="k2">Impact × Urgency → Priority</span><span>{t.impact} × {t.urgency} → <b>{sevLabel[t.priority]}</b></span></div>
-              <div className="r"><span className="k2">App</span><span><AppTag app={t.app} /></span></div>
-              <div className="r"><span className="k2">Assignee</span><span>{t.assignee}</span></div>
-              <div className="r"><span className="k2">Source</span><span>{t.source}</span></div>
-              <div className="r"><span className="k2">SLA due</span><span style={{ color: t.slaDue ? '#ffc05a' : 'var(--muted)' }}>{t.slaDue ? new Date(t.slaDue).toLocaleString() : '—'}</span></div>
-            </div>
-          </div>
-
-          <TicketControls ref_={t.ref} kind={t.kind} status={t.status} assignee={t.assignee} />
-
-          <KindAttrs t={t} />
-        </div>
-      </div>
+      <TicketDashboard t={t} />
     </div>
   );
 }
 
-function KindAttrs({ t }: { t: ServiceTicket }) {
-  const a = t.attrs ?? {};
-  if (t.kind === 'change') {
-    return (
-      <div className="card mb">
-        <div className="panel-h"><h3>Change details</h3></div>
-        <div className="kv">
-          <div className="r"><span className="k2">Change type</span><span>{a.change_type ?? '—'}</span></div>
-          <div className="r"><span className="k2">Risk</span><span>{a.risk ?? '—'}</span></div>
-          <div className="r"><span className="k2">CAB status</span><span>{a.cab_status ?? '—'}</span></div>
-          <div className="r"><span className="k2">Window</span><span>{a.window ?? '—'}</span></div>
-          <div className="r"><span className="k2">Backout plan</span><span>{a.backout ?? '—'}</span></div>
-        </div>
-      </div>
-    );
-  }
-  if (t.kind === 'problem') {
-    return (
-      <div className="card mb">
-        <div className="panel-h"><h3>Problem details</h3></div>
-        <div className="kv">
-          <div className="r"><span className="k2">Root cause</span><span>{a.root_cause ?? '—'}</span></div>
-          <div className="r"><span className="k2">Known error</span><span>{a.known_error ? 'Yes' : 'No'}</span></div>
-          <div className="r"><span className="k2">Workaround</span><span>{a.workaround ?? '—'}</span></div>
-        </div>
-      </div>
-    );
-  }
-  if (t.kind === 'release') {
-    const changes: string[] = Array.isArray(a.linked_changes) ? a.linked_changes : [];
-    return (
-      <div className="card mb">
-        <div className="panel-h"><h3>Release details</h3></div>
-        <div className="kv">
-          <div className="r"><span className="k2">Version</span><span className="mono">{a.version ?? '—'}</span></div>
-          <div className="r"><span className="k2">Window</span><span>{a.window ?? '—'}</span></div>
-          <div className="r"><span className="k2">Linked changes</span><span>{changes.length ? changes.join(', ') : '—'}</span></div>
-        </div>
-      </div>
-    );
-  }
-  return null;
-}
+// Shared status colour map for the metadata panel (exported for the dashboard).
+export { statusColor };
