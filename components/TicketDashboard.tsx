@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Responsive, WidthProvider, type Layout, type Layouts } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
-import { sevClass, sevLabel, KIND_LABEL, type ServiceTicket, type Severity } from '@/lib/mock';
+import { sevClass, sevLabel, KIND_LABEL, type ServiceTicket, type Severity, type TicketKind } from '@/lib/mock';
 import { AppTag } from './AppTag';
 import { TicketControls } from './TicketControls';
 import { ActivityFeed } from './ActivityFeed';
@@ -274,6 +274,151 @@ function PrioritySelect({ ref_, priority }: { ref_: string; priority: Severity }
   );
 }
 
+// Per-kind ITIL actions surfaced under the Type tag in the Details panel.
+// `related` actions POST /api/tickets/[ref]/related (mint + link a problem/change);
+// `link` opens an in-flow modal to link an existing ticket by ref. All actions
+// router.refresh() on success so the Linked records panel reflects new edges.
+type RelatedKind = 'problem' | 'change';
+
+// Which create-related actions each kind offers. 'Link record' is always shown.
+const KIND_ACTIONS: Record<TicketKind, RelatedKind[]> = {
+  incident: ['problem', 'change'],
+  request: ['change'],
+  problem: ['change'],
+  change: [],
+  release: [],
+};
+
+const RELATED_LABEL: Record<RelatedKind, string> = {
+  problem: 'Elevate to problem',
+  change: 'Create change',
+};
+
+function TypeActions({ t }: { t: ServiceTicket }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState<RelatedKind | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [targetRef, setTargetRef] = useState('');
+  const [linkBusy, setLinkBusy] = useState(false);
+  const [linkErr, setLinkErr] = useState<string | null>(null);
+
+  const related = KIND_ACTIONS[t.kind] ?? [];
+
+  async function createRelated(kind: RelatedKind) {
+    setBusy(kind); setErr(null); setMsg(null);
+    try {
+      const res = await fetch(`/api/tickets/${encodeURIComponent(t.ref)}/related`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.ok) {
+        setErr(data?.error ?? `Failed (${res.status})`);
+      } else {
+        setMsg(`Created ${data.ref} — linked`);
+        router.refresh();
+      }
+    } catch (e: any) {
+      setErr(e?.message ?? 'Network error');
+    }
+    setBusy(null);
+  }
+
+  async function linkRecord() {
+    const ref = targetRef.trim();
+    if (!ref) { setLinkErr('Enter a ticket ref'); return; }
+    setLinkBusy(true); setLinkErr(null); setMsg(null);
+    try {
+      const res = await fetch(`/api/tickets/${encodeURIComponent(t.ref)}/links`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetRef: ref }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.ok) {
+        setLinkErr(data?.error ?? `Failed (${res.status})`);
+      } else {
+        setMsg(`Linked ${ref}`);
+        setLinkOpen(false);
+        setTargetRef('');
+        router.refresh();
+      }
+    } catch (e: any) {
+      setLinkErr(e?.message ?? 'Network error');
+    }
+    setLinkBusy(false);
+  }
+
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        {related.map((kind) => (
+          <button
+            key={kind}
+            className="btn ghost sm"
+            onClick={() => createRelated(kind)}
+            disabled={busy !== null}
+          >
+            {busy === kind ? 'Creating…' : RELATED_LABEL[kind]}
+          </button>
+        ))}
+        <button
+          className="btn ghost sm"
+          onClick={() => { setLinkOpen((v) => !v); setLinkErr(null); }}
+          disabled={busy !== null}
+        >
+          Link record
+        </button>
+      </div>
+
+      {msg && <div className="sub" style={{ color: 'var(--ok, #5fd49b)', marginTop: 6 }}>{msg}</div>}
+      {err && <div className="form-err" style={{ margin: '6px 0 0' }}>{err}</div>}
+
+      {linkOpen && (
+        <div
+          style={{
+            marginTop: 10,
+            padding: 12,
+            border: '1px solid var(--border)',
+            background: 'var(--panel-2)',
+            borderRadius: 8,
+          }}
+        >
+          <label className="sub" style={{ display: 'block', marginBottom: 6 }}>
+            Link to existing ticket
+          </label>
+          <div className="row" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <input
+              className="input"
+              value={targetRef}
+              placeholder="e.g. CHG-0002"
+              onChange={(e) => setTargetRef(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') linkRecord(); }}
+              disabled={linkBusy}
+              style={{ maxWidth: 200 }}
+              aria-label="Ticket ref to link"
+            />
+            <button className="btn sm" onClick={linkRecord} disabled={linkBusy}>
+              {linkBusy ? 'Linking…' : 'Link'}
+            </button>
+            <button
+              className="btn ghost sm"
+              onClick={() => { setLinkOpen(false); setLinkErr(null); }}
+              disabled={linkBusy}
+            >
+              Cancel
+            </button>
+          </div>
+          {linkErr && <div className="form-err" style={{ margin: '6px 0 0' }}>{linkErr}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function TicketDashboard({ t }: { t: ServiceTicket }) {
   const [stored, setStored] = useState<StoredLayout>(() => defaultStored());
   const [loaded, setLoaded] = useState(false);
@@ -435,6 +580,7 @@ export function TicketDashboard({ t }: { t: ServiceTicket }) {
             </p>
             <div className="kv" style={{ marginTop: 10 }}>
               <div className="r"><span className="k2">Type</span><span><span className="tag st-blue">{KIND_LABEL[t.kind] ?? t.kind}</span></span></div>
+              <div className="r"><span className="k2"></span><span><TypeActions t={t} /></span></div>
               <div className="r"><span className="k2">App</span><span><AppTag app={t.app} /></span></div>
               <div className="r">
                 <span className="k2">Priority</span>
