@@ -211,6 +211,58 @@ export async function getFindingEdges(ref: string): Promise<Edge[]> {
   }
 }
 
+// ---------- Ticket graph edges (ops.links, both directions) ----------
+// Linked records for one ITIL ticket: any ops.links row where this ticket's ref
+// is on the src or dst side. Returns the "other" node as an Edge. DB-only — if
+// there's no DB or no rows, the UI shows a "No linked records" state.
+export async function getTicketEdges(ref: string): Promise<Edge[]> {
+  if (!hasDb) return [];
+  try {
+    const rows = await q<any>(
+      "select relation,src_type,src_id,dst_type,dst_id from ops.links where (src_type='ticket' and src_id=$1) or (dst_type='ticket' and dst_id=$1)",
+      [ref]
+    );
+    return rows.map((l: any) => {
+      const isSrc = l.src_type === 'ticket' && l.src_id === ref;
+      const type = isSrc ? l.dst_type : l.src_type;
+      const id = isSrc ? l.dst_id : l.src_id;
+      return { rel: l.relation ?? 'linked', type, id, label: id, href: hrefFor(type, id) };
+    });
+  } catch {
+    return [];
+  }
+}
+
+// ---------- Per-user saved layouts (ops.user_layouts) ----------
+export async function getUserLayout(clerkUserId: string, layoutKey: string): Promise<any | null> {
+  if (!hasDb) return null;
+  try {
+    const row = await q1<{ layout: any }>(
+      'select layout from ops.user_layouts where clerk_user_id=$1 and layout_key=$2',
+      [clerkUserId, layoutKey]
+    );
+    return row?.layout ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveUserLayout(clerkUserId: string, layoutKey: string, layout: any): Promise<boolean> {
+  if (!hasDb) return false;
+  try {
+    await q(
+      `insert into ops.user_layouts (clerk_user_id, layout_key, layout)
+         values ($1, $2, $3::jsonb)
+       on conflict (clerk_user_id, layout_key)
+         do update set layout = excluded.layout, updated_at = now()`,
+      [clerkUserId, layoutKey, JSON.stringify(layout ?? {})]
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // ---------- Writes (server-only) ----------
 export async function raiseTicketFromFinding(findingRef: string): Promise<{ ref: string }> {
   if (!hasDb) throw new Error('no DB');

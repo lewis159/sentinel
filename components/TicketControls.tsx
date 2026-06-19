@@ -7,8 +7,8 @@ import { KIND_STATUSES, type TicketKind } from '@/lib/mock';
 // Inline status + assignee editor on the ticket detail pane. PATCHes
 // /api/tickets/<ref> then refreshes the server-rendered detail.
 export function TicketControls({
-  ref_, kind, status, assignee,
-}: { ref_: string; kind: TicketKind; status: string; assignee: string }) {
+  ref_, kind, status, assignee, embedded = false,
+}: { ref_: string; kind: TicketKind; status: string; assignee: string; embedded?: boolean }) {
   const router = useRouter();
   const [statusVal, setStatusVal] = useState(status);
   const [assigneeVal, setAssigneeVal] = useState(assignee === '—' ? '' : assignee);
@@ -40,9 +40,10 @@ export function TicketControls({
     setBusy(false);
   }
 
-  return (
-    <div className="card mb">
-      <div className="panel-h"><h3>Update</h3></div>
+  // `embedded` = rendered inside a dashboard Panel (which already supplies the
+  // card chrome + header), so drop the outer .card and the "Update" panel header.
+  const inner = (
+    <>
       <div className="form-grid" style={{ marginTop: 4 }}>
         <div className="field">
           <label>Status</label>
@@ -63,6 +64,14 @@ export function TicketControls({
         {msg && <span className="sub" style={{ color: '#5fd49b' }}>{msg}</span>}
         {err && <span className="form-err" style={{ margin: 0 }}>{err}</span>}
       </div>
+    </>
+  );
+
+  if (embedded) return inner;
+  return (
+    <div className="card mb">
+      <div className="panel-h"><h3>Update</h3></div>
+      {inner}
     </div>
   );
 }
