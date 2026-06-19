@@ -1,8 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { sevClass, sevLabel, KIND_LABEL, type ServiceTicket } from '@/lib/mock';
-import { AppTag } from './AppTag';
+import { type ServiceTicket } from '@/lib/mock';
 
 // react-grid-layout is client-only (touches window/ResizeObserver). Load the
 // dashboard body via a dynamic import with ssr:false so `next build` never tries
@@ -22,19 +21,14 @@ const statusColor: Record<string, string> = {
 };
 
 // Renders the ITIL field set for one record as a draggable/resizable dashboard.
-// The header stays fixed; the body is the react-grid-layout dashboard.
+// The title/summary now lives INSIDE the grid as the Summary tile; only a minimal
+// non-draggable reference line stays outside it.
 export function TicketDetail({ t }: { t: ServiceTicket }) {
   return (
     <div>
-      {/* Full-width header (not part of the grid) */}
-      <div className="card mb">
-        <div className="row" style={{ gap: 8, marginBottom: 10 }}>
-          <span className="tag st-blue">{KIND_LABEL[t.kind] ?? t.kind}</span>
-          <AppTag app={t.app} />
-          <span className={`pill ${sevClass[t.priority]}`}>● {sevLabel[t.priority]} priority</span>
-        </div>
-        <div className="h1" style={{ margin: '4px 0 6px' }}>{t.title}</div>
-        <div className="mono">{t.ref}</div>
+      {/* Minimal, non-draggable reference line (the title lives in the Summary tile) */}
+      <div className="row mb" style={{ gap: 8 }}>
+        <span className="mono">{t.ref}</span>
       </div>
 
       <TicketDashboard t={t} />

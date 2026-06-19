@@ -222,9 +222,50 @@ td .t { font-weight: 600; } td .d { color: var(--muted); font-size: 11.5px; marg
   border-radius: var(--radius); opacity: 1;
 }
 /* Make the resize handle visible against the dark theme */
-.td-rgl .react-resizable-handle { opacity: .35; }
-.td-rgl .react-resizable-handle:hover { opacity: .8; }
+.td-rgl .react-resizable-handle { opacity: 0; transition: opacity .12s; }
 .td-rgl .react-grid-item.react-grid-placeholder { z-index: 2; }
+
+/* ----- Edit mode: grid lines + drag/resize affordances ----- */
+/* Out of edit mode the grid is locked and clean: no handles, no grid lines,
+   the panel header is not a move cursor. Edit mode reveals everything. */
+.td-rgl:not(.td-editing) .td-panel-h { cursor: default; }
+
+.td-rgl.td-editing {
+  /* Faint dotted grid background so tile positions are legible while editing. */
+  background-image:
+    linear-gradient(to right, var(--border-soft) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--border-soft) 1px, transparent 1px);
+  background-size: 6.25% 46px;
+  background-position: 0 0;
+  border-radius: var(--radius);
+  box-shadow: inset 0 0 0 1px var(--border-soft);
+}
+.td-rgl.td-editing .td-panel { border-color: rgba(45,108,255,.35); }
+.td-rgl.td-editing .td-panel-h {
+  background: #151b2b; cursor: move;
+  border-bottom-color: rgba(45,108,255,.3);
+}
+.td-rgl.td-editing .react-resizable-handle { opacity: .45; }
+.td-rgl.td-editing .react-resizable-handle:hover { opacity: .9; }
+
+/* ----- Dashboard toolbar (edit toggle, density, save, reset) ----- */
+.td-toolbar { gap: 10px; flex-wrap: wrap; }
+.td-density {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 8px; padding: 3px 6px 3px 8px;
+}
+.td-density-l { font-size: 11px; color: var(--muted); margin-right: 2px; }
+.td-density-b {
+  border: 1px solid transparent; background: transparent; color: var(--muted);
+  font-size: 12px; font-weight: 600; padding: 4px 9px; border-radius: 6px; cursor: pointer;
+  transition: background .12s, color .12s, border-color .12s;
+}
+.td-density-b:hover { color: var(--text); }
+.td-density-b.on { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+/* Metric-card metric picker (edit mode on section cards) */
+.td-metric-select { width: 100%; margin-bottom: 6px; font-size: 12px; }
 
 /* Activity timeline + composer */
 .act-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }

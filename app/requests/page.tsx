@@ -3,7 +3,7 @@ import { requireGlobalAdminPage } from '@/lib/auth';
 import { SectionView } from '@/components/SectionView';
 import { LiveBadge } from '@/components/LiveBadge';
 import { Breadcrumb } from '@/components/Breadcrumb';
-import { MetricCards, sectionMetrics } from '@/components/MetricCards';
+import { MetricCards } from '@/components/MetricCards';
 import { AutoRefresh } from '@/components/AutoRefresh';
 
 export const dynamic = 'force-dynamic';
@@ -31,7 +31,7 @@ export default async function RequestsPage() {
         </div>
       </div>
 
-      <MetricCards metrics={sectionMetrics('request', rows)} />
+      <MetricCards kind="request" tickets={rows} />
 
       <SectionView kind="request" tickets={rows} />
     </div>
