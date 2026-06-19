@@ -1,6 +1,7 @@
 import { sevClass, sevLabel, KIND_LABEL, type ServiceTicket } from '@/lib/mock';
 import { AppTag } from './AppTag';
 import { TicketControls } from './TicketControls';
+import { ActivityFeed } from './ActivityFeed';
 
 const statusColor: Record<string, string> = {
   open: '#7fa8ff', draft: '#aab3c4', in_progress: '#ffc05a', investigating: '#ffc05a',
@@ -15,6 +16,7 @@ const statusColor: Record<string, string> = {
 export function TicketDetail({ t }: { t: ServiceTicket }) {
   return (
     <div>
+      {/* Full-width header */}
       <div className="card mb">
         <div className="row" style={{ gap: 8, marginBottom: 10 }}>
           <span className="tag st-blue">{KIND_LABEL[t.kind] ?? t.kind}</span>
@@ -22,24 +24,45 @@ export function TicketDetail({ t }: { t: ServiceTicket }) {
           <span className={`pill ${sevClass[t.priority]}`}>● {sevLabel[t.priority]} priority</span>
         </div>
         <div className="h1" style={{ margin: '4px 0 6px' }}>{t.title}</div>
-        <p style={{ color: '#c8cedb', lineHeight: 1.7 }}>{t.description}</p>
+        <div className="mono">{t.ref}</div>
       </div>
 
-      <div className="card mb">
-        <div className="kv">
-          <div className="r"><span className="k2">Ref</span><span className="mono">{t.ref}</span></div>
-          <div className="r"><span className="k2">Status</span><span style={{ fontWeight: 600, color: statusColor[t.status] ?? 'var(--text)' }}>{t.status}</span></div>
-          <div className="r"><span className="k2">Impact × Urgency → Priority</span><span>{t.impact} × {t.urgency} → <b>{sevLabel[t.priority]}</b></span></div>
-          <div className="r"><span className="k2">App</span><span><AppTag app={t.app} /></span></div>
-          <div className="r"><span className="k2">Assignee</span><span>{t.assignee}</span></div>
-          <div className="r"><span className="k2">Source</span><span>{t.source}</span></div>
-          <div className="r"><span className="k2">SLA due</span><span style={{ color: t.slaDue ? '#ffc05a' : 'var(--muted)' }}>{t.slaDue ? new Date(t.slaDue).toLocaleString() : '—'}</span></div>
+      {/* Two-column body: main (details + activity) | rail (metadata, controls, attrs) */}
+      <div className="td-grid">
+        {/* LEFT — main */}
+        <div>
+          <div className="card mb">
+            <div className="panel-h"><h3>Details</h3></div>
+            <p style={{ color: '#c8cedb', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+              {t.description || '—'}
+            </p>
+          </div>
+
+          <div className="card mb">
+            <div className="panel-h"><h3>Activity</h3></div>
+            <ActivityFeed ref_={t.ref} />
+          </div>
+        </div>
+
+        {/* RIGHT — rail */}
+        <div>
+          <div className="card mb">
+            <div className="kv">
+              <div className="r"><span className="k2">Ref</span><span className="mono">{t.ref}</span></div>
+              <div className="r"><span className="k2">Status</span><span style={{ fontWeight: 600, color: statusColor[t.status] ?? 'var(--text)' }}>{t.status}</span></div>
+              <div className="r"><span className="k2">Impact × Urgency → Priority</span><span>{t.impact} × {t.urgency} → <b>{sevLabel[t.priority]}</b></span></div>
+              <div className="r"><span className="k2">App</span><span><AppTag app={t.app} /></span></div>
+              <div className="r"><span className="k2">Assignee</span><span>{t.assignee}</span></div>
+              <div className="r"><span className="k2">Source</span><span>{t.source}</span></div>
+              <div className="r"><span className="k2">SLA due</span><span style={{ color: t.slaDue ? '#ffc05a' : 'var(--muted)' }}>{t.slaDue ? new Date(t.slaDue).toLocaleString() : '—'}</span></div>
+            </div>
+          </div>
+
+          <TicketControls ref_={t.ref} kind={t.kind} status={t.status} assignee={t.assignee} />
+
+          <KindAttrs t={t} />
         </div>
       </div>
-
-      <TicketControls ref_={t.ref} kind={t.kind} status={t.status} assignee={t.assignee} />
-
-      <KindAttrs t={t} />
     </div>
   );
 }
