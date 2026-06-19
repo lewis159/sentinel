@@ -672,6 +672,99 @@ export async function getChangelog(): Promise<Sourced<ChangelogEntry>> {
   }
 }
 
+// ---------- Programmatic write helpers (token-gated ingest routes) ----------
+
+const ROADMAP_STATUSES = ['backlog', 'in_progress', 'in_review', 'shipped'] as const;
+export type RoadmapStatus = (typeof ROADMAP_STATUSES)[number];
+
+export type RoadmapUpsertInput = {
+  item_key: string;
+  title?: string;
+  description?: string;
+  status?: string;
+  app?: string;
+  sort_order?: number;
+};
+
+// Upsert roadmap items by item_key. Parameterized; ON CONFLICT (item_key) updates
+// the mutable columns + updated_at. Returns the number of rows upserted.
+export async function upsertRoadmapItems(items: RoadmapUpsertInput[]): Promise<number> {
+  if (!hasDb) throw new Error('no DB');
+  let upserted = 0;
+  for (const it of items) {
+    const status = ROADMAP_STATUSES.includes(it.status as RoadmapStatus)
+      ? (it.status as RoadmapStatus)
+      : 'backlog';
+    const app = typeof it.app === 'string' && it.app.trim() ? it.app.trim() : 'Estate';
+    const sortOrder = Number.isFinite(it.sort_order) ? Math.trunc(it.sort_order as number) : 0;
+    await q(
+      `insert into ops.roadmap_items (item_key, title, description, status, app, sort_order)
+       values ($1, $2, $3, $4, $5, $6)
+       on conflict (item_key) do update set
+         title = excluded.title,
+         description = excluded.description,
+         status = excluded.status,
+         app = excluded.app,
+         sort_order = excluded.sort_order,
+         updated_at = now()`,
+      [
+        it.item_key,
+        typeof it.title === 'string' ? it.title : null,
+        typeof it.description === 'string' ? it.description : null,
+        status,
+        app,
+        sortOrder,
+      ]
+    );
+    upserted += 1;
+  }
+  return upserted;
+}
+
+export type ChangelogInput = {
+  label: string;
+  version?: string;
+  date?: string;
+  body?: string;
+  app?: string;
+};
+
+// Insert changelog entries. There's no unique constraint, so to stay re-runnable
+// we skip any entry whose (version, label) pair already exists (NULL-safe match).
+// Returns { inserted, skipped }.
+export async function addChangelogEntries(
+  entries: ChangelogInput[]
+): Promise<{ inserted: number; skipped: number }> {
+  if (!hasDb) throw new Error('no DB');
+  let inserted = 0;
+  let skipped = 0;
+  for (const e of entries) {
+    const label = e.label.trim();
+    const version = typeof e.version === 'string' && e.version.trim() ? e.version.trim() : null;
+    const app = typeof e.app === 'string' && e.app.trim() ? e.app.trim() : 'Estate';
+    const body = typeof e.body === 'string' ? e.body : null;
+    const date = typeof e.date === 'string' && e.date.trim() ? e.date.trim() : null;
+
+    const existing = await q1<{ id: string }>(
+      `select id from ops.changelog_entries
+       where label = $1 and version is not distinct from $2
+       limit 1`,
+      [label, version]
+    );
+    if (existing) {
+      skipped += 1;
+      continue;
+    }
+    await q(
+      `insert into ops.changelog_entries (version, label, date, body, app)
+       values ($1, $2, coalesce($3::timestamptz, now()), $4, $5)`,
+      [version, label, date, body, app]
+    );
+    inserted += 1;
+  }
+  return { inserted, skipped };
+}
+
 // ---------- Connectivity probe (for a status badge) ----------
 export async function dbStatus(): Promise<{ connected: boolean; users?: number; note?: string }> {
   const sb = await getSupabase();
