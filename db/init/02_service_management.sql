@@ -14,6 +14,18 @@ alter table ops.tickets add column if not exists app      text;        -- YT|Sen
 -- (01_schema.sql) shipped an unused `sla_due_at`; `sla_due` supersedes it and is
 -- the single field read/written by lib/data.ts (mapped to ServiceTicket.slaDue).
 alter table ops.tickets add column if not exists sla_due  timestamptz;
+-- Preserve any existing SLA data from the legacy column before retiring it.
+-- Guarded so a re-run (after sla_due_at is gone) is a no-op rather than an error.
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'ops' and table_name = 'tickets' and column_name = 'sla_due_at'
+  ) then
+    update ops.tickets set sla_due = sla_due_at
+      where sla_due is null and sla_due_at is not null;
+  end if;
+end $$;
 -- Retire the legacy pre-ITIL column so there is exactly one SLA field.
 alter table ops.tickets drop column if exists sla_due_at;
 -- type-specific fields: change → risk/cab_status/window/backout;
