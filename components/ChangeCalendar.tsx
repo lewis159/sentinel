@@ -43,7 +43,9 @@ const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
 
-export function ChangeCalendar({ changes }: { changes: ServiceTicket[] }) {
+export function ChangeCalendar({
+  changes, onSelect,
+}: { changes: ServiceTicket[]; onSelect?: (ref: string) => void }) {
   const [mode, setMode] = useState<'month' | 'week'>('month');
   // Anchor on the first scheduled change if there is one, else today.
   const firstScheduled = useMemo(() => {
@@ -143,11 +145,22 @@ export function ChangeCalendar({ changes }: { changes: ServiceTicket[] }) {
               <div className="cal-date">{d.getDate()}</div>
               {items.map((c) => {
                 const s = riskStyle(String(c.attrs?.risk ?? ''));
-                return (
-                  <div key={c.ref} className="cal-event" style={{ background: s.bg, color: s.fg }}
-                    title={`${c.ref} · ${c.title} · risk ${c.attrs?.risk ?? '—'}`}>
+                const evInner = (
+                  <>
                     <span style={{ width: 7, height: 7, borderRadius: 2, background: s.dot, display: 'inline-block', flexShrink: 0 }} />
                     <span className="cal-event-t">{c.title}</span>
+                  </>
+                );
+                const evTitle = `${c.ref} · ${c.title} · risk ${c.attrs?.risk ?? '—'}`;
+                return onSelect ? (
+                  <button key={c.ref} type="button" className="cal-event" onClick={() => onSelect(c.ref)}
+                    style={{ background: s.bg, color: s.fg, border: 'none', cursor: 'pointer', font: 'inherit', textAlign: 'left' }}
+                    title={evTitle}>
+                    {evInner}
+                  </button>
+                ) : (
+                  <div key={c.ref} className="cal-event" style={{ background: s.bg, color: s.fg }} title={evTitle}>
+                    {evInner}
                   </div>
                 );
               })}
@@ -165,11 +178,22 @@ export function ChangeCalendar({ changes }: { changes: ServiceTicket[] }) {
             {unscheduled.map((c) => {
               const s = riskStyle(String(c.attrs?.risk ?? ''));
               const win = c.attrs?.window ? String(c.attrs.window) : 'no window';
-              return (
-                <span key={c.ref} className="tag" style={{ background: s.bg, color: s.fg }}
-                  title={`${c.ref} · ${c.title}`}>
+              const tagInner = (
+                <>
                   <span className="mono" style={{ fontSize: 10 }}>{c.ref}</span>
                   <span style={{ opacity: .85 }}>{win}</span>
+                </>
+              );
+              return onSelect ? (
+                <button key={c.ref} type="button" className="tag" onClick={() => onSelect(c.ref)}
+                  style={{ background: s.bg, color: s.fg, border: 'none', cursor: 'pointer', font: 'inherit' }}
+                  title={`${c.ref} · ${c.title}`}>
+                  {tagInner}
+                </button>
+              ) : (
+                <span key={c.ref} className="tag" style={{ background: s.bg, color: s.fg }}
+                  title={`${c.ref} · ${c.title}`}>
+                  {tagInner}
                 </span>
               );
             })}

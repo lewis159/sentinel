@@ -10,7 +10,12 @@ alter table ops.tickets add column if not exists impact   text;        -- high|m
 alter table ops.tickets add column if not exists urgency  text;        -- high|medium|low
 alter table ops.tickets add column if not exists priority_calc text;   -- reserved: derived impact×urgency
 alter table ops.tickets add column if not exists app      text;        -- YT|Sentinel|Bruce|Estate
-alter table ops.tickets add column if not exists sla_due  timestamptz; -- distinct from legacy sla_due_at
+-- Canonical SLA-due column for the ITIL record. The pre-ITIL ops.tickets table
+-- (01_schema.sql) shipped an unused `sla_due_at`; `sla_due` supersedes it and is
+-- the single field read/written by lib/data.ts (mapped to ServiceTicket.slaDue).
+alter table ops.tickets add column if not exists sla_due  timestamptz;
+-- Retire the legacy pre-ITIL column so there is exactly one SLA field.
+alter table ops.tickets drop column if exists sla_due_at;
 -- type-specific fields: change → risk/cab_status/window/backout;
 -- problem → root_cause/known_error/workaround; release → version/window.
 alter table ops.tickets add column if not exists attrs    jsonb not null default '{}';

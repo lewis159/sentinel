@@ -2,6 +2,8 @@ import { getTicketsByKind } from '@/lib/data';
 import { requireGlobalAdminPage } from '@/lib/auth';
 import { SectionView } from '@/components/SectionView';
 import { LiveBadge } from '@/components/LiveBadge';
+import { Breadcrumb } from '@/components/Breadcrumb';
+import { MetricCards, sectionMetrics } from '@/components/MetricCards';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +14,11 @@ export default async function RequestsPage() {
 
   return (
     <div>
+      <Breadcrumb items={[
+        { label: 'Operations' },
+        { label: 'Service management' },
+        { label: 'Requests' },
+      ]} />
       <div className="spread mb">
         <div>
           <div className="row" style={{ gap: 10 }}>
@@ -20,8 +27,9 @@ export default async function RequestsPage() {
           </div>
           <div className="sub">{open} open · service requests and access provisioning</div>
         </div>
-        <button className="btn sm">+ New request</button>
       </div>
+
+      <MetricCards metrics={sectionMetrics('request', rows)} />
 
       <SectionView kind="request" tickets={rows} />
     </div>

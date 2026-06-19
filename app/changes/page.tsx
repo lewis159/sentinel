@@ -2,6 +2,8 @@ import { getTicketsByKind } from '@/lib/data';
 import { requireGlobalAdminPage } from '@/lib/auth';
 import { ChangesSection } from '@/components/ChangesSection';
 import { LiveBadge } from '@/components/LiveBadge';
+import { Breadcrumb } from '@/components/Breadcrumb';
+import { MetricCards, sectionMetrics } from '@/components/MetricCards';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +15,11 @@ export default async function ChangesPage() {
 
   return (
     <div>
+      <Breadcrumb items={[
+        { label: 'Operations' },
+        { label: 'Service management' },
+        { label: 'Changes' },
+      ]} />
       <div className="spread mb">
         <div>
           <div className="row" style={{ gap: 10 }}>
@@ -21,8 +28,9 @@ export default async function ChangesPage() {
           </div>
           <div className="sub">{awaitingCab} awaiting CAB · {pendingCab} pending approval · RFCs, calendar and CAB queue</div>
         </div>
-        <button className="btn sm">+ Raise change</button>
       </div>
+
+      <MetricCards metrics={sectionMetrics('change', rows)} />
 
       <ChangesSection changes={rows} />
     </div>

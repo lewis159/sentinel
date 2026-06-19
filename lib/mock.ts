@@ -111,11 +111,6 @@ export const rules = [
   { id: 'r4', name: 'Abuse cluster digest', enabled: false, trigger: 'abuse cluster ≥ 3 accounts', action: 'notify · raise ticket' },
 ];
 
-export const incidents = [
-  { id: 'INC-002', title: 'Memory pressure on app service', status: 'open', severity: 'medium' as Severity, items: 3, opened: '1h ago' },
-  { id: 'INC-001', title: 'Exposed Docker socket review', status: 'open', severity: 'critical' as Severity, items: 5, opened: '2d ago' },
-];
-
 export const kbArticles = [
   { slug: 'docker-socket-proxy', title: 'Hardening the Docker socket with a read-only proxy', cat: 'Runbook', updated: '2d ago' },
   { slug: 'incident-response', title: 'Incident response checklist', cat: 'Process', updated: '1w ago' },

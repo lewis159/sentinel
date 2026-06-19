@@ -24,9 +24,16 @@ function label(status: string): string {
 }
 
 // The core section screen: List ⇄ Board toggle. Default = List (master-detail).
-export function SectionView({ kind, tickets }: { kind: TicketKind; tickets: ServiceTicket[] }) {
+// `initialSelected` lets a parent (e.g. a pipeline/calendar deep-link via
+// ?ticket=REF) preselect a record in the master-detail list on first render.
+export function SectionView({
+  kind, tickets, initialSelected,
+}: { kind: TicketKind; tickets: ServiceTicket[]; initialSelected?: string | null }) {
   const [view, setView] = useState<'list' | 'board'>('list');
-  const [selected, setSelected] = useState<string | null>(tickets[0]?.ref ?? null);
+  const [selected, setSelected] = useState<string | null>(
+    (initialSelected && tickets.some((t) => t.ref === initialSelected) ? initialSelected : null)
+    ?? tickets[0]?.ref ?? null
+  );
   const detail = tickets.find((t) => t.ref === selected) ?? tickets[0] ?? null;
 
   const columns = KIND_STATUSES[kind].map((s) => ({ key: s, label: label(s) }));
@@ -45,7 +52,12 @@ export function SectionView({ kind, tickets }: { kind: TicketKind; tickets: Serv
       </div>
 
       {view === 'board' ? (
-        <KanbanBoard columns={columns} cards={cards} groupBy={(c) => tickets.find((t) => t.ref === c.id)?.status ?? columns[0].key} />
+        <KanbanBoard
+          columns={columns}
+          cards={cards}
+          groupBy={(c) => tickets.find((t) => t.ref === c.id)?.status ?? columns[0].key}
+          onCardClick={(id) => { setSelected(id); setView('list'); }}
+        />
       ) : (
         <div className="grid" style={{ gridTemplateColumns: '380px 1fr' }}>
           {/* Master list */}

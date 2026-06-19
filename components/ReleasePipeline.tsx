@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { sevClass, sevLabel, type ServiceTicket } from '@/lib/mock';
 import { AppTag } from './AppTag';
 
@@ -41,7 +42,7 @@ export function ReleasePipeline({ releases }: { releases: ServiceTicket[] }) {
               {items.map((r) => {
                 const version = r.attrs?.version ? String(r.attrs.version) : null;
                 return (
-                  <div key={r.ref} className="kanban-card" style={{ cursor: 'default' }}>
+                  <Link key={r.ref} href={`/releases?ticket=${encodeURIComponent(r.ref)}`} className="kanban-card">
                     <div className="kanban-card-top">
                       <span className="mono" style={{ fontSize: 11 }}>{r.ref}</span>
                       <AppTag app={r.app} />
@@ -51,7 +52,7 @@ export function ReleasePipeline({ releases }: { releases: ServiceTicket[] }) {
                       {version && <span className="tag st-blue" style={{ fontSize: 10.5 }}>{version}</span>}
                       <span className={`pill ${sevClass[r.priority]}`} style={{ fontSize: 10.5 }}>● {sevLabel[r.priority]}</span>
                     </div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>

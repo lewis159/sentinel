@@ -13,6 +13,9 @@ import { CabQueue } from './CabQueue';
 // approvals are relevant whichever view is open.
 export function ChangesSection({ changes }: { changes: ServiceTicket[] }) {
   const [mode, setMode] = useState<'tickets' | 'calendar'>('tickets');
+  // Set when a calendar entry is clicked: jump to List/Board with that change
+  // preselected in the master-detail pane.
+  const [picked, setPicked] = useState<string | null>(null);
 
   return (
     <div>
@@ -25,8 +28,8 @@ export function ChangesSection({ changes }: { changes: ServiceTicket[] }) {
       </div>
 
       {mode === 'calendar'
-        ? <ChangeCalendar changes={changes} />
-        : <SectionView kind="change" tickets={changes} />}
+        ? <ChangeCalendar changes={changes} onSelect={(ref) => { setPicked(ref); setMode('tickets'); }} />
+        : <SectionView kind="change" tickets={changes} initialSelected={picked} />}
     </div>
   );
 }

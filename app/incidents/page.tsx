@@ -2,6 +2,8 @@ import { getTicketsByKind } from '@/lib/data';
 import { requireGlobalAdminPage } from '@/lib/auth';
 import { SectionView } from '@/components/SectionView';
 import { LiveBadge } from '@/components/LiveBadge';
+import { Breadcrumb } from '@/components/Breadcrumb';
+import { MetricCards, sectionMetrics } from '@/components/MetricCards';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +14,11 @@ export default async function IncidentsPage() {
 
   return (
     <div>
+      <Breadcrumb items={[
+        { label: 'Operations' },
+        { label: 'Service management' },
+        { label: 'Incidents' },
+      ]} />
       <div className="spread mb">
         <div>
           <div className="row" style={{ gap: 10 }}>
@@ -20,8 +27,9 @@ export default async function IncidentsPage() {
           </div>
           <div className="sub">{open} open · unplanned interruptions to service</div>
         </div>
-        <button className="btn sm">+ Declare incident</button>
       </div>
+
+      <MetricCards metrics={sectionMetrics('incident', rows)} />
 
       <SectionView kind="incident" tickets={rows} />
     </div>

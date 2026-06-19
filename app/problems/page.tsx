@@ -2,6 +2,8 @@ import { getTicketsByKind } from '@/lib/data';
 import { requireGlobalAdminPage } from '@/lib/auth';
 import { SectionView } from '@/components/SectionView';
 import { LiveBadge } from '@/components/LiveBadge';
+import { Breadcrumb } from '@/components/Breadcrumb';
+import { MetricCards, sectionMetrics } from '@/components/MetricCards';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +14,11 @@ export default async function ProblemsPage() {
 
   return (
     <div>
+      <Breadcrumb items={[
+        { label: 'Operations' },
+        { label: 'Service management' },
+        { label: 'Problems' },
+      ]} />
       <div className="spread mb">
         <div>
           <div className="row" style={{ gap: 10 }}>
@@ -20,8 +27,9 @@ export default async function ProblemsPage() {
           </div>
           <div className="sub">{knownErrors} known errors · root-cause records behind recurring incidents</div>
         </div>
-        <button className="btn sm">+ Log problem</button>
       </div>
+
+      <MetricCards metrics={sectionMetrics('problem', rows)} />
 
       <SectionView kind="problem" tickets={rows} />
     </div>

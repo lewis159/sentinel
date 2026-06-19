@@ -20,12 +20,16 @@ export function KanbanBoard({
   columns,
   cards,
   groupBy,
+  onCardClick,
 }: {
   columns: KanbanColumn[];
   cards: KanbanCard[];
   // Map a card to its column key. Defaults to identity on a `status` field
   // supplied by the caller via the card list ordering.
   groupBy: (card: KanbanCard) => string;
+  // Optional click handler — turns each card into a button that opens detail.
+  // Takes precedence over `href`. Requires the board to be in a client tree.
+  onCardClick?: (id: string) => void;
 }) {
   const byCol = new Map<string, KanbanCard[]>();
   for (const c of columns) byCol.set(c.key, []);
@@ -63,6 +67,19 @@ export function KanbanBoard({
                     )}
                   </>
                 );
+                if (onCardClick) {
+                  return (
+                    <button
+                      key={card.id}
+                      type="button"
+                      className="kanban-card"
+                      style={{ textAlign: 'left', width: '100%', font: 'inherit' }}
+                      onClick={() => onCardClick(card.id)}
+                    >
+                      {inner}
+                    </button>
+                  );
+                }
                 return card.href ? (
                   <Link key={card.id} href={card.href} className="kanban-card">{inner}</Link>
                 ) : (
