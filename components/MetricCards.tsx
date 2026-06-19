@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ServiceTicket, TicketKind } from '@/lib/mock';
+import { useEditMode, useEditFlush } from './EditMode';
 
 // ---------- Metric registry ----------
 // Each metric knows how to compute itself client-side from the section's own
@@ -139,8 +140,10 @@ export function MetricCards({ kind, tickets }: { kind: TicketKind; tickets: Serv
   const lsKey = `sentinel:layout:${layoutKey}`;
   const [selection, setSelection] = useState<string[]>(() => defaultSelection(kind));
   const [loaded, setLoaded] = useState(false);
-  const [editMode, setEditMode] = useState(false);
+  const { editing: editMode } = useEditMode();
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const selectionRef = useRef(selection);
+  selectionRef.current = selection;
 
   useEffect(() => {
     let cancelled = false;
@@ -195,12 +198,8 @@ export function MetricCards({ kind, tickets }: { kind: TicketKind; tickets: Serv
     });
   }, [persist]);
 
-  const toggleEdit = useCallback(() => {
-    setEditMode((on) => {
-      if (on) persist(selection, true); // flush on leaving edit mode
-      return !on;
-    });
-  }, [persist, selection]);
+  // Flush any pending debounced save when the page leaves global edit mode.
+  useEditFlush(() => persist(selectionRef.current, true));
 
   const resetCards = useCallback(() => {
     const def = defaultSelection(kind);
@@ -212,12 +211,11 @@ export function MetricCards({ kind, tickets }: { kind: TicketKind; tickets: Serv
     <div className="mb">
       <div className="row spread" style={{ marginBottom: 8 }}>
         <span className="sub">Section metrics{editMode ? ' — pick a metric per card' : ''}</span>
-        <div className="row" style={{ gap: 8 }}>
-          {editMode && <button className="btn ghost sm" onClick={resetCards}>Reset</button>}
-          <button className={`btn sm${editMode ? '' : ' ghost'}`} onClick={toggleEdit} aria-pressed={editMode}>
-            {editMode ? 'Done' : 'Edit'}
-          </button>
-        </div>
+        {editMode && (
+          <div className="row" style={{ gap: 8 }}>
+            <button className="btn ghost sm" onClick={resetCards}>Reset</button>
+          </div>
+        )}
       </div>
       <div className="grid grid-4">
         {selection.map((id, idx) => {

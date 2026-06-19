@@ -1,14 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Responsive, WidthProvider, type Layout, type Layouts } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
-import { sevClass, sevLabel, KIND_LABEL, type ServiceTicket } from '@/lib/mock';
+import { sevClass, sevLabel, KIND_LABEL, type ServiceTicket, type Severity } from '@/lib/mock';
 import { AppTag } from './AppTag';
 import { TicketControls } from './TicketControls';
 import { ActivityFeed } from './ActivityFeed';
 import { statusColor } from './TicketDetail';
+import { useEditMode, useEditFlush } from './EditMode';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -24,21 +26,26 @@ const DENSITIES = [5, 9, 12] as const;
 type Density = (typeof DENSITIES)[number];
 const NARROW_BP = 700; // below this width → single column
 
-type PanelId = 'summary' | 'details' | 'activity' | 'metadata' | 'controls' | 'kind' | 'links';
+type PanelId = 'summary' | 'details' | 'activity' | 'kind' | 'links';
+
+// Panels the dashboard actually renders. Metadata + Controls were folded into
+// Details in the v2 layout; any stale ids in a saved layout are dropped on load.
+const PANEL_IDS: readonly PanelId[] = ['summary', 'details', 'activity', 'kind', 'links'];
+const PANEL_SET = new Set<string>(PANEL_IDS);
 
 // Persisted shape: the active column count + one Layout[] per density we've
 // generated so far. Lazily filled as the user visits a density.
 type StoredLayout = { cols: Density; byCols: Partial<Record<Density, Layout[]>> };
 
-// Base 12-col arrangement. Summary is a full-width tile at the top.
+// Base 12-col arrangement. Summary is a full-width tile at the top; Details is a
+// tall left rail (it now carries the fields + inline controls that used to live
+// in the separate Metadata/Controls panels).
 const DEFAULT_12: Layout[] = [
   { i: 'summary',  x: 0, y: 0,  w: 12, h: 4,  minW: 3, minH: 3 },
-  { i: 'details',  x: 0, y: 4,  w: 8,  h: 7,  minW: 3, minH: 3 },
-  { i: 'metadata', x: 8, y: 4,  w: 4,  h: 9,  minW: 3, minH: 4 },
-  { i: 'controls', x: 8, y: 13, w: 4,  h: 7,  minW: 3, minH: 4 },
-  { i: 'activity', x: 0, y: 11, w: 8,  h: 12, minW: 3, minH: 5 },
-  { i: 'kind',     x: 8, y: 20, w: 4,  h: 7,  minW: 3, minH: 3 },
-  { i: 'links',    x: 0, y: 23, w: 8,  h: 6,  minW: 3, minH: 3 },
+  { i: 'details',  x: 0, y: 4,  w: 8,  h: 16, minW: 3, minH: 6 },
+  { i: 'activity', x: 8, y: 4,  w: 4,  h: 12, minW: 3, minH: 5 },
+  { i: 'kind',     x: 8, y: 16, w: 4,  h: 7,  minW: 3, minH: 3 },
+  { i: 'links',    x: 0, y: 20, w: 8,  h: 6,  minW: 3, minH: 3 },
 ];
 
 // Produce a sensible default layout for a given column count. For 12 we use the
@@ -52,11 +59,11 @@ function defaultLayoutFor(cols: Density): Layout[] {
   const right = Math.max(1, cols - left);
   if (right < 1 || cols < 4) {
     // Single-column stack for tiny densities.
-    const order: PanelId[] = ['summary', 'details', 'metadata', 'controls', 'activity', 'kind', 'links'];
+    const order: PanelId[] = ['summary', 'details', 'activity', 'kind', 'links'];
     let y = 0;
     return order.map((i) => {
-      const h = i === 'summary' ? 4 : i === 'activity' ? 12 : i === 'metadata' ? 9 : 7;
-      const row = { i, x: 0, y, w: cols, h, minW: 1, minH: i === 'summary' ? 3 : 3 };
+      const h = i === 'summary' ? 4 : i === 'details' ? 16 : i === 'activity' ? 12 : 7;
+      const row = { i, x: 0, y, w: cols, h, minW: 1, minH: 3 };
       y += h;
       return row;
     });
@@ -64,12 +71,10 @@ function defaultLayoutFor(cols: Density): Layout[] {
 
   return [
     { i: 'summary',  x: 0,    y: 0,  w: cols,  h: 4,  minW: 2, minH: 3 },
-    { i: 'details',  x: 0,    y: 4,  w: left,  h: 7,  minW: 2, minH: 3 },
-    { i: 'metadata', x: left, y: 4,  w: right, h: 9,  minW: 2, minH: 4 },
-    { i: 'controls', x: left, y: 13, w: right, h: 7,  minW: 2, minH: 4 },
-    { i: 'activity', x: 0,    y: 11, w: left,  h: 12, minW: 2, minH: 5 },
-    { i: 'kind',     x: left, y: 20, w: right, h: 7,  minW: 2, minH: 3 },
-    { i: 'links',    x: 0,    y: 23, w: left,  h: 6,  minW: 2, minH: 3 },
+    { i: 'details',  x: 0,    y: 4,  w: left,  h: 16, minW: 2, minH: 6 },
+    { i: 'activity', x: left, y: 4,  w: right, h: 12, minW: 2, minH: 5 },
+    { i: 'kind',     x: left, y: 16, w: right, h: 7,  minW: 2, minH: 3 },
+    { i: 'links',    x: 0,    y: 20, w: left,  h: 6,  minW: 2, minH: 3 },
   ];
 }
 
@@ -77,22 +82,43 @@ function defaultStored(): StoredLayout {
   return { cols: 12, byCols: { 12: defaultLayoutFor(12) } };
 }
 
+// Reconcile a saved Layout[] with the CURRENT panel set: drop tiles for panels
+// that no longer exist (e.g. the old 'metadata'/'controls' panels, now merged
+// into Details) and append defaults for any panel missing from the save. This
+// keeps react-grid-layout from rendering an orphan tile or omitting a panel.
+function reconcileLayout(raw: any, cols: Density): Layout[] {
+  const def = defaultLayoutFor(cols);
+  if (!Array.isArray(raw)) return def;
+  const kept = raw.filter((l) => l && typeof l.i === 'string' && PANEL_SET.has(l.i)) as Layout[];
+  const present = new Set(kept.map((l) => l.i));
+  // Append defaults for any current panel the save didn't include, stacked below.
+  let nextY = kept.reduce((m, l) => Math.max(m, (l.y ?? 0) + (l.h ?? 0)), 0);
+  for (const d of def) {
+    if (present.has(d.i)) continue;
+    kept.push({ ...d, x: 0, y: nextY });
+    nextY += d.h ?? 6;
+  }
+  return kept;
+}
+
 // Tolerant migration: accepts the new StoredLayout shape, the old `Layouts`
 // (breakpoint map) shape, or junk → default. Old layouts that had a `lg` array
 // are adopted as the 12-col layout so existing users don't lose their work.
+// Every per-density layout is reconciled against the current panel set so stale
+// 'metadata'/'controls' tiles are dropped gracefully.
 function coerceStored(raw: any): StoredLayout {
   if (raw && typeof raw === 'object' && raw.byCols && typeof raw.byCols === 'object') {
     const cols: Density = (DENSITIES as readonly number[]).includes(raw.cols) ? raw.cols : 12;
     const byCols: Partial<Record<Density, Layout[]>> = {};
     for (const d of DENSITIES) {
-      if (Array.isArray(raw.byCols[d])) byCols[d] = raw.byCols[d];
+      if (Array.isArray(raw.byCols[d])) byCols[d] = reconcileLayout(raw.byCols[d], d);
     }
     if (!byCols[cols]) byCols[cols] = defaultLayoutFor(cols);
     return { cols, byCols };
   }
   // Legacy Layouts map { lg, md, sm }
   if (raw && typeof raw === 'object' && Array.isArray(raw.lg)) {
-    return { cols: 12, byCols: { 12: raw.lg as Layout[] } };
+    return { cols: 12, byCols: { 12: reconcileLayout(raw.lg, 12) } };
   }
   return defaultStored();
 }
@@ -187,11 +213,74 @@ const KIND_TITLE: Record<string, string> = {
   change: 'Change details', problem: 'Problem details', release: 'Release details',
 };
 
+// Priority dropdown. Persists via PATCH /api/tickets/[ref] (priority) and then
+// refreshes the server-rendered detail. Priority is normally auto-derived from
+// impact × urgency; this lets an operator override it. Critical/High/Medium/Low
+// only (Severity also has 'info', which isn't a meaningful ticket priority).
+const PRIORITY_OPTIONS: Severity[] = ['low', 'medium', 'high', 'critical'];
+
+function PrioritySelect({ ref_, priority }: { ref_: string; priority: Severity }) {
+  const router = useRouter();
+  const [value, setValue] = useState<Severity>(priority);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  // Keep in sync if the server refresh hands us a new priority.
+  useEffect(() => { setValue(priority); }, [priority]);
+
+  // Ensure the current value is always selectable even if it's 'info' or some
+  // out-of-band band, so we never silently lose the displayed value.
+  const options = Array.from(new Set<string>([value, ...PRIORITY_OPTIONS])) as Severity[];
+
+  async function onChange(next: Severity) {
+    const prev = value;
+    setValue(next);
+    setBusy(true); setErr(null);
+    try {
+      const res = await fetch(`/api/tickets/${encodeURIComponent(ref_)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ priority: next }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setErr(data?.error ?? `Failed (${res.status})`);
+        setValue(prev); // revert on failure
+      } else {
+        router.refresh();
+      }
+    } catch (e: any) {
+      setErr(e?.message ?? 'Network error');
+      setValue(prev);
+    }
+    setBusy(false);
+  }
+
+  return (
+    <span className="row" style={{ gap: 8, alignItems: 'center' }}>
+      <span className={`pill ${sevClass[value]}`} style={{ fontSize: 10 }}>●</span>
+      <select
+        className="select"
+        value={value}
+        disabled={busy}
+        onChange={(e) => onChange(e.target.value as Severity)}
+        aria-label="Priority"
+        style={{ maxWidth: 160 }}
+      >
+        {options.map((p) => <option key={p} value={p}>{sevLabel[p]}</option>)}
+      </select>
+      {err && <span className="form-err" style={{ margin: 0 }}>{err}</span>}
+    </span>
+  );
+}
+
 export function TicketDashboard({ t }: { t: ServiceTicket }) {
   const [stored, setStored] = useState<StoredLayout>(() => defaultStored());
   const [loaded, setLoaded] = useState(false);
-  const [editMode, setEditMode] = useState(false);
+  const { editing: editMode } = useEditMode();
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const storedRef = useRef(stored);
+  storedRef.current = stored;
 
   // On mount: hydrate from localStorage instantly, then reconcile with the DB.
   useEffect(() => {
@@ -285,13 +374,8 @@ export function TicketDashboard({ t }: { t: ServiceTicket }) {
     });
   }, [persist]);
 
-  const toggleEdit = useCallback(() => {
-    setEditMode((on) => {
-      // Leaving edit mode → flush the current layout immediately.
-      if (on) persist(stored, true);
-      return !on;
-    });
-  }, [persist, stored]);
+  // Leaving the page's global edit mode → flush the current layout immediately.
+  useEditFlush(() => persist(storedRef.current, true));
 
   const saveNow = useCallback(() => persist(stored, true), [persist, stored]);
 
@@ -299,14 +383,10 @@ export function TicketDashboard({ t }: { t: ServiceTicket }) {
 
   return (
     <div>
-      <div className="row spread mb td-toolbar">
-        <span className="sub">
-          {editMode
-            ? 'Drag panel headers to rearrange · drag corners to resize'
-            : 'Layout locked — switch on Edit layout to rearrange'}
-        </span>
-        <div className="row" style={{ gap: 8 }}>
-          {editMode && (
+      {editMode && (
+        <div className="row spread mb td-toolbar">
+          <span className="sub">Drag panel headers to rearrange · drag corners to resize</span>
+          <div className="row" style={{ gap: 8 }}>
             <div className="td-density" role="group" aria-label="Grid density">
               <span className="td-density-l">Density</span>
               {DENSITIES.map((d) => (
@@ -320,18 +400,11 @@ export function TicketDashboard({ t }: { t: ServiceTicket }) {
                 </button>
               ))}
             </div>
-          )}
-          {editMode && <button className="btn ghost sm" onClick={resetLayout}>Reset layout</button>}
-          {editMode && <button className="btn sm" onClick={saveNow}>Save</button>}
-          <button
-            className={`btn sm${editMode ? '' : ' ghost'}`}
-            onClick={toggleEdit}
-            aria-pressed={editMode}
-          >
-            {editMode ? 'Done' : 'Edit layout'}
-          </button>
+            <button className="btn ghost sm" onClick={resetLayout}>Reset layout</button>
+            <button className="btn sm" onClick={saveNow}>Save</button>
+          </div>
         </div>
-      </div>
+      )}
 
       <ResponsiveGridLayout
         className={`td-rgl${editMode ? ' td-editing' : ''}`}
@@ -350,50 +423,39 @@ export function TicketDashboard({ t }: { t: ServiceTicket }) {
       >
         <div key="summary">
           <Panel title="Summary" editMode={editMode}>
-            <div className="row" style={{ gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
-              <span className="tag st-blue">{KIND_LABEL[t.kind] ?? t.kind}</span>
-              <AppTag app={t.app} />
-              <span className={`pill ${sevClass[t.priority]}`}>● {sevLabel[t.priority]} priority</span>
-            </div>
-            <div className="h1" style={{ margin: '4px 0 8px', fontSize: 20 }}>{t.title}</div>
-            <div className="kv">
-              <div className="r"><span className="k2">Ref</span><span className="mono">{t.ref}</span></div>
-              <div className="r"><span className="k2">Priority</span><span><b>{sevLabel[t.priority]}</b></span></div>
-            </div>
+            <div className="h1" style={{ margin: '4px 0 6px', fontSize: 20 }}>{t.title}</div>
+            <div className="mono sub">{t.ref}</div>
           </Panel>
         </div>
 
         <div key="details">
           <Panel title="Details" editMode={editMode}>
-            <p style={{ color: '#c8cedb', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+            <p style={{ color: '#c8cedb', lineHeight: 1.7, whiteSpace: 'pre-wrap', marginTop: 0 }}>
               {t.description || '—'}
             </p>
+            <div className="kv" style={{ marginTop: 10 }}>
+              <div className="r"><span className="k2">Type</span><span><span className="tag st-blue">{KIND_LABEL[t.kind] ?? t.kind}</span></span></div>
+              <div className="r"><span className="k2">App</span><span><AppTag app={t.app} /></span></div>
+              <div className="r">
+                <span className="k2">Priority</span>
+                <span><PrioritySelect ref_={t.ref} priority={t.priority} /></span>
+              </div>
+              <div className="r"><span className="k2">Impact × Urgency</span><span>{t.impact} × {t.urgency}</span></div>
+              <div className="r"><span className="k2"></span><span className="sub" style={{ fontSize: 11 }}>auto-set from impact × urgency — override here</span></div>
+              <div className="r"><span className="k2">Status</span><span style={{ fontWeight: 600, color: statusColor[t.status] ?? 'var(--text)' }}>{t.status}</span></div>
+              <div className="r"><span className="k2">SLA due</span><span style={{ color: t.slaDue ? '#ffc05a' : 'var(--muted)' }}>{t.slaDue ? new Date(t.slaDue).toLocaleString() : '—'}</span></div>
+              <div className="r"><span className="k2">Assignee</span><span>{t.assignee}</span></div>
+              <div className="r"><span className="k2">Source</span><span>{t.source}</span></div>
+            </div>
+            <div style={{ marginTop: 12, borderTop: '1px solid var(--border, #2a3142)', paddingTop: 12 }}>
+              <TicketControls ref_={t.ref} kind={t.kind} status={t.status} assignee={t.assignee} embedded />
+            </div>
           </Panel>
         </div>
 
         <div key="activity">
           <Panel title="Activity" editMode={editMode}>
             <ActivityFeed ref_={t.ref} />
-          </Panel>
-        </div>
-
-        <div key="metadata">
-          <Panel title="Metadata" editMode={editMode}>
-            <div className="kv">
-              <div className="r"><span className="k2">Ref</span><span className="mono">{t.ref}</span></div>
-              <div className="r"><span className="k2">Status</span><span style={{ fontWeight: 600, color: statusColor[t.status] ?? 'var(--text)' }}>{t.status}</span></div>
-              <div className="r"><span className="k2">Impact × Urgency → Priority</span><span>{t.impact} × {t.urgency} → <b>{sevLabel[t.priority]}</b></span></div>
-              <div className="r"><span className="k2">App</span><span><AppTag app={t.app} /></span></div>
-              <div className="r"><span className="k2">Assignee</span><span>{t.assignee}</span></div>
-              <div className="r"><span className="k2">Source</span><span>{t.source}</span></div>
-              <div className="r"><span className="k2">SLA due</span><span style={{ color: t.slaDue ? '#ffc05a' : 'var(--muted)' }}>{t.slaDue ? new Date(t.slaDue).toLocaleString() : '—'}</span></div>
-            </div>
-          </Panel>
-        </div>
-
-        <div key="controls">
-          <Panel title="Controls" editMode={editMode}>
-            <TicketControls ref_={t.ref} kind={t.kind} status={t.status} assignee={t.assignee} embedded />
           </Panel>
         </div>
 
