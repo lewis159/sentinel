@@ -1,6 +1,7 @@
 import { getTicketsByKind } from '@/lib/data';
 import { requireGlobalAdminPage } from '@/lib/auth';
 import { SectionView } from '@/components/SectionView';
+import { ReleasePipeline } from '@/components/ReleasePipeline';
 import { LiveBadge } from '@/components/LiveBadge';
 
 export const dynamic = 'force-dynamic';
@@ -21,6 +22,11 @@ export default async function ReleasesPage() {
           <div className="sub">{inFlight} in flight · deployment records, linked to changes</div>
         </div>
         <button className="btn sm">+ Plan release</button>
+      </div>
+
+      <div className="card mb">
+        <div className="panel-h"><h3>Release pipeline</h3></div>
+        <ReleasePipeline releases={rows} />
       </div>
 
       <SectionView kind="release" tickets={rows} />

@@ -199,6 +199,16 @@ td .t { font-weight: 600; } td .d { color: var(--muted); font-size: 11.5px; marg
 .kanban-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
 .kanban-card-title { font-weight: 600; font-size: 12.5px; line-height: 1.4; }
 
+/* ---------- Change calendar (month / week grid) ---------- */
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.cal-weekday { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; padding: 2px 4px 4px; }
+.cal-cell { min-height: 92px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; padding: 6px; display: flex; flex-direction: column; gap: 4px; }
+.cal-cell[data-dim="true"] { opacity: .4; }
+.cal-cell[data-today="true"] { border-color: rgba(45,108,255,.55); }
+.cal-date { font-size: 11px; color: var(--muted); font-weight: 600; }
+.cal-event { display: flex; align-items: center; gap: 5px; padding: 3px 6px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+.cal-event-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* ---------- KB rendered markdown (marked → HTML) ---------- */
 .kb-prose { color: var(--text); line-height: 1.7; font-size: 14px; max-width: 860px; }
 .kb-prose > :first-child { margin-top: 0; }
