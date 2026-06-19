@@ -17,7 +17,6 @@ export const WORKSPACES: Record<Workspace, { label: string; icon: string; home: 
         items: [
           { label: 'Findings', href: '/findings', icon: '⚠' },
           { label: 'Scans & Checks', href: '/scans', icon: '◎' },
-          { label: 'User Audit', href: '/users', icon: '◰' },
         ],
       },
       {
@@ -64,6 +63,12 @@ export const WORKSPACES: Record<Workspace, { label: string; icon: string; home: 
         ],
       },
       {
+        group: 'Access',
+        items: [
+          { label: 'User Access', href: '/users', icon: '👤' },
+        ],
+      },
+      {
         group: 'Delivery',
         collapsible: true,
         items: [
@@ -93,8 +98,9 @@ export const WORKSPACES: Record<Workspace, { label: string; icon: string; home: 
 // Service-management sections live in Operations (per the IA brief). `incidents`
 // stays owned by Security for now (the Security/Ops IA review is a later pass).
 const OWNS: Record<string, Workspace> = {
-  findings: 'security', tickets: 'security', users: 'security', incidents: 'security',
+  findings: 'security', tickets: 'security', incidents: 'security',
   infra: 'operations', components: 'operations', activity: 'operations', resilience: 'operations',
+  users: 'operations',
   requests: 'operations', changes: 'operations', problems: 'operations', releases: 'operations',
   roadmap: 'operations', changelog: 'operations',
 };
