@@ -6,6 +6,7 @@ import { LiveBadge } from '@/components/LiveBadge';
 import { Breadcrumb } from '@/components/Breadcrumb';
 import { MetricCards } from '@/components/MetricCards';
 import { AutoRefresh } from '@/components/AutoRefresh';
+import { EditModeProvider, EditModeToggle } from '@/components/EditMode';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,24 +26,27 @@ export default async function ReleasesPage({
         { label: 'Service management' },
         { label: 'Releases' },
       ]} />
-      <div className="spread mb">
-        <div>
-          <div className="row" style={{ gap: 10 }}>
-            <div className="h1">Releases</div>
-            <LiveBadge live={live} table="ops.tickets · release" note={note} />
+      <EditModeProvider>
+        <div className="spread mb">
+          <div>
+            <div className="row" style={{ gap: 10 }}>
+              <div className="h1">Releases</div>
+              <LiveBadge live={live} table="ops.tickets · release" note={note} />
+            </div>
+            <div className="sub">{inFlight} in flight · deployment records, linked to changes</div>
           </div>
-          <div className="sub">{inFlight} in flight · deployment records, linked to changes</div>
+          <EditModeToggle />
         </div>
-      </div>
 
-      <MetricCards kind="release" tickets={rows} />
+        <MetricCards kind="release" tickets={rows} />
 
-      <div className="card mb">
-        <div className="panel-h"><h3>Release pipeline</h3></div>
-        <ReleasePipeline releases={rows} />
-      </div>
+        <div className="card mb">
+          <div className="panel-h"><h3>Release pipeline</h3></div>
+          <ReleasePipeline releases={rows} />
+        </div>
 
-      <SectionView kind="release" tickets={rows} initialSelected={ticket ?? null} />
+        <SectionView kind="release" tickets={rows} initialSelected={ticket ?? null} />
+      </EditModeProvider>
     </div>
   );
 }

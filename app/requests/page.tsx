@@ -5,6 +5,7 @@ import { LiveBadge } from '@/components/LiveBadge';
 import { Breadcrumb } from '@/components/Breadcrumb';
 import { MetricCards } from '@/components/MetricCards';
 import { AutoRefresh } from '@/components/AutoRefresh';
+import { EditModeProvider, EditModeToggle } from '@/components/EditMode';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,19 +22,21 @@ export default async function RequestsPage() {
         { label: 'Service management' },
         { label: 'Requests' },
       ]} />
-      <div className="spread mb">
-        <div>
-          <div className="row" style={{ gap: 10 }}>
-            <div className="h1">Requests</div>
-            <LiveBadge live={live} table="ops.tickets · request" note={note} />
+      <EditModeProvider>
+        <div className="spread mb">
+          <div>
+            <div className="row" style={{ gap: 10 }}>
+              <div className="h1">Requests</div>
+              <LiveBadge live={live} table="ops.tickets · request" note={note} />
+            </div>
+            <div className="sub">{open} open · service requests and access provisioning</div>
           </div>
-          <div className="sub">{open} open · service requests and access provisioning</div>
+          <EditModeToggle />
         </div>
-      </div>
 
-      <MetricCards kind="request" tickets={rows} />
-
-      <SectionView kind="request" tickets={rows} />
+        <MetricCards kind="request" tickets={rows} />
+        <SectionView kind="request" tickets={rows} />
+      </EditModeProvider>
     </div>
   );
 }
