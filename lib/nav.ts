@@ -24,7 +24,6 @@ export const WORKSPACES: Record<Workspace, { label: string; icon: string; home: 
         items: [
           { label: 'Tickets', href: '/tickets', icon: '🎫' },
           { label: 'Alerts', href: '/alerts', icon: '🔔' },
-          { label: 'Incidents', href: '/incidents', icon: '🚨' },
         ],
       },
       {
@@ -95,13 +94,14 @@ export const WORKSPACES: Record<Workspace, { label: string; icon: string; home: 
 };
 
 // Routes uniquely owned by one workspace — used to auto-switch when you land there.
-// Service-management sections live in Operations (per the IA brief). `incidents`
-// stays owned by Security for now (the Security/Ops IA review is a later pass).
+// All ITIL service-management sections (incidents/requests/changes/problems/
+// releases) live in Operations, so `incidents` is owned by Operations and no
+// longer appears in the Security workspace nav.
 const OWNS: Record<string, Workspace> = {
-  findings: 'security', tickets: 'security', incidents: 'security',
+  findings: 'security', tickets: 'security',
   infra: 'operations', components: 'operations', activity: 'operations', resilience: 'operations',
   users: 'operations',
-  requests: 'operations', changes: 'operations', problems: 'operations', releases: 'operations',
+  incidents: 'operations', requests: 'operations', changes: 'operations', problems: 'operations', releases: 'operations',
   roadmap: 'operations', changelog: 'operations',
 };
 
