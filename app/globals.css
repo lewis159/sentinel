@@ -423,7 +423,7 @@ td .t { font-weight: 600; } td .d { color: var(--muted); font-size: 11.5px; marg
 
 /* ---------- Kanban board ---------- */
 .kanban { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; align-items: flex-start; }
-.kanban-col { flex: 0 0 248px; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; }
+.kanban-col { flex: 1 1 0; min-width: 220px; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; }
 .kanban-col-h { display: flex; align-items: center; justify-content: space-between; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; padding: 2px 4px 10px; }
 .kanban-count { background: var(--panel-2); border-radius: 10px; padding: 1px 8px; font-size: 11px; color: var(--muted); }
 .kanban-cards { display: flex; flex-direction: column; gap: 8px; }
