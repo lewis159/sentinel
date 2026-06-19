@@ -132,6 +132,84 @@ export const activity = [
   { icon: '✓', text: 'Finding SEC-0001 marked Fixed', when: '1d ago' },
 ];
 
+// ---------- Service management (ITIL) ----------
+// The unified ITIL record (ops.tickets extended). `kind` is the practice.
+export type TicketKind = 'incident' | 'request' | 'change' | 'problem' | 'release';
+export type EstateApp = 'YT' | 'Sentinel' | 'Bruce' | 'Estate';
+
+export const KIND_LABEL: Record<TicketKind, string> = {
+  incident: 'Incident', request: 'Request', change: 'Change', problem: 'Problem', release: 'Release',
+};
+// Per-kind workflow status columns (used by the Kanban board grouping).
+export const KIND_STATUSES: Record<TicketKind, string[]> = {
+  incident: ['open', 'in_progress', 'resolved', 'closed'],
+  request: ['open', 'in_progress', 'fulfilled', 'closed'],
+  change: ['draft', 'awaiting_cab', 'approved', 'scheduled', 'implemented', 'closed'],
+  problem: ['open', 'investigating', 'known_error', 'resolved'],
+  release: ['planned', 'building', 'staged', 'deployed', 'verified'],
+};
+
+export const APP_LABEL: Record<EstateApp, string> = {
+  YT: 'YT Transcriber', Sentinel: 'Sentinel', Bruce: 'Springsteen', Estate: 'Estate',
+};
+
+export type ServiceTicket = {
+  ref: string; kind: TicketKind; title: string; description: string;
+  status: string; priority: Severity; impact: string; urgency: string;
+  app: EstateApp | string; assignee: string; source: string;
+  slaDue: string | null; age: string;
+  attrs: Record<string, any>;
+};
+
+// Mock ITIL records — a handful per kind so sections render without a DB.
+export const serviceTickets: ServiceTicket[] = [
+  { ref: 'INC-0001', kind: 'incident', title: 'Transcription queue backed up — jobs stalled', description: 'Worker pool stopped draining the queue; users see "processing" indefinitely.', status: 'in_progress', priority: 'critical', impact: 'high', urgency: 'high', app: 'YT', assignee: 'ben', source: 'alert', slaDue: new Date(Date.now() + 3 * 3600 * 1000).toISOString(), age: '2h', attrs: {} },
+  { ref: 'INC-0002', kind: 'incident', title: 'Sentinel infra page failing to load container stats', description: 'docker-socket-proxy returned 502 for ~10 minutes.', status: 'resolved', priority: 'medium', impact: 'medium', urgency: 'low', app: 'Sentinel', assignee: 'ben', source: 'manual', slaDue: null, age: '1d', attrs: {} },
+  { ref: 'INC-0003', kind: 'incident', title: 'Memory pressure on app replica', description: 'app replica sustained >85% mem for 20m.', status: 'open', priority: 'medium', impact: 'medium', urgency: 'medium', app: 'YT', assignee: '—', source: 'alert', slaDue: new Date(Date.now() + 20 * 3600 * 1000).toISOString(), age: '1h', attrs: {} },
+
+  { ref: 'REQ-0001', kind: 'request', title: 'Provision Studio tier for new org', description: 'Onboarding request for a Studio-tier workspace.', status: 'open', priority: 'low', impact: 'low', urgency: 'low', app: 'YT', assignee: '—', source: 'manual', slaDue: null, age: '4h', attrs: {} },
+  { ref: 'REQ-0002', kind: 'request', title: 'Add team member to Sentinel global-admin', description: 'Access request — approval pending.', status: 'in_progress', priority: 'medium', impact: 'low', urgency: 'medium', app: 'Sentinel', assignee: 'ben', source: 'manual', slaDue: null, age: '2d', attrs: {} },
+
+  { ref: 'CHG-0001', kind: 'change', title: 'Roll out CSP + HSTS at nginx origin', description: 'Normal change — add security headers across all estate apps.', status: 'awaiting_cab', priority: 'medium', impact: 'medium', urgency: 'low', app: 'Estate', assignee: 'ben', source: 'finding', slaDue: null, age: '3d', attrs: { risk: 'medium', cab_status: 'pending', window: '2026-06-22 02:00 UTC', backout: 'Revert nginx config block; reload.', change_type: 'normal' } },
+  { ref: 'CHG-0002', kind: 'change', title: 'Migrate Sentinel DB to self-hosted HA Postgres', description: 'Major change — Patroni + etcd + HAProxy cutover.', status: 'draft', priority: 'high', impact: 'high', urgency: 'medium', app: 'Sentinel', assignee: 'ben', source: 'manual', slaDue: null, age: '5d', attrs: { risk: 'high', cab_status: 'not_submitted', window: 'TBD', backout: 'Repoint DATABASE_URL to old instance.', change_type: 'normal' } },
+  { ref: 'CHG-0003', kind: 'change', title: 'Emergency: rotate leaked service-role key', description: 'Standard/emergency change to rotate the Supabase service key.', status: 'implemented', priority: 'critical', impact: 'high', urgency: 'high', app: 'YT', assignee: 'ben', source: 'finding', slaDue: null, age: '6d', attrs: { risk: 'high', cab_status: 'approved', window: 'immediate', backout: 'N/A — key rotation.', change_type: 'emergency' } },
+
+  { ref: 'PRB-0001', kind: 'problem', title: 'Recurring queue stalls under burst load', description: 'Multiple incidents trace to the same worker lock contention.', status: 'investigating', priority: 'high', impact: 'high', urgency: 'medium', app: 'YT', assignee: 'ben', source: 'manual', slaDue: null, age: '3d', attrs: { root_cause: 'Single advisory lock held across long transcribe job.', known_error: false, workaround: 'Manually restart worker pool when depth > 200.' } },
+  { ref: 'PRB-0002', kind: 'problem', title: 'Intermittent 502 from docker-socket-proxy', description: 'Proxy occasionally drops under concurrent infra-page loads.', status: 'known_error', priority: 'medium', impact: 'medium', urgency: 'low', app: 'Sentinel', assignee: '—', source: 'manual', slaDue: null, age: '8d', attrs: { root_cause: 'Proxy connection cap too low.', known_error: true, workaround: 'Refresh the page; raise proxy max-conns.' } },
+
+  { ref: 'REL-0001', kind: 'release', title: 'Sentinel v0.4 — Service management module', description: 'Ships the ITIL section, roadmap board and changelog.', status: 'building', priority: 'medium', impact: 'medium', urgency: 'medium', app: 'Sentinel', assignee: 'ben', source: 'manual', slaDue: null, age: '1d', attrs: { version: 'v0.4.0', window: '2026-06-25', linked_changes: ['CHG-0002'] } },
+  { ref: 'REL-0002', kind: 'release', title: 'YT v2.1 — AI summary + full-text search', description: 'Feature release bundling the v2 backlog highlights.', status: 'planned', priority: 'low', impact: 'medium', urgency: 'low', app: 'YT', assignee: '—', source: 'manual', slaDue: null, age: '2d', attrs: { version: 'v2.1.0', window: 'Q3', linked_changes: [] } },
+];
+
+export type RoadmapItem = {
+  itemKey: string; title: string; description: string;
+  status: string; app: EstateApp | string; sortOrder: number;
+};
+export const ROADMAP_STATUSES = ['backlog', 'in_progress', 'in_review', 'shipped'];
+export const ROADMAP_STATUS_LABEL: Record<string, string> = {
+  backlog: 'Backlog', in_progress: 'In progress', in_review: 'In review', shipped: 'Shipped',
+};
+
+export const roadmapItems: RoadmapItem[] = [
+  { itemKey: 'RM-001', title: 'Service management module (ITIL)', description: 'Incidents/requests/changes/problems/releases + roadmap + changelog.', status: 'in_progress', app: 'Sentinel', sortOrder: 1 },
+  { itemKey: 'RM-002', title: 'Report-issue widget + ingest API', description: 'Estate apps POST bugs into ops.findings via HMAC endpoint.', status: 'backlog', app: 'Estate', sortOrder: 2 },
+  { itemKey: 'RM-003', title: 'Change calendar + CAB workflow', description: 'Calendar view for changes; approval/CAB states.', status: 'backlog', app: 'Sentinel', sortOrder: 3 },
+  { itemKey: 'RM-004', title: 'Self-hosted HA Postgres cutover', description: 'Move Sentinel off the dev DB to Patroni HA.', status: 'in_review', app: 'Sentinel', sortOrder: 4 },
+  { itemKey: 'RM-005', title: 'AI summary for transcripts', description: 'Per-video AI summary on the YT portal.', status: 'backlog', app: 'YT', sortOrder: 5 },
+  { itemKey: 'RM-006', title: 'Full-text transcript search', description: 'Search across all transcripts in a workspace.', status: 'backlog', app: 'YT', sortOrder: 6 },
+  { itemKey: 'RM-007', title: 'Clerk estate-level IdP', description: 'Re-engineer Clerk to a shared .bentech.dev identity provider.', status: 'in_progress', app: 'Estate', sortOrder: 7 },
+  { itemKey: 'RM-008', title: 'Nightly security reviews → findings', description: 'GitHub Actions AI reviews push into ops.findings.', status: 'shipped', app: 'Sentinel', sortOrder: 8 },
+];
+
+export type ChangelogEntry = {
+  version: string; label: string; date: string; body: string; app: EstateApp | string;
+};
+export const changelogEntries: ChangelogEntry[] = [
+  { version: 'v0.3.0', label: 'Nightly security reviews', date: new Date(Date.now() - 5 * 24 * 3600 * 1000).toISOString(), body: 'Cloud GitHub Actions AI security reviews now push findings into the portal.', app: 'Sentinel' },
+  { version: 'v0.2.0', label: 'Resilience self-tests', date: new Date(Date.now() - 18 * 24 * 3600 * 1000).toISOString(), body: 'Added the resilience runner (DB failover, app-replica, worker, headers, scale).', app: 'Sentinel' },
+  { version: 'v2.0.0', label: 'YT portal GA', date: new Date(Date.now() - 40 * 24 * 3600 * 1000).toISOString(), body: 'YT Transcriber web portal reached general availability.', app: 'YT' },
+];
+
 // Graph neighbours used by the LinksPanel on detail pages.
 export const findingLinks: Record<string, { rel: string; type: string; id: string; label: string; href: string }[]> = {
   'SEC-0009': [

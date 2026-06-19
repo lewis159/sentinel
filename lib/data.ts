@@ -8,7 +8,10 @@
 import { hasDb, q, q1 } from './db';
 import { getSupabase } from './connectors';
 import * as mock from './mock';
-import type { Finding, Ticket, AbuseUser, Severity } from './mock';
+import type {
+  Finding, Ticket, AbuseUser, Severity,
+  ServiceTicket, TicketKind, RoadmapItem, ChangelogEntry,
+} from './mock';
 
 export type Sourced<T> = { rows: T[]; live: boolean; note?: string };
 
@@ -375,6 +378,109 @@ export async function getPlatformStats(): Promise<{ users: number; videos: numbe
     users: u.count ?? 0, videos: v.count ?? 0, transcripts: t.count ?? 0,
     live: !u.error && !v.error,
   };
+}
+
+// ---------- Service management (ITIL) — ops.tickets extended ----------
+function mapServiceTicket(r: any): ServiceTicket {
+  const attrs = (typeof r.attrs === 'string' ? safeJson(r.attrs) : r.attrs) ?? {};
+  return {
+    ref: r.ref,
+    kind: (r.kind ?? 'incident') as TicketKind,
+    title: r.title,
+    description: r.description ?? '',
+    status: r.status ?? 'open',
+    priority: (r.priority ?? 'medium') as Severity,
+    impact: r.impact ?? '—',
+    urgency: r.urgency ?? '—',
+    app: r.app ?? 'Estate',
+    assignee: '—',
+    source: r.source ?? 'manual',
+    slaDue: r.sla_due ? (r.sla_due instanceof Date ? r.sla_due.toISOString() : r.sla_due) : null,
+    age: rel(r.opened_at ?? r.created_at),
+    attrs,
+  };
+}
+
+function safeJson(s: string): any {
+  try { return JSON.parse(s); } catch { return {}; }
+}
+
+const TICKET_COLS =
+  'ref,kind,title,description,status,priority,impact,urgency,app,source,sla_due,opened_at,created_at,attrs';
+
+// All ITIL records of a given kind (incident|request|change|problem|release).
+export async function getTicketsByKind(kind: TicketKind): Promise<Sourced<ServiceTicket>> {
+  const fallback = () => mock.serviceTickets.filter((t) => t.kind === kind);
+  if (!hasDb) return { rows: fallback(), live: false, note: 'no DB' };
+  try {
+    const data = await q<any>(
+      `select ${TICKET_COLS} from ops.tickets where kind=$1 order by opened_at desc nulls last`,
+      [kind]
+    );
+    if (data.length === 0) return { rows: fallback(), live: false, note: 'empty' };
+    return { rows: data.map(mapServiceTicket), live: true };
+  } catch (e: any) {
+    return { rows: fallback(), live: false, note: e?.message ?? 'error' };
+  }
+}
+
+// Single ITIL record by ref (used by the detail pane / detail route).
+export async function getServiceTicket(ref: string): Promise<{ row: ServiceTicket | null; live: boolean }> {
+  const fallback = () => mock.serviceTickets.find((t) => t.ref === ref) ?? null;
+  if (!hasDb) return { row: fallback(), live: false };
+  try {
+    const data = await q1<any>(`select ${TICKET_COLS} from ops.tickets where ref=$1`, [ref]);
+    if (!data) return { row: fallback(), live: false };
+    return { row: mapServiceTicket(data), live: true };
+  } catch {
+    return { row: fallback(), live: false };
+  }
+}
+
+// ---------- Roadmap (ops.roadmap_items) ----------
+function mapRoadmap(r: any): RoadmapItem {
+  return {
+    itemKey: r.item_key,
+    title: r.title,
+    description: r.description ?? '',
+    status: r.status ?? 'backlog',
+    app: r.app ?? 'Estate',
+    sortOrder: Number(r.sort_order) || 0,
+  };
+}
+
+export async function getRoadmap(): Promise<Sourced<RoadmapItem>> {
+  if (!hasDb) return { rows: mock.roadmapItems, live: false, note: 'no DB' };
+  try {
+    const data = await q<any>(
+      'select item_key,title,description,status,app,sort_order from ops.roadmap_items order by sort_order asc, created_at asc'
+    );
+    if (data.length === 0) return { rows: mock.roadmapItems, live: false, note: 'empty' };
+    return { rows: data.map(mapRoadmap), live: true };
+  } catch (e: any) {
+    return { rows: mock.roadmapItems, live: false, note: e?.message ?? 'error' };
+  }
+}
+
+// ---------- Changelog (ops.changelog_entries) ----------
+export async function getChangelog(): Promise<Sourced<ChangelogEntry>> {
+  if (!hasDb) return { rows: mock.changelogEntries, live: false, note: 'no DB' };
+  try {
+    const data = await q<any>(
+      'select version,label,date,body,app from ops.changelog_entries order by date desc'
+    );
+    if (data.length === 0) return { rows: mock.changelogEntries, live: false, note: 'empty' };
+    const rows: ChangelogEntry[] = data.map((r) => ({
+      version: r.version ?? '',
+      label: r.label ?? '',
+      date: r.date instanceof Date ? r.date.toISOString() : r.date,
+      body: r.body ?? '',
+      app: r.app ?? 'Estate',
+    }));
+    return { rows, live: true };
+  } catch (e: any) {
+    return { rows: mock.changelogEntries, live: false, note: e?.message ?? 'error' };
+  }
 }
 
 // ---------- Connectivity probe (for a status badge) ----------

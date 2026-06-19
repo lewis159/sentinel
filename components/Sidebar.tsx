@@ -24,6 +24,15 @@ export function Sidebar() {
     router.push(WORKSPACES[target].home);
   };
 
+  // Accordion: track which collapsible group is open. Default to the group that
+  // contains the active route so deep-links land expanded.
+  const groups = WORKSPACES[ws].nav;
+  const activeGroup = groups.find((g) => g.collapsible && g.items.some((it) => isActive(it.href)))?.group;
+  const [open, setOpen] = useState<string | null>(activeGroup ?? null);
+  useEffect(() => {
+    if (activeGroup) setOpen(activeGroup);
+  }, [activeGroup]);
+
   return (
     <aside className="sidebar">
       <Link href="/" className="brand">
@@ -41,17 +50,38 @@ export function Sidebar() {
       </div>
 
       <nav className="nav">
-        {WORKSPACES[ws].nav.map((grp, i) => (
-          <div key={i}>
-            {grp.group && <div className="group">{grp.group}</div>}
-            {grp.items.map((item) => (
-              <Link key={item.href} href={item.href} className={isActive(item.href) ? 'active' : ''}>
-                <span className="ic">{item.icon}</span>
-                {item.label}
-              </Link>
-            ))}
-          </div>
-        ))}
+        {groups.map((grp, i) => {
+          const links = grp.items.map((item) => (
+            <Link key={item.href} href={item.href} className={isActive(item.href) ? 'active' : ''}>
+              <span className="ic">{item.icon}</span>
+              {item.label}
+            </Link>
+          ));
+
+          if (grp.collapsible && grp.group) {
+            const isOpen = open === grp.group;
+            return (
+              <div key={i}>
+                <button
+                  type="button"
+                  className={`group acc ${isOpen ? 'open' : ''}`}
+                  onClick={() => setOpen(isOpen ? null : grp.group!)}
+                >
+                  <span>{grp.group}</span>
+                  <span className="acc-caret">{isOpen ? '▾' : '▸'}</span>
+                </button>
+                {isOpen && links}
+              </div>
+            );
+          }
+
+          return (
+            <div key={i}>
+              {grp.group && <div className="group">{grp.group}</div>}
+              {links}
+            </div>
+          );
+        })}
       </nav>
 
       <div className="nav" style={{ marginTop: 'auto', paddingTop: 12 }}>
