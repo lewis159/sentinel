@@ -4,6 +4,7 @@ import { ChangesSection } from '@/components/ChangesSection';
 import { LiveBadge } from '@/components/LiveBadge';
 import { Breadcrumb } from '@/components/Breadcrumb';
 import { MetricCards, sectionMetrics } from '@/components/MetricCards';
+import { AutoRefresh } from '@/components/AutoRefresh';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +16,7 @@ export default async function ChangesPage() {
 
   return (
     <div>
+      <AutoRefresh source="change" />
       <Breadcrumb items={[
         { label: 'Operations' },
         { label: 'Service management' },

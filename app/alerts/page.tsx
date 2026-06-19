@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { getAlerts } from '@/lib/data';
 import { sevClass, sevLabel } from '@/lib/mock';
 import { requireGlobalAdminPage } from '@/lib/auth';
+import { AutoRefresh } from '@/components/AutoRefresh';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +15,7 @@ export default async function AlertsPage() {
   const { rows: alerts, live, note } = await getAlerts();
   return (
     <div>
+      <AutoRefresh source="alerts" />
       <div className="spread mb">
         <div>
           <div className="row" style={{ gap: 10 }}>

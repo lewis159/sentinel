@@ -1,5 +1,8 @@
 import { activity } from '@/lib/mock';
 import { requireGlobalAdminPage } from '@/lib/auth';
+import { AutoRefresh } from '@/components/AutoRefresh';
+
+export const dynamic = 'force-dynamic';
 
 const earlier = [
   { icon: '🎫', text: 'Ticket OPS-0004 created — Roll out CSP + HSTS at nginx', when: 'Yesterday · 4:12 pm' },
@@ -28,6 +31,7 @@ export default async function ActivityPage() {
   await requireGlobalAdminPage();
   return (
     <div>
+      <AutoRefresh source="activity" />
       <div className="spread mb">
         <div><div className="h1">Activity</div><div className="sub">Everything that happened across findings, tickets, scans & abuse</div></div>
         <button className="btn ghost sm">⭳ Export</button>

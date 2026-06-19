@@ -3,6 +3,7 @@ import { requireGlobalAdminPage } from '@/lib/auth';
 import { KanbanBoard, type KanbanCard } from '@/components/KanbanBoard';
 import { LiveBadge } from '@/components/LiveBadge';
 import { ROADMAP_STATUSES, ROADMAP_STATUS_LABEL } from '@/lib/mock';
+import { AutoRefresh } from '@/components/AutoRefresh';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +19,7 @@ export default async function RoadmapPage() {
 
   return (
     <div>
+      <AutoRefresh source="roadmap" />
       <div className="spread mb">
         <div>
           <div className="row" style={{ gap: 10 }}>
