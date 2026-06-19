@@ -1,3 +1,5 @@
+import { requireGlobalAdminPage } from '@/lib/auth';
+
 const RELATIONS = [
   { rel: 'raises', desc: 'finding → ticket' },
   { rel: 'about', desc: 'finding → component' },
@@ -5,7 +7,8 @@ const RELATIONS = [
   { rel: 'documents', desc: 'kb → finding' },
 ];
 
-export default function GraphPage() {
+export default async function GraphPage() {
+  await requireGlobalAdminPage();
   return (
     <div>
       <div className="spread mb">

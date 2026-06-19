@@ -1,4 +1,5 @@
 import { getResilienceRuns, RESILIENCE_CHECKS, type ResilienceRun } from '@/lib/data';
+import { requireGlobalAdminPage } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,6 +51,7 @@ function StatusPill({ passed }: { passed: boolean }) {
 }
 
 export default async function ResiliencePage() {
+  await requireGlobalAdminPage();
   const { rows: runs, live, note } = await getResilienceRuns();
 
   return (

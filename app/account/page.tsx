@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { requireGlobalAdminPage } from '@/lib/auth';
+import AccountSignOut from './SignOutButton';
 
 const toggles = [
   { label: 'Critical & high findings', on: true },
@@ -15,7 +17,8 @@ function Toggle({ on }: { on: boolean }) {
   );
 }
 
-export default function AccountPage() {
+export default async function AccountPage() {
+  await requireGlobalAdminPage();
   return (
     <div>
       <div className="spread mb">
@@ -38,7 +41,7 @@ export default function AccountPage() {
             <div className="r"><span className="k2">Last sign-in</span><span>Today, 09:14</span></div>
             <div className="r"><span className="k2">Auth provider</span><span>Clerk (invite-only)</span></div>
           </div>
-          <div className="mt"><button className="btn ghost">Sign out</button></div>
+          <div className="mt"><AccountSignOut /></div>
         </div>
 
         <div className="card">

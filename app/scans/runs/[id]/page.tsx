@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { scanRuns, findings, sevClass, sevLabel } from '@/lib/mock';
+import { requireGlobalAdminPage } from '@/lib/auth';
 
 const statusTag: Record<string, [string, string]> = {
   complete: ['st-done', 'Complete'], running: ['st-done', 'Running'], failed: ['st-open', 'Failed'],
@@ -8,6 +9,7 @@ const statusTag: Record<string, [string, string]> = {
 };
 
 export default async function ScanRunDetail({ params }: { params: Promise<{ id: string }> }) {
+  await requireGlobalAdminPage();
   const { id } = await params;
   const run = scanRuns.find((r) => r.id === id);
   if (!run) return notFound();

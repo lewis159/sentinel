@@ -60,6 +60,15 @@
 # read DATABASE_URL from a secret file via DATABASE_URL_FILE (or an entrypoint that
 # exports it). Rotate by recreate-secret + `docker service update`.
 #
+# The app also needs Clerk's server key as a secret (the publishable key is PUBLIC
+# and stays a build-arg/env — never a secret):
+#
+#   printf '%s' 'sk_live_...' | docker secret create clerk_secret_key -
+#
+# The image entrypoint shim (docker-entrypoint.sh) reads /run/secrets/clerk_secret_key
+# (and /run/secrets/sentinel_database_url) and exports them as CLERK_SECRET_KEY /
+# DATABASE_URL env vars before the app starts.
+#
 # -----------------------------------------------------------------------------
 # CONFIGS — haproxy.cfg ships as a Swarm config (immutable, versioned)
 # -----------------------------------------------------------------------------
@@ -230,15 +239,19 @@ services:
       - NEXT_PUBLIC_APP_URL=https://ops.bentech.dev
       - DATABASE_URL_FILE=/run/secrets/sentinel_database_url   # -> haproxy:5432 (leader)
       - DOCKER_HOST=tcp://socket-proxy:2375
+      # NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is PUBLIC (inlined into the client bundle
+      # at build time) — keep it a plain env / build-arg, NOT a secret.
+      - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      # CLERK_SECRET_KEY is NOT set here — it comes from the `clerk_secret_key`
+      # docker secret below; the entrypoint shim exports it at runtime.
       # --- Phase 2 wiring (uncomment when functionality lands) ---
       # - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
       # - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
-      # - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
-      # - CLERK_SECRET_KEY=${CLERK_SECRET_KEY}
       # - HERMES_URL=${HERMES_URL}
       # - OPS_INGEST_SECRET=${OPS_INGEST_SECRET}
     secrets:
-      - sentinel_database_url
+      - sentinel_database_url       # -> DATABASE_URL via entrypoint shim
+      - clerk_secret_key            # -> CLERK_SECRET_KEY via entrypoint shim
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/ping || exit 1"]
       interval: 10s
@@ -369,6 +382,10 @@ secrets:
   pg_standby_password:
     external: true
   sentinel_database_url:
+    external: true
+  # Clerk server key. The entrypoint shim exports it as CLERK_SECRET_KEY at
+  # runtime. (The publishable key is PUBLIC and is NOT a secret — see the app env.)
+  clerk_secret_key:
     external: true
 
 # =============================================================================

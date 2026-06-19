@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { checks } from '@/lib/mock';
+import { requireGlobalAdminPage } from '@/lib/auth';
 
 const nextRun: Record<string, string> = {
   'npm-audit': 'tonight 02:00',
@@ -12,7 +13,8 @@ const nextRun: Record<string, string> = {
   'uptime': 'in 10s',
 };
 
-export default function SchedulesPage() {
+export default async function SchedulesPage() {
+  await requireGlobalAdminPage();
   return (
     <div>
       <div className="spread mb">

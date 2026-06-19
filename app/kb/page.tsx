@@ -1,10 +1,12 @@
 import Link from 'next/link';
 import { listDocs, getDoc } from '@/lib/kb';
 import KbNav from './KbNav';
+import { requireGlobalAdminPage } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
-export default function KbPage() {
+export default async function KbPage() {
+  await requireGlobalAdminPage();
   const docs = listDocs();
   const home = getDoc('index');
 

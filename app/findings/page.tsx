@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { getFindings } from '@/lib/data';
 import { sevClass, sevLabel, type Severity } from '@/lib/mock';
+import { requireGlobalAdminPage } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,6 +10,7 @@ const statusTag: Record<string, [string, string]> = {
 };
 
 export default async function FindingsPage() {
+  await requireGlobalAdminPage();
   const { rows: findings, live, note } = await getFindings();
   const counts = (['critical', 'high', 'medium', 'low', 'info'] as Severity[]).reduce(
     (a, s) => ({ ...a, [s]: findings.filter((f) => f.severity === s).length }), {} as Record<Severity, number>

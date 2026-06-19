@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { ClerkProvider } from '@clerk/nextjs';
 import './globals.css';
 import { Sidebar } from '@/components/Sidebar';
 import { TopBar } from '@/components/TopBar';
@@ -12,18 +13,20 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body>
-        <div className="shell">
-          <Sidebar />
-          <div className="main">
-            <TopBar />
-            <Trail />
-            <main className="content">{children}</main>
+    <ClerkProvider>
+      <html lang="en">
+        <body>
+          <div className="shell">
+            <Sidebar />
+            <div className="main">
+              <TopBar />
+              <Trail />
+              <main className="content">{children}</main>
+            </div>
           </div>
-        </div>
-        <CommandPalette />
-      </body>
-    </html>
+          <CommandPalette />
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

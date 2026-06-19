@@ -6,7 +6,7 @@ name: Build & Push Sentinel
 
 on:
   push:
-    branches: [main]
+    branches: [main, feat/clerk-auth]
   workflow_dispatch:
 
 jobs:
@@ -37,7 +37,7 @@ jobs:
             ghcr.io/lewis159/sentinel:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          # NEXT_PUBLIC_* values are baked at build time — add them as build-args
-          # here when the auth/data wiring lands (Phase 2). None needed yet.
-          # build-args: |
-          #   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          # NEXT_PUBLIC_* values are inlined into the client bundle at build time.
+          # The Clerk publishable key is NOT secret, so it's a repo Actions VARIABLE.
+          build-args: |
+            NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}

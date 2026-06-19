@@ -1,10 +1,12 @@
 import Link from 'next/link';
 import { findings, sevCounts, scanRuns, activity, sevClass, sevLabel } from '@/lib/mock';
 import { getPlatformStats } from '@/lib/data';
+import { requireGlobalAdminPage } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 export default async function OverviewPage() {
+  await requireGlobalAdminPage();
   const open = findings.filter((f) => f.status !== 'fixed');
   const stats = await getPlatformStats();
   return (

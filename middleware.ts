@@ -1,0 +1,30 @@
+import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
+
+// Auth-only middleware, matching the YT app's known-good pattern. Unauthenticated
+// users hitting a protected route are redirected to sign-in. Per-app authorization
+// (global_admin) is enforced server-side in the API routes (requireOpsAuth) and at
+// the page level (requireGlobalAdminPage) — NOT here — to avoid the @clerk/nextjs +
+// Next 15 "encryption_key_invalid" issue seen when extra options/logic run here.
+//
+// Public routes:
+//   - /sign-in(.*)            : the sign-in page
+//   - /api/ping               : container liveness healthcheck
+//   - /api/ops/ingest/(.*)    : webhook-in scanners, HMAC-verified in-route
+const isPublicRoute = createRouteMatcher([
+  '/sign-in(.*)',
+  '/api/ping',
+  '/api/ops/ingest/(.*)',
+]);
+
+export default clerkMiddleware(async (auth, req) => {
+  if (!isPublicRoute(req)) {
+    const { userId, redirectToSignIn } = await auth();
+    if (!userId) {
+      return redirectToSignIn();
+    }
+  }
+});
+
+export const config = {
+  matcher: ['/((?!.+\\.[\\w]+$|_next).*)', '/', '/(api|trpc)(.*)'],
+};

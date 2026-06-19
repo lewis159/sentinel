@@ -1,11 +1,13 @@
 import Link from 'next/link';
 import { incidents, sevClass, sevLabel } from '@/lib/mock';
+import { requireGlobalAdminPage } from '@/lib/auth';
 
 const statusTag: Record<string, [string, string]> = {
   open: ['st-open', 'Open'], in_progress: ['st-prog', 'In progress'], resolved: ['st-done', 'Resolved'],
 };
 
-export default function IncidentsPage() {
+export default async function IncidentsPage() {
+  await requireGlobalAdminPage();
   return (
     <div>
       <div className="spread mb">

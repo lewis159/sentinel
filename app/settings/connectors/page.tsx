@@ -1,5 +1,6 @@
 import { listConnectors } from '@/lib/connectors';
 import ConnectorForm from '@/components/ConnectorForm';
+import { requireGlobalAdminPage } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,6 +64,7 @@ const CATALOGUE: CatItem[] = [
 ];
 
 export default async function ConnectorsPage() {
+  await requireGlobalAdminPage();
   const saved = await listConnectors();
   const byType = new Map(saved.map((c) => [c.type, c]));
 

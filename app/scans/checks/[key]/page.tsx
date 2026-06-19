@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { checks, findings, sevClass, sevLabel } from '@/lib/mock';
+import { requireGlobalAdminPage } from '@/lib/auth';
 
 const statusTag: Record<string, [string, string]> = {
   pass: ['st-done', 'Pass'], issues: ['st-prog', 'Issues'], failed: ['st-open', 'Failed'],
@@ -15,6 +16,7 @@ const runHistory = [
 ];
 
 export default async function CheckDetail({ params }: { params: Promise<{ key: string }> }) {
+  await requireGlobalAdminPage();
   const { key } = await params;
   const check = checks.find((c) => c.key === key);
   if (!check) return notFound();

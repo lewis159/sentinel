@@ -1,0 +1,90 @@
+# =============================================================================
+# Sentinel — APP-ONLY validation stack for ops.bentech.dev
+# =============================================================================
+# PURPOSE: stand up JUST the Next.js app to VALIDATE prod Clerk sign-in / SSO and
+# the global_admin gate end-to-end against ops.bentech.dev — WITHOUT the full HA
+# database tier. There is intentionally NO database here (DB-less validation).
+#
+#   * No DATABASE_URL: lib/db.ts sets hasDb=false and queries return [], so pages
+#     render but DATA pages are EMPTY. Real data lands with the full HA stack.
+#
+# SECRETS — nothing to type in the env editor:
+#   * CLERK_SECRET_KEY (sk_live, the ONLY sensitive value) → DOCKER SECRET
+#     `clerk_secret_key` (already exists on this Swarm). The image entrypoint
+#     shim (docker-entrypoint.sh) reads /run/secrets/clerk_secret_key at startup
+#     and exports it as CLERK_SECRET_KEY. It never appears in this file.
+#   * The Clerk PUBLISHABLE key (pk_live) is NOT a secret — it's public, ships in
+#     the client JS bundle, and Next.js INLINES it at BUILD time. CI already baked
+#     it into the image via a build-arg, so it is NOT set here and there is NO env
+#     var to add at deploy. (A runtime secret can't change a build-time-inlined
+#     value anyway.)
+#
+# DEPLOY (Portainer):
+#   1. Confirm the `clerk_secret_key` secret exists (Secrets) — reuse it.
+#   2. Stacks → Add stack, name it `sentinel-ops-app` (Swarm).
+#   3. Paste this file. NO environment variables to set. Deploy.
+#      (Per [[feedback-docker-cleanup]] this is a NEW stack — don't touch
+#       yt-transcriber / hermes-agent / springsteen-news.)
+#
+# INGRESS: NPM/nginx HA lives on the external `yt-shared` overlay (verified live).
+# Add an NPM proxy host  ops.bentech.dev → app:3000  over `yt-shared`.
+# =============================================================================
+
+version: "3.8"
+
+services:
+
+  # ===========================================================================
+  # app — stateless Sentinel API/UI, fronted by the LIVE NPM tier on `yt-shared`.
+  # DB-less for validation. Clerk publishable key is baked into the image.
+  # ===========================================================================
+  app:
+    image: ghcr.io/lewis159/sentinel:latest
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_APP_URL=https://ops.bentech.dev
+      # Clerk PUBLISHABLE key is baked into the image at BUILD time (CI build-arg,
+      # inlined into the bundle) — NOT a runtime secret, NOT set here.
+      # CLERK_SECRET_KEY comes from the `clerk_secret_key` docker secret (below),
+      # exported by the entrypoint shim. NO DATABASE_URL on purpose (hasDb=false).
+    secrets:
+      - clerk_secret_key
+      - clerk_encryption_key
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/ping || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - yt-shared       # external — LIVE NPM/ingress tier lives here (per deploy-reality; NOT proxy)
+    deploy:
+      replicas: 1       # validation only; safe to scale up (app is stateless)
+      labels:
+        - "project=Sentinel"
+        - "project.component=app"
+        - "project.env=ops-validation"
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      resources:
+        limits: { memory: 512M }
+
+# =============================================================================
+# Secrets — `clerk_secret_key` already exists on this Swarm (reuse it). The
+# entrypoint shim exports /run/secrets/clerk_secret_key → CLERK_SECRET_KEY.
+# =============================================================================
+secrets:
+  clerk_secret_key:
+    external: true
+  clerk_encryption_key:
+    external: true
+
+# =============================================================================
+# Networks — the LIVE external ingress overlay (nginx HA / NPM owns yt-shared).
+# =============================================================================
+networks:
+  yt-shared:
+    external: true
+    name: yt-shared

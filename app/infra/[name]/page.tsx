@@ -1,5 +1,6 @@
 import { containers, type Container } from '@/lib/mock';
 import { LinksPanel } from '@/components/LinksPanel';
+import { requireGlobalAdminPage } from '@/lib/auth';
 
 const stateTag: Record<string, [string, string]> = {
   running: ['st-done', 'Running'], paused: ['st-prog', 'Paused'], stopped: ['st-open', 'Stopped'],
@@ -21,6 +22,7 @@ const logLines: { t: string; lvl: 'info' | 'warn' | 'error'; msg: string }[] = [
 const lvlColor: Record<string, string> = { info: 'var(--muted)', warn: '#ffc05a', error: '#ff7b7e' };
 
 export default async function ContainerDetail({ params }: { params: Promise<{ name: string }> }) {
+  await requireGlobalAdminPage();
   const { name } = await params;
   const decoded = decodeURIComponent(name);
   // Detail stats (CPU/mem/trend) are still mock — only the container LIST on

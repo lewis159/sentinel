@@ -1,11 +1,13 @@
 import Link from 'next/link';
 import { scanRuns } from '@/lib/mock';
+import { requireGlobalAdminPage } from '@/lib/auth';
 
 const statusTag: Record<string, [string, string]> = {
   complete: ['st-done', 'Complete'], running: ['st-done', 'Running'], failed: ['st-open', 'Failed'],
 };
 
-export default function ScanRunsPage() {
+export default async function ScanRunsPage() {
+  await requireGlobalAdminPage();
   return (
     <div>
       <div className="spread mb">

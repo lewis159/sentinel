@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireOpsAuth } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
+  const denied = await requireOpsAuth();
+  if (denied) return denied;
   try {
     const { type, config } = await req.json();
 

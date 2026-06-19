@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { users } from '@/lib/mock';
 import { LinksPanel } from '@/components/LinksPanel';
+import { requireGlobalAdminPage } from '@/lib/auth';
 
 function riskColor(risk: number) {
   if (risk >= 75) return 'var(--crit)';
@@ -18,6 +19,7 @@ const cluster = [
 ];
 
 export default async function UserDetail({ params }: { params: Promise<{ id: string }> }) {
+  await requireGlobalAdminPage();
   const { id } = await params;
   const u = users.find((x) => x.id === id);
   if (!u) return notFound();

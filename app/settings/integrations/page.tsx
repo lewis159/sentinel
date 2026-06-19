@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { requireGlobalAdminPage } from '@/lib/auth';
 
 const groups = [
   {
@@ -26,7 +27,8 @@ const groups = [
   },
 ];
 
-export default function IntegrationsPage() {
+export default async function IntegrationsPage() {
+  await requireGlobalAdminPage();
   return (
     <div>
       <div className="spread mb">

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { getTickets } from '@/lib/data';
 import { sevClass, sevLabel } from '@/lib/mock';
+import { requireGlobalAdminPage } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,6 +11,7 @@ const statusTag: Record<string, [string, string]> = {
 };
 
 export default async function TicketsPage() {
+  await requireGlobalAdminPage();
   const { rows: tickets, live, note } = await getTickets();
 
   return (

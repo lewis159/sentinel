@@ -1,7 +1,9 @@
 import Link from 'next/link';
 import { rules } from '@/lib/mock';
+import { requireGlobalAdminPage } from '@/lib/auth';
 
-export default function RulesPage() {
+export default async function RulesPage() {
+  await requireGlobalAdminPage();
   return (
     <div>
       <div className="spread mb">

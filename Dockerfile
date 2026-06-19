@@ -12,6 +12,11 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+# NEXT_PUBLIC_* env vars are inlined into the client bundle at build time, so the
+# Clerk publishable key must be present BEFORE `next build`. CI passes it via
+# --build-arg (a repo Actions VARIABLE — the publishable key is not secret).
+ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
 RUN npm run build
 
 FROM node:20-alpine AS runner
@@ -23,7 +28,14 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/content ./content
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# Entrypoint shim: exports Docker/Swarm secret files (/run/secrets/*) into env
+# vars (CLERK_SECRET_KEY, DATABASE_URL) before the app starts, then execs CMD.
+# Owned by root + world-executable so the non-root `nextjs` user can run it;
+# secret files mount world-readable, so nextjs can read them too.
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000 HOSTNAME=0.0.0.0
+ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["node", "server.js"]

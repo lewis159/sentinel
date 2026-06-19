@@ -2,10 +2,12 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { listDocs, getDoc } from '@/lib/kb';
 import KbNav from '../KbNav';
+import { requireGlobalAdminPage } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 export default async function KbArticle({ params }: { params: Promise<{ slug: string }> }) {
+  await requireGlobalAdminPage();
   const { slug } = await params;
   const doc = getDoc(slug);
   if (!doc) return notFound();
