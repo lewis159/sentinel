@@ -8,6 +8,7 @@ import {
 import { AppTag } from './AppTag';
 import { TicketDetail } from './TicketDetail';
 import { KanbanBoard, type KanbanCard } from './KanbanBoard';
+import { NewTicketButton } from './CreateTicketModal';
 
 const statusTag: Record<string, [string, string]> = {
   open: ['st-open', 'Open'], draft: ['st-mute', 'Draft'], in_progress: ['st-prog', 'In progress'],
@@ -35,9 +36,12 @@ export function SectionView({ kind, tickets }: { kind: TicketKind; tickets: Serv
 
   return (
     <div>
-      <div className="row mb" style={{ gap: 6 }}>
-        <button className={`chip ${view === 'list' ? 'on' : ''}`} onClick={() => setView('list')}>List</button>
-        <button className={`chip ${view === 'board' ? 'on' : ''}`} onClick={() => setView('board')}>Board</button>
+      <div className="row spread mb">
+        <div className="row" style={{ gap: 6 }}>
+          <button className={`chip ${view === 'list' ? 'on' : ''}`} onClick={() => setView('list')}>List</button>
+          <button className={`chip ${view === 'board' ? 'on' : ''}`} onClick={() => setView('board')}>Board</button>
+        </div>
+        <NewTicketButton kind={kind} />
       </div>
 
       {view === 'board' ? (

@@ -1,5 +1,6 @@
 import { sevClass, sevLabel, KIND_LABEL, type ServiceTicket } from '@/lib/mock';
 import { AppTag } from './AppTag';
+import { TicketControls } from './TicketControls';
 
 const statusColor: Record<string, string> = {
   open: '#7fa8ff', draft: '#aab3c4', in_progress: '#ffc05a', investigating: '#ffc05a',
@@ -35,6 +36,8 @@ export function TicketDetail({ t }: { t: ServiceTicket }) {
           <div className="r"><span className="k2">SLA due</span><span style={{ color: t.slaDue ? '#ffc05a' : 'var(--muted)' }}>{t.slaDue ? new Date(t.slaDue).toLocaleString() : '—'}</span></div>
         </div>
       </div>
+
+      <TicketControls ref_={t.ref} kind={t.kind} status={t.status} assignee={t.assignee} />
 
       <KindAttrs t={t} />
     </div>
