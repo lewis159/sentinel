@@ -2,6 +2,7 @@ import { getChangelog } from '@/lib/data';
 import { requireGlobalAdminPage } from '@/lib/auth';
 import { LiveBadge } from '@/components/LiveBadge';
 import { AppTag } from '@/components/AppTag';
+import { AutoRefresh } from '@/components/AutoRefresh';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,6 +12,7 @@ export default async function ChangelogPage() {
 
   return (
     <div>
+      <AutoRefresh source="changelog" />
       <div className="spread mb">
         <div>
           <div className="row" style={{ gap: 10 }}>

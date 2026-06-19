@@ -45,6 +45,40 @@ export function ActivityFeed({ ref_ }: { ref_: string }) {
 
   useEffect(() => { load(); }, [load]);
 
+  // Silent live updates: poll the comments endpoint on the same ~20s cadence the
+  // page-level AutoRefresh uses, but only while the tab is visible. Updates ONLY
+  // the timeline list (`items`) — the composer `draft` is separate state, so an
+  // in-progress update is never clobbered. Errors are ignored. We compare a
+  // cheap signature (count + last id + last createdAt) so we only re-render when
+  // the timeline actually changed.
+  useEffect(() => {
+    let cancelled = false;
+    function sigOf(list: Comment[]): string {
+      const last = list[list.length - 1];
+      return `${list.length}:${last?.id ?? ''}:${last?.createdAt ?? ''}`;
+    }
+    async function poll() {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const res = await fetch(`/api/tickets/${encodeURIComponent(ref_)}/comments`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json().catch(() => null);
+        const next: Comment[] = Array.isArray(data?.comments) ? data.comments : [];
+        if (cancelled) return;
+        setItems((prev) => (sigOf(prev) === sigOf(next) ? prev : next));
+      } catch {
+        /* ignore — never disturb the view on a failed poll */
+      }
+    }
+    const id = setInterval(poll, 20000);
+    document.addEventListener('visibilitychange', poll);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', poll);
+    };
+  }, [ref_]);
+
   async function post() {
     const text = draft.trim();
     if (!text) return;

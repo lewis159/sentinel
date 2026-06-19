@@ -5,6 +5,7 @@ import { ReleasePipeline } from '@/components/ReleasePipeline';
 import { LiveBadge } from '@/components/LiveBadge';
 import { Breadcrumb } from '@/components/Breadcrumb';
 import { MetricCards, sectionMetrics } from '@/components/MetricCards';
+import { AutoRefresh } from '@/components/AutoRefresh';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +19,7 @@ export default async function ReleasesPage({
 
   return (
     <div>
+      <AutoRefresh source="release" />
       <Breadcrumb items={[
         { label: 'Operations' },
         { label: 'Service management' },

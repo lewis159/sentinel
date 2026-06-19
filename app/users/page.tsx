@@ -4,6 +4,7 @@ import { Breadcrumb } from '@/components/Breadcrumb';
 import { LiveBadge } from '@/components/LiveBadge';
 import { UsersList } from '@/components/UsersList';
 import { ESTATE_APPS } from '@/lib/apps';
+import { AutoRefresh } from '@/components/AutoRefresh';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +18,7 @@ export default async function UsersPage() {
 
   return (
     <div>
+      <AutoRefresh source="users" />
       <Breadcrumb items={[{ label: 'Operations' }, { label: 'Access' }, { label: 'Users' }]} />
       <div className="spread mb">
         <div>
