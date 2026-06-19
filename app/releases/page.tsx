@@ -4,7 +4,7 @@ import { SectionView } from '@/components/SectionView';
 import { ReleasePipeline } from '@/components/ReleasePipeline';
 import { LiveBadge } from '@/components/LiveBadge';
 import { Breadcrumb } from '@/components/Breadcrumb';
-import { MetricCards, sectionMetrics } from '@/components/MetricCards';
+import { MetricCards } from '@/components/MetricCards';
 import { AutoRefresh } from '@/components/AutoRefresh';
 
 export const dynamic = 'force-dynamic';
@@ -35,7 +35,7 @@ export default async function ReleasesPage({
         </div>
       </div>
 
-      <MetricCards metrics={sectionMetrics('release', rows)} />
+      <MetricCards kind="release" tickets={rows} />
 
       <div className="card mb">
         <div className="panel-h"><h3>Release pipeline</h3></div>
