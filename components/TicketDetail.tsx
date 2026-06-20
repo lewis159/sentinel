@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { type ServiceTicket } from '@/lib/mock';
+import { ApplyGrantButton } from './ApplyGrantButton';
 
 // react-grid-layout is client-only (touches window/ResizeObserver). Load the
 // dashboard body via a dynamic import with ssr:false so `next build` never tries
@@ -29,8 +30,10 @@ export function TicketDetail({ t }: { t: ServiceTicket }) {
   return (
     <div>
       {/* Minimal, non-draggable reference line (the title lives in the Summary tile) */}
-      <div className="row mb" style={{ gap: 8 }}>
+      <div className="spread mb">
         <span className="mono">{t.ref}</span>
+        {/* Access-provisioning requests get an "Apply grant" action (global_admin). */}
+        {t.kind === 'request' && t.source === 'access-mgmt' && <ApplyGrantButton ref={t.ref} />}
       </div>
 
       <TicketDashboard t={t} />

@@ -66,6 +66,8 @@ export const WORKSPACES: Record<Workspace, { label: string; icon: string; home: 
         group: 'Access',
         items: [
           { label: 'User Access', href: '/users', icon: '👤' },
+          { label: 'Apps', href: '/access/apps', icon: '🧩' },
+          { label: 'Organizations', href: '/access/orgs', icon: '🏢' },
         ],
       },
       {
@@ -101,7 +103,7 @@ export const WORKSPACES: Record<Workspace, { label: string; icon: string; home: 
 const OWNS: Record<string, Workspace> = {
   findings: 'security', tickets: 'security',
   infra: 'operations', monitoring: 'operations', components: 'operations', activity: 'operations', resilience: 'operations',
-  users: 'operations',
+  users: 'operations', access: 'operations',
   incidents: 'operations', requests: 'operations', changes: 'operations', problems: 'operations', releases: 'operations',
   roadmap: 'operations', changelog: 'operations',
 };
