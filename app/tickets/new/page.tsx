@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { requireGlobalAdminPage } from '@/lib/auth';
 
 const field: React.CSSProperties = {
-  width: '100%', background: '#0b0d12', border: '1px solid var(--border)', borderRadius: 10,
+  width: '100%', background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 10,
   padding: '10px 12px', color: 'var(--text)', fontSize: 13,
 };
 
@@ -57,7 +57,7 @@ export default async function NewTicketPage() {
 
         <div className="card" style={{ alignSelf: 'start' }}>
           <div className="panel-h"><h3>Tips</h3></div>
-          <ul style={{ paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 8, color: '#c8cedb', fontSize: 12.5 }}>
+          <ul style={{ paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 8, color: 'var(--text)', fontSize: 12.5 }}>
             <li>Link a finding to auto-populate severity and component.</li>
             <li>High+ priority tickets start an SLA clock on assignment.</li>
             <li>Unowned tickets are surfaced by the escalation rules.</li>

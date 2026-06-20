@@ -19,7 +19,7 @@ const logLines: { t: string; lvl: 'info' | 'warn' | 'error'; msg: string }[] = [
   { t: '10:31:22', lvl: 'info', msg: 'health probe ok' },
   { t: '10:30:01', lvl: 'error', msg: 'restart policy triggered (exit 1) — attempt 1/3' },
 ];
-const lvlColor: Record<string, string> = { info: 'var(--muted)', warn: '#ffc05a', error: '#ff7b7e' };
+const lvlColor: Record<string, string> = { info: 'var(--muted)', warn: 'var(--high)', error: 'var(--crit)' };
 
 export default async function ContainerDetail({ params }: { params: Promise<{ name: string }> }) {
   await requireGlobalAdminPage();
@@ -87,12 +87,12 @@ export default async function ContainerDetail({ params }: { params: Promise<{ na
                 <span className="chip" style={{ padding: '4px 10px' }}>Warnings</span>
               </div>
             </div>
-            <pre style={{ background: '#0b0d12', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', fontFamily: "'Cascadia Code', Consolas, monospace", fontSize: 12, lineHeight: 1.75, overflow: 'auto', maxHeight: 260, margin: 0 }}>
+            <pre style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', fontFamily: "'Cascadia Code', Consolas, monospace", fontSize: 12, lineHeight: 1.75, overflow: 'auto', maxHeight: 260, margin: 0 }}>
               {logLines.map((l, i) => (
                 <div key={i}>
                   <span style={{ color: 'var(--faint)' }}>{l.t}</span>{'  '}
                   <span style={{ color: lvlColor[l.lvl], fontWeight: 700 }}>{l.lvl.toUpperCase().padEnd(5)}</span>{'  '}
-                  <span style={{ color: l.lvl === 'info' ? '#c8cedb' : lvlColor[l.lvl] }}>{l.msg}</span>
+                  <span style={{ color: l.lvl === 'info' ? 'var(--text)' : lvlColor[l.lvl] }}>{l.msg}</span>
                 </div>
               ))}
             </pre>

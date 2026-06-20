@@ -1,18 +1,21 @@
 // Report-issue ingest — the "data INTO Sentinel" path for estate apps.
 //
 // Estate apps (YT, Springsteen, …) have NO Clerk session against Sentinel, so
-// this route is NOT Clerk-gated (it's in the middleware PUBLIC matcher). It is
-// authenticated with OPS_INGEST_SECRET, mirroring /api/ops/ingest. Two modes:
+// this route is NOT Clerk-gated (it's in the middleware PUBLIC matcher). This is
+// the ONLY ingest route at the least-privilege REPORT tier: it accepts EITHER
+//   • OPS_REPORT_TOKEN  — the dedicated, least-privilege token that ships in the
+//     browser report-issue widget (creating a report ticket is all it grants), OR
+//   • OPS_INGEST_SECRET — the privileged estate secret (server/CI only).
+// in EITHER of two modes:
 //
 //   1. HMAC  — header `x-ingest-signature` = HMAC-SHA256(rawBody, secret).
 //              Use for server-to-server callers that can sign without leaking
 //              the secret to a browser.
 //   2. Token — header `x-ingest-token` = the secret (or `Authorization: Bearer`).
-//              Use for the embeddable browser widget, where the token is a
-//              per-deployment shared secret baked into the estate app.
+//              Use for the embeddable browser widget (use OPS_REPORT_TOKEN here).
 //
-//   OPS_INGEST_SECRET unset           → 503 { error: 'ingest not configured' }
-//   neither HMAC nor token valid      → 401
+//   neither OPS_REPORT_TOKEN nor OPS_INGEST_SECRET set → 503 { error: 'ingest not configured' }
+//   neither HMAC nor token valid                       → 401
 //
 //   POST /api/ingest/issue
 //   body: { app, title, description?, type?, severity?, url?, reporter? }
@@ -24,8 +27,8 @@
 // attrs. The generated ref (INC-/REQ-/…-####) doubles as the error code shown
 // back to the reporter.
 
-import crypto from 'crypto';
 import { createTicket } from '@/lib/data';
+import { verifyReportIngest } from '@/lib/ingest-auth';
 import type { TicketKind, Severity } from '@/lib/mock';
 
 export const dynamic = 'force-dynamic';
@@ -68,41 +71,14 @@ function sevToImpactUrgency(severity?: string): { impact: string; urgency: strin
   }
 }
 
-function timingSafeEqualStr(a: string, b: string): boolean {
-  const ba = Buffer.from(a);
-  const bb = Buffer.from(b);
-  if (ba.length !== bb.length || ba.length === 0) return false;
-  return crypto.timingSafeEqual(ba, bb);
-}
-
-function hmacMatches(secret: string, raw: string, provided: string): boolean {
-  if (!provided) return false;
-  const expected = crypto.createHmac('sha256', secret).update(raw).digest('hex');
-  const a = Buffer.from(expected, 'hex');
-  const b = Buffer.from(provided, 'hex');
-  if (a.length !== b.length || a.length === 0) return false;
-  return crypto.timingSafeEqual(a, b);
-}
-
 export async function POST(req: Request) {
-  const secret = process.env.OPS_INGEST_SECRET;
-  if (!secret) {
-    return json({ error: 'ingest not configured' }, 503);
-  }
-
   // Read the RAW body first so an HMAC (if used) is computed over the exact bytes.
   const raw = await req.text();
 
-  // --- Auth: token OR HMAC ---
-  const token =
-    req.headers.get('x-ingest-token') ??
-    (req.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ?? '');
-  const sig = req.headers.get('x-ingest-signature') ?? '';
-  const ok =
-    (token && timingSafeEqualStr(token, secret)) ||
-    hmacMatches(secret, raw, sig);
-  if (!ok) {
-    return json({ error: 'invalid credentials' }, 401);
+  // --- Auth: REPORT tier (OPS_REPORT_TOKEN or OPS_INGEST_SECRET), token OR HMAC ---
+  const authed = verifyReportIngest(req, raw);
+  if (!authed.ok) {
+    return json({ error: authed.error }, authed.status);
   }
 
   let body: any;

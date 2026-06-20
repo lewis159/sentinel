@@ -4,7 +4,7 @@ import { rules } from '@/lib/mock';
 import { requireGlobalAdminPage } from '@/lib/auth';
 
 const field: React.CSSProperties = {
-  width: '100%', background: '#0b0d12', border: '1px solid var(--border)', borderRadius: 10,
+  width: '100%', background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 10,
   padding: '10px 12px', color: 'var(--text)', fontSize: 13,
 };
 
@@ -60,7 +60,7 @@ export default async function RuleEditor({ params }: { params: Promise<{ id: str
 
         <div className="card" style={{ alignSelf: 'start' }}>
           <div className="panel-h"><h3>Definition</h3><span className="sub">json</span></div>
-          <pre style={{ background: '#0b0d12', border: '1px solid var(--border)', borderRadius: 10, padding: 14, fontSize: 12, color: '#c8cedb', overflow: 'auto' }}><code>{sample}</code></pre>
+          <pre style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 10, padding: 14, fontSize: 12, color: 'var(--text)', overflow: 'auto' }}><code>{sample}</code></pre>
         </div>
       </div>
     </div>

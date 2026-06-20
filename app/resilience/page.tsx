@@ -43,8 +43,8 @@ function latestFor(key: string, suite: string, runs: ResilienceRun[]) {
 
 function StatusPill({ passed }: { passed: boolean }) {
   return (
-    <span className={`pill ${passed ? 'sev-low' : 'sev-crit'}`} style={{ background: passed ? 'rgba(51,184,122,.14)' : 'rgba(229,72,77,.16)', color: passed ? '#5fd49b' : '#ff7b7e' }}>
-      <span className="dot" style={{ background: passed ? 'var(--ok)' : '#ff7b7e' }} />
+    <span className={`pill ${passed ? 'tint-ok' : 'tint-crit'}`}>
+      <span className="dot" style={{ background: passed ? 'var(--ok)' : 'var(--crit)' }} />
       {passed ? 'PASS' : 'FAIL'}
     </span>
   );
@@ -60,7 +60,7 @@ export default async function ResiliencePage() {
         <div>
           <div className="row" style={{ gap: 10 }}>
             <div className="h1">Resilience</div>
-            <span className="pill" style={{ background: live ? 'rgba(51,184,122,.14)' : 'rgba(138,147,166,.16)', color: live ? '#5fd49b' : '#aab3c4' }}>
+            <span className={`pill live-badge${live ? '' : ' mock'}`}>
               <span className="dot" style={{ background: live ? 'var(--ok)' : 'var(--muted)' }} />
               {live ? 'LIVE · ops.resilience_runs' : `mock${note ? ' · ' + note : ''}`}
             </span>
@@ -114,7 +114,7 @@ export default async function ResiliencePage() {
       {/* How to run */}
       <div className="card">
         <div className="panel-h" style={{ marginBottom: 12 }}><h3>How to run</h3></div>
-        <pre style={{ margin: 0, padding: '14px 16px', background: '#0c111c', border: '1px solid var(--border)', borderRadius: 8, overflowX: 'auto', fontSize: 12.5, lineHeight: 1.7 }}>
+        <pre style={{ margin: 0, padding: '14px 16px', background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 8, overflowX: 'auto', fontSize: 12.5, lineHeight: 1.7 }}>
 {`# Run every suite
 bash scripts/resilience-check.sh all
 

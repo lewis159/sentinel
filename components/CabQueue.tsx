@@ -72,7 +72,7 @@ function CabRow({ change }: { change: ServiceTicket }) {
       </div>
       <div className="row" style={{ gap: 8, marginTop: 10 }}>
         {done ? (
-          <span className="sub" style={{ color: done === 'Approved' ? '#5fd49b' : '#ff8b8e' }}>{done}</span>
+          <span className={`sub ${done === 'Approved' ? 'fg-ok' : 'fg-crit'}`}>{done}</span>
         ) : (
           <>
             <button className="btn sm" onClick={() => decide('approve')} disabled={busy !== null}>

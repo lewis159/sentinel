@@ -1,6 +1,7 @@
 // Roadmap upsert ingest — lets agents/CI write roadmap items programmatically
 // (no DB access / no manual SQL). Mirrors /api/ingest/update: NOT Clerk-gated
-// (it's in the middleware PUBLIC matcher), authenticated with OPS_INGEST_SECRET.
+// (it's in the middleware PUBLIC matcher). PRIVILEGED ingest route: authenticated
+// with OPS_INGEST_SECRET ONLY (the browser report token is NOT accepted here).
 //
 //   1. HMAC  — header `x-ingest-signature` = HMAC-SHA256(rawBody, secret).
 //   2. Token — header `x-ingest-token` = the secret (or `Authorization: Bearer`).
@@ -15,9 +16,9 @@
 //           app? (default 'Estate'), sort_order? (int, default 0) }
 //   → 200 { ok: true, upserted: <n> }   (upsert ON CONFLICT (item_key))
 
-import crypto from 'crypto';
 import { upsertRoadmapItems, type RoadmapUpsertInput } from '@/lib/data';
 import { hasDb } from '@/lib/db';
+import { verifyPrivilegedIngest } from '@/lib/ingest-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,41 +36,14 @@ export async function OPTIONS() {
   return new Response(null, { status: 204, headers: CORS });
 }
 
-function timingSafeEqualStr(a: string, b: string): boolean {
-  const ba = Buffer.from(a);
-  const bb = Buffer.from(b);
-  if (ba.length !== bb.length || ba.length === 0) return false;
-  return crypto.timingSafeEqual(ba, bb);
-}
-
-function hmacMatches(secret: string, raw: string, provided: string): boolean {
-  if (!provided) return false;
-  const expected = crypto.createHmac('sha256', secret).update(raw).digest('hex');
-  const a = Buffer.from(expected, 'hex');
-  const b = Buffer.from(provided, 'hex');
-  if (a.length !== b.length || a.length === 0) return false;
-  return crypto.timingSafeEqual(a, b);
-}
-
 export async function POST(req: Request) {
-  const secret = process.env.OPS_INGEST_SECRET;
-  if (!secret) {
-    return json({ error: 'ingest not configured' }, 503);
-  }
-
   // Read the RAW body first so an HMAC (if used) is computed over the exact bytes.
   const raw = await req.text();
 
-  // --- Auth: token OR HMAC ---
-  const token =
-    req.headers.get('x-ingest-token') ??
-    (req.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ?? '');
-  const sig = req.headers.get('x-ingest-signature') ?? '';
-  const ok =
-    (token && timingSafeEqualStr(token, secret)) ||
-    hmacMatches(secret, raw, sig);
-  if (!ok) {
-    return json({ error: 'invalid credentials' }, 401);
+  // --- Auth: PRIVILEGED tier (OPS_INGEST_SECRET only), token OR HMAC ---
+  const authed = verifyPrivilegedIngest(req, raw);
+  if (!authed.ok) {
+    return json({ error: authed.error }, authed.status);
   }
 
   if (!hasDb) {

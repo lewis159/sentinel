@@ -34,7 +34,7 @@ export function StatusSelect({ findingRef, status }: { findingRef: string; statu
       value={value}
       disabled={busy}
       onChange={(e) => change(e.target.value)}
-      style={{ fontWeight: 600, color: '#ffc05a' }}
+      style={{ fontWeight: 600, color: 'var(--high)' }}
     >
       {OPTIONS.map((o) => (
         <option key={o} value={o}>{o}</option>

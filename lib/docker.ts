@@ -56,10 +56,14 @@ function mapContainer(d: DockerContainer): Container {
   const name = rawName || 'unknown';
   // component = name prefix before the first '_' or '.'
   const component = name.split(/[_.]/)[0] || name;
+  // Swarm services tag containers with the node id; plain (non-swarm)
+  // containers have no such label. Mark those 'standalone' (a real, countable
+  // sentinel value) rather than '—', so the page can distinguish "no swarm node"
+  // from a missing id and exclude them from the real-node count.
   const node =
     d.Labels?.['com.docker.swarm.node.id'] ||
     d.Labels?.['node'] ||
-    '—';
+    'standalone';
   return {
     name,
     component,

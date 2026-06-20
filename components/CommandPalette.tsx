@@ -7,7 +7,8 @@ import { findings, tickets, components } from '@/lib/mock';
 
 type Entry = { label: string; href: string; icon: string; kind: string };
 
-const BRAND = '#2D6CFF';
+// Active-row fill uses the theme accent so the palette matches every palette.
+const BRAND = 'var(--accent)';
 
 function buildIndex(): Entry[] {
   const out: Entry[] = [];
@@ -123,7 +124,7 @@ export function CommandPalette() {
         position: 'fixed',
         inset: 0,
         zIndex: 1000,
-        background: 'rgba(8, 11, 20, 0.55)',
+        background: 'color-mix(in srgb, var(--bg) 55%, transparent)',
         backdropFilter: 'blur(4px)',
         WebkitBackdropFilter: 'blur(4px)',
         display: 'flex',
@@ -159,7 +160,7 @@ export function CommandPalette() {
             font: 'inherit',
             fontSize: 15,
             padding: '14px 16px',
-            borderBottom: '1px solid rgba(255,255,255,0.08)',
+            borderBottom: '1px solid var(--border)',
           }}
         />
         <div style={{ maxHeight: 360, overflowY: 'auto', padding: 6 }}>
@@ -187,7 +188,7 @@ export function CommandPalette() {
                     borderRadius: 8,
                     cursor: 'pointer',
                     background: active ? BRAND : 'transparent',
-                    color: active ? '#fff' : 'inherit',
+                    color: active ? 'var(--on-accent)' : 'inherit',
                   }}
                 >
                   <span style={{ width: 18, textAlign: 'center', flex: '0 0 auto' }}>{r.icon}</span>

@@ -17,7 +17,16 @@ export default async function InfraPage() {
   const totalLimit = containers.reduce((a, c) => a + c.memLimit, 0);
   const avgCpu = containers.length ? Math.round(containers.reduce((a, c) => a + c.cpu, 0) / containers.length) : 0;
   const restarts = containers.reduce((a, c) => a + c.restarts, 0);
-  const nodes = new Set(containers.map((c) => c.node)).size;
+  // Node count = DISTINCT real swarm node ids only. 'standalone' is the sentinel
+  // for "no swarm node label" (see lib/docker.ts) and must not inflate the count.
+  // If there are no real swarm nodes but standalone containers exist, the host
+  // itself is one node — so report 1 rather than 0.
+  const standaloneCount = containers.filter((c) => c.node === 'standalone').length;
+  const realNodes = new Set(
+    containers.map((c) => c.node).filter((n) => n !== 'standalone')
+  ).size;
+  const nodes = realNodes > 0 ? realNodes : standaloneCount > 0 ? 1 : 0;
+  const standaloneNote = standaloneCount > 0 ? ` · ${standaloneCount} standalone` : '';
   const memKnown = totalLimit > 0;
 
   return (
@@ -26,12 +35,12 @@ export default async function InfraPage() {
         <div>
           <div className="row" style={{ gap: 10 }}>
             <div className="h1">Infrastructure</div>
-            <span className="pill" style={{ background: live ? 'rgba(51,184,122,.14)' : 'rgba(138,147,166,.16)', color: live ? '#5fd49b' : '#aab3c4' }}>
+            <span className={`pill live-badge${live ? '' : ' mock'}`}>
               <span className="dot" style={{ background: live ? 'var(--ok)' : 'var(--muted)' }} />
               {live ? 'LIVE · docker-socket-proxy' : 'mock'}
             </span>
           </div>
-          <div className="sub">{containers.length} containers · {nodes} node{nodes === 1 ? '' : 's'} · live capacity</div>
+          <div className="sub">{containers.length} containers · {nodes} node{nodes === 1 ? '' : 's'}{standaloneNote} · live capacity</div>
         </div>
         <button className="btn ghost sm">⟳ Refresh</button>
       </div>
@@ -66,7 +75,11 @@ export default async function InfraPage() {
                     )}
                   </td>
                   <td style={{ fontWeight: 700 }}>{c.restarts}</td>
-                  <td className="mono sub">{c.node}</td>
+                  <td>
+                    {c.node === 'standalone'
+                      ? <span className="tag st-mute">standalone</span>
+                      : <span className="mono sub">{c.node.slice(0, 12)}</span>}
+                  </td>
                 </tr>
               );
             })}

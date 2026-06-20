@@ -32,12 +32,14 @@ load_secret() {
 [ -n "${CLERK_ENCRYPTION_KEY_FILE:-}" ] && load_secret CLERK_ENCRYPTION_KEY "$CLERK_ENCRYPTION_KEY_FILE"
 [ -n "${DATABASE_URL_FILE:-}" ]         && load_secret DATABASE_URL         "$DATABASE_URL_FILE"
 [ -n "${OPS_INGEST_SECRET_FILE:-}" ]    && load_secret OPS_INGEST_SECRET    "$OPS_INGEST_SECRET_FILE"
+[ -n "${OPS_REPORT_TOKEN_FILE:-}" ]     && load_secret OPS_REPORT_TOKEN     "$OPS_REPORT_TOKEN_FILE"
 
 # 2) Fall back to conventional secret mount paths.
 load_secret CLERK_SECRET_KEY     /run/secrets/clerk_secret_key
 load_secret CLERK_ENCRYPTION_KEY /run/secrets/clerk_encryption_key
 load_secret DATABASE_URL         /run/secrets/sentinel_database_url
 load_secret OPS_INGEST_SECRET    /run/secrets/ops_ingest_secret
+load_secret OPS_REPORT_TOKEN     /run/secrets/ops_report_token
 
 # Hand off to the container CMD (e.g. node server.js) as PID 1's child.
 exec "$@"

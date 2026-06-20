@@ -8,7 +8,7 @@ import { requireGlobalAdminPage } from '@/lib/auth';
 export const dynamic = 'force-dynamic';
 
 const statusColor: Record<string, string> = {
-  open: '#7fa8ff', in_progress: '#ffc05a', blocked: 'var(--muted)', resolved: '#5fd49b', fixed: '#5fd49b',
+  open: 'var(--low)', in_progress: 'var(--high)', blocked: 'var(--muted)', resolved: 'var(--ok)', fixed: 'var(--ok)',
 };
 
 // Mock activity stream — comments are not yet persisted in ops.*.
@@ -37,7 +37,7 @@ export default async function TicketDetail({ params }: { params: Promise<{ ref: 
       <div className="spread mb">
         <div className="crumb">
           <Link className="link" href="/tickets">Tickets</Link> · <b>{t.ref}</b>
-          <span className="pill" style={{ marginLeft: 10, background: live ? 'rgba(51,184,122,.14)' : 'rgba(138,147,166,.16)', color: live ? '#5fd49b' : '#aab3c4' }}>
+          <span className={`pill live-badge${live ? '' : ' mock'}`} style={{ marginLeft: 10 }}>
             <span className="dot" style={{ background: live ? 'var(--ok)' : 'var(--muted)' }} />
             {live ? 'LIVE · ops.tickets' : 'mock'}
           </span>
@@ -60,7 +60,7 @@ export default async function TicketDetail({ params }: { params: Promise<{ ref: 
 
           <div className="card mb">
             <div className="panel-h"><h3>Description</h3></div>
-            <p style={{ color: '#c8cedb', lineHeight: 1.7 }}>
+            <p style={{ color: 'var(--text)', lineHeight: 1.7 }}>
               {t.title}. This ticket tracks the remediation work and is linked to its originating {t.source}. Progress, approvals and the verification scan are recorded in the activity stream below.
             </p>
           </div>
@@ -73,7 +73,7 @@ export default async function TicketDetail({ params }: { params: Promise<{ ref: 
                   <div style={{ width: 28, height: 28, borderRadius: 7, background: 'var(--panel-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 12, fontWeight: 700 }}>{c.author[0].toUpperCase()}</div>
                   <div style={{ flex: 1 }}>
                     <div className="row spread"><b style={{ fontSize: 12.5 }}>{c.author}</b><span className="sub" style={{ fontSize: 11 }}>{c.when}</span></div>
-                    <div style={{ fontSize: 12.5, color: '#c8cedb', marginTop: 3 }}>{c.body}</div>
+                    <div style={{ fontSize: 12.5, color: 'var(--text)', marginTop: 3 }}>{c.body}</div>
                   </div>
                 </div>
               ))}
@@ -91,7 +91,7 @@ export default async function TicketDetail({ params }: { params: Promise<{ ref: 
               <div className="r"><span className="k2">Assignee</span><span>{t.assignee}</span></div>
               <div className="r"><span className="k2">Type</span><span>{t.type}</span></div>
               <div className="r"><span className="k2">Source</span><span>{t.source}</span></div>
-              <div className="r"><span className="k2">SLA</span><span style={{ color: '#ffc05a' }}>18h remaining</span></div>
+              <div className="r"><span className="k2">SLA</span><span style={{ color: 'var(--high)' }}>18h remaining</span></div>
             </div>
           </div>
           <LinksPanel edges={edges} />

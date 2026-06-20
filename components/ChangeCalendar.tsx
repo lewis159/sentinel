@@ -9,13 +9,15 @@ import { type ServiceTicket } from '@/lib/mock';
 
 type RiskKey = 'high' | 'medium' | 'low';
 
+// Risk styling via theme tokens — re-themes per palette and reads on light/slate.
+// Tints are color-mix over the severity token; fg/dot use the token directly.
 const RISK_STYLE: Record<string, { bg: string; fg: string; dot: string; label: string }> = {
-  high:   { bg: 'rgba(229,72,77,.16)', fg: '#ff8b8e', dot: '#e5484d', label: 'High risk' },
-  medium: { bg: 'rgba(245,165,36,.16)', fg: '#ffc05a', dot: '#f5a524', label: 'Medium risk' },
-  low:    { bg: 'rgba(51,184,122,.16)', fg: '#5fd49b', dot: '#33b87a', label: 'Low risk' },
+  high:   { bg: 'color-mix(in srgb, var(--crit) 16%, transparent)', fg: 'var(--crit)', dot: 'var(--crit)', label: 'High risk' },
+  medium: { bg: 'color-mix(in srgb, var(--high) 16%, transparent)', fg: 'var(--high)', dot: 'var(--high)', label: 'Medium risk' },
+  low:    { bg: 'color-mix(in srgb, var(--ok) 16%, transparent)',   fg: 'var(--ok)',   dot: 'var(--ok)',   label: 'Low risk' },
 };
 function riskStyle(risk: string) {
-  return RISK_STYLE[risk] ?? { bg: '#222838', fg: 'var(--muted)', dot: '#8A93A6', label: risk || 'Unspecified' };
+  return RISK_STYLE[risk] ?? { bg: 'var(--panel-2)', fg: 'var(--muted)', dot: 'var(--muted)', label: risk || 'Unspecified' };
 }
 
 // Parse a leading YYYY-MM-DD out of an attrs.window string. Returns a local

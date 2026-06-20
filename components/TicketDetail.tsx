@@ -12,12 +12,14 @@ const TicketDashboard = dynamic(() => import('./TicketDashboard').then((m) => m.
   loading: () => <div className="sub" style={{ padding: 8 }}>Loading layout…</div>,
 });
 
+// Status → theme token. Tokens re-theme per palette (the severity hues are
+// nudged darker for light/slate), so statuses read correctly on every theme.
 const statusColor: Record<string, string> = {
-  open: '#7fa8ff', draft: '#aab3c4', in_progress: '#ffc05a', investigating: '#ffc05a',
-  awaiting_cab: '#ffc05a', building: '#ffc05a', planned: '#7fa8ff', scheduled: '#7fa8ff',
-  blocked: 'var(--muted)', approved: '#5fd49b', implemented: '#5fd49b', deployed: '#5fd49b',
-  verified: '#5fd49b', fulfilled: '#5fd49b', known_error: '#ff8b8e', resolved: '#5fd49b',
-  staged: '#7fa8ff', closed: 'var(--muted)',
+  open: 'var(--low)', draft: 'var(--muted)', in_progress: 'var(--high)', investigating: 'var(--high)',
+  awaiting_cab: 'var(--high)', building: 'var(--high)', planned: 'var(--low)', scheduled: 'var(--low)',
+  blocked: 'var(--muted)', approved: 'var(--ok)', implemented: 'var(--ok)', deployed: 'var(--ok)',
+  verified: 'var(--ok)', fulfilled: 'var(--ok)', known_error: 'var(--crit)', resolved: 'var(--ok)',
+  staged: 'var(--low)', closed: 'var(--muted)',
 };
 
 // Renders the ITIL field set for one record as a draggable/resizable dashboard.

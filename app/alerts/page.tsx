@@ -20,7 +20,7 @@ export default async function AlertsPage() {
         <div>
           <div className="row" style={{ gap: 10 }}>
             <div className="h1">Alerts</div>
-            <span className="pill" style={{ background: live ? 'rgba(51,184,122,.14)' : 'rgba(138,147,166,.16)', color: live ? '#5fd49b' : '#aab3c4' }}>
+            <span className={`pill live-badge${live ? '' : ' mock'}`}>
               <span className="dot" style={{ background: live ? 'var(--ok)' : 'var(--muted)' }} />
               {live ? 'LIVE · ops.alerts' : `mock${note ? ' · ' + note : ''}`}
             </span>

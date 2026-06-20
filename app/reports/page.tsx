@@ -43,7 +43,7 @@ export default async function ReportsPage() {
         <div>
           <div className="row" style={{ gap: 10 }}>
             <div className="h1">Reports</div>
-            <span className="pill" style={{ background: live ? 'rgba(51,184,122,.14)' : 'rgba(138,147,166,.16)', color: live ? '#5fd49b' : '#aab3c4' }}>
+            <span className={`pill live-badge${live ? '' : ' mock'}`}>
               <span className="dot" style={{ background: live ? 'var(--ok)' : 'var(--muted)' }} />
               {live ? 'LIVE · ops.findings' : 'mock'}
             </span>
@@ -62,8 +62,8 @@ export default async function ReportsPage() {
           <div className="k">Open findings</div>
           <div className="v">{openFindings}</div>
           <div className="sub">
-            <span style={{ color: '#ff7b7e' }}>{openBySev.critical} crit</span> ·{' '}
-            <span style={{ color: '#ffc05a' }}>{openBySev.high} high</span> · {openBySev.medium} med
+            <span style={{ color: 'var(--crit)' }}>{openBySev.critical} crit</span> ·{' '}
+            <span style={{ color: 'var(--high)' }}>{openBySev.high} high</span> · {openBySev.medium} med
           </div>
         </div>
         <div className="card">
@@ -73,14 +73,14 @@ export default async function ReportsPage() {
         </div>
         <div className="card">
           <div className="k">Last resilience pass</div>
-          <div className="v" style={{ color: lastRun ? (lastRun.passed ? '#5fd49b' : '#ff7b7e') : 'var(--muted)' }}>
+          <div className="v" style={{ color: lastRun ? (lastRun.passed ? 'var(--ok)' : 'var(--crit)') : 'var(--muted)' }}>
             {lastRun ? (lastRun.passed ? 'Pass' : 'Fail') : '—'}
           </div>
           <div className="sub">{lastRun ? `suite ${lastRun.suite}` : 'no runs'}</div>
         </div>
       </div>
 
-      <div className="card mb" style={{ background: 'linear-gradient(135deg,rgba(45,108,255,.08),rgba(56,189,248,.05))', borderColor: 'rgba(45,108,255,.25)' }}>
+      <div className="card mb insight-card">
         <div className="spread mb">
           <div>
             <div className="h2">Generate posture report</div>
@@ -90,7 +90,7 @@ export default async function ReportsPage() {
           </div>
           <a className="btn" href="/api/reports/posture">⭳ Generate PDF</a>
         </div>
-        <pre style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', margin: 0, fontFamily: "'Cascadia Code', Consolas, monospace", fontSize: 12.5, color: '#c8cedb', overflowX: 'auto' }}>
+        <pre style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', margin: 0, fontFamily: "'Cascadia Code', Consolas, monospace", fontSize: 12.5, color: 'var(--text)', overflowX: 'auto' }}>
 node scripts/build-posture-pdf.js
         </pre>
         <div className="sub" style={{ marginTop: 8 }}>

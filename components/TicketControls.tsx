@@ -61,7 +61,7 @@ export function TicketControls({
         <button className="btn sm" onClick={save} disabled={busy || !dirty}>
           {busy ? 'Saving…' : 'Save changes'}
         </button>
-        {msg && <span className="sub" style={{ color: '#5fd49b' }}>{msg}</span>}
+        {msg && <span className="sub fg-ok">{msg}</span>}
         {err && <span className="form-err" style={{ margin: 0 }}>{err}</span>}
       </div>
     </>

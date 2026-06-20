@@ -35,9 +35,9 @@ export default async function ScanRunDetail({ params }: { params: Promise<{ id: 
         <div className="card"><div className="k">Findings</div><div className="v">{run.findings}</div></div>
       </div>
 
-      <div className="card mb" style={{ background: 'linear-gradient(135deg,rgba(45,108,255,.08),rgba(56,189,248,.05))', borderColor: 'rgba(45,108,255,.25)' }}>
+      <div className="card mb insight-card">
         <div className="panel-h"><h3>Integrity</h3></div>
-        <p style={{ color: '#c8cedb', lineHeight: 1.7 }}>Run executed in an isolated runner; results signed and stored immutably. Logs and produced findings are tamper-evident and auditable.</p>
+        <p style={{ color: 'var(--text)', lineHeight: 1.7 }}>Run executed in an isolated runner; results signed and stored immutably. Logs and produced findings are tamper-evident and auditable.</p>
       </div>
 
       <div className="card pad0">
