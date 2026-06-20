@@ -21,7 +21,7 @@ export default async function FindingDetail({ params }: { params: Promise<{ ref:
       <div className="spread mb">
         <div className="crumb">
           <Link className="link" href="/findings">Findings</Link> · <b>{f.ref}</b>
-          <span className="pill" style={{ marginLeft: 10, background: live ? 'rgba(51,184,122,.14)' : 'rgba(138,147,166,.16)', color: live ? '#5fd49b' : '#aab3c4' }}>
+          <span className={`pill live-badge${live ? '' : ' mock'}`} style={{ marginLeft: 10 }}>
             <span className="dot" style={{ background: live ? 'var(--ok)' : 'var(--muted)' }} />
             {live ? 'LIVE · ops.findings' : 'mock'}
           </span>
@@ -42,19 +42,19 @@ export default async function FindingDetail({ params }: { params: Promise<{ ref:
             </div>
           </div>
 
-          <div className="card mb" style={{ background: 'linear-gradient(135deg,rgba(45,108,255,.08),rgba(56,189,248,.05))', borderColor: 'rgba(45,108,255,.25)' }}>
+          <div className="card mb insight-card">
             <div className="panel-h"><h3>✨ AI insight</h3></div>
-            <p style={{ color: '#c8cedb', lineHeight: 1.7 }}>{f.desc}. This is the highest-impact class of issue for {f.component}; recommended remediation is generated below and can be promoted to a ticket. (Advisory — AI output is never auto-applied.)</p>
+            <p style={{ color: 'var(--text)', lineHeight: 1.7 }}>{f.desc}. This is the highest-impact class of issue for {f.component}; recommended remediation is generated below and can be promoted to a ticket. (Advisory — AI output is never auto-applied.)</p>
           </div>
 
           <div className="card mb">
             <div className="panel-h"><h3>Evidence</h3></div>
-            <pre style={{ background: '#0b0d12', border: '1px solid var(--border)', borderRadius: 10, padding: 14, fontSize: 12, color: '#c8cedb', overflow: 'auto' }}><code>{`# source: ${f.source}\ncomponent: ${f.component}\nseverity: ${f.severity}  cvss: ${f.cvss || 'n/a'}`}</code></pre>
+            <pre style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 10, padding: 14, fontSize: 12, color: 'var(--text)', overflow: 'auto' }}><code>{`# source: ${f.source}\ncomponent: ${f.component}\nseverity: ${f.severity}  cvss: ${f.cvss || 'n/a'}`}</code></pre>
           </div>
 
           <div className="card">
             <div className="panel-h"><h3>Remediation</h3></div>
-            <ol style={{ paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 8, color: '#c8cedb' }}>
+            <ol style={{ paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 8, color: 'var(--text)' }}>
               <li>Review the affected component and confirm the finding.</li>
               <li>Apply the recommended fix (see linked runbook).</li>
               <li>Re-run the <span className="mono">{f.source}</span> check to verify resolution.</li>

@@ -9,17 +9,20 @@
  *   <script
  *     src="https://ops.bentech.dev/report-issue.js"
  *     data-endpoint="https://ops.bentech.dev/api/ingest/issue"
- *     data-token="YOUR_OPS_INGEST_SECRET"
+ *     data-token="YOUR_OPS_REPORT_TOKEN"
  *     data-app="YT"
  *     defer></script>
  *
  * Config can also be set before the script loads:
  *   window.SentinelReportIssue = { endpoint, token, app };
  *
- * The token is the shared OPS_INGEST_SECRET for the estate. It IS visible in the
- * browser — acceptable for trusted internal apps; it only grants "create a
- * report ticket", nothing else. For untrusted/public surfaces, proxy through
- * your own backend and sign with HMAC instead (x-ingest-signature).
+ * The token is OPS_REPORT_TOKEN — the dedicated, LEAST-PRIVILEGE token for this
+ * widget. It IS visible in the browser, which is acceptable because it ONLY
+ * grants "create a report ticket" via /api/ingest/issue — it cannot post ticket
+ * updates, write the roadmap/changelog, or push findings (those require the
+ * privileged OPS_INGEST_SECRET, which must NEVER be placed in a browser). For
+ * untrusted/public surfaces, proxy through your own backend and sign with HMAC
+ * instead (x-ingest-signature).
  */
 (function () {
   'use strict';

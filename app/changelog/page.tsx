@@ -29,7 +29,7 @@ export default async function ChangelogPage() {
           {rows.map((e, i) => (
             <div key={i} className="row" style={{ alignItems: 'flex-start', gap: 14 }}>
               <div style={{ width: 80, flexShrink: 0 }}>
-                <div className="mono" style={{ color: '#7fa8ff' }}>{e.version || '—'}</div>
+                <div className="mono" style={{ color: 'var(--low)' }}>{e.version || '—'}</div>
                 <div className="sub" style={{ fontSize: 11 }}>{new Date(e.date).toLocaleDateString()}</div>
               </div>
               <div style={{ flex: 1, borderLeft: '1px solid var(--border)', paddingLeft: 14 }}>
@@ -37,7 +37,7 @@ export default async function ChangelogPage() {
                   <b style={{ fontSize: 13.5 }}>{e.label}</b>
                   <AppTag app={e.app} />
                 </div>
-                <div style={{ color: '#c8cedb', fontSize: 12.5, marginTop: 4 }}>{e.body}</div>
+                <div style={{ color: 'var(--text)', fontSize: 12.5, marginTop: 4 }}>{e.body}</div>
               </div>
             </div>
           ))}

@@ -21,7 +21,7 @@ export default async function OverviewPage() {
         <div className="panel-h">
           <div className="row" style={{ gap: 10 }}>
             <h3>Platform monitored</h3>
-            <span className="pill" style={{ background: stats.live ? 'rgba(51,184,122,.14)' : 'rgba(138,147,166,.16)', color: stats.live ? '#5fd49b' : '#aab3c4' }}>
+            <span className={`pill live-badge${stats.live ? '' : ' mock'}`}>
               <span className="dot" style={{ background: stats.live ? 'var(--ok)' : 'var(--muted)' }} />
               {stats.live ? 'LIVE · YT Transcriber' : 'mock'}
             </span>
@@ -44,9 +44,9 @@ export default async function OverviewPage() {
             <div><div style={{ fontSize: 26, fontWeight: 800 }}>78</div><div className="sub">/ 100</div></div>
           </div>
         </div>
-        <div className="card"><div className="k">Open findings</div><div className="v">{open.length}</div><div className="sub" style={{ color: '#ff8b8e' }}>▲ 3 since last week</div></div>
+        <div className="card"><div className="k">Open findings</div><div className="v">{open.length}</div><div className="sub" style={{ color: 'var(--crit)' }}>▲ 3 since last week</div></div>
         <div className="card"><div className="k">Critical / High</div><div className="v" style={{ color: '#ff7b7e' }}>{sevCounts.critical} <span style={{ color: 'var(--muted)', fontSize: 18 }}>/</span> {sevCounts.high}</div><div className="sub">need attention now</div></div>
-        <div className="card"><div className="k">Resolved (30d)</div><div className="v" style={{ color: '#5fd49b' }}>31</div><div className="sub" style={{ color: '#5fd49b' }}>▼ MTTR 2.4 days</div></div>
+        <div className="card"><div className="k">Resolved (30d)</div><div className="v" style={{ color: 'var(--ok)' }}>31</div><div className="sub" style={{ color: 'var(--ok)' }}>▼ MTTR 2.4 days</div></div>
       </div>
 
       <div className="grid grid-main mb">

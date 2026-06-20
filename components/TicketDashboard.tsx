@@ -575,7 +575,7 @@ export function TicketDashboard({ t }: { t: ServiceTicket }) {
 
         <div key="details">
           <Panel title="Details" editMode={editMode}>
-            <p style={{ color: '#c8cedb', lineHeight: 1.7, whiteSpace: 'pre-wrap', marginTop: 0 }}>
+            <p style={{ color: 'var(--text)', lineHeight: 1.7, whiteSpace: 'pre-wrap', marginTop: 0 }}>
               {t.description || '—'}
             </p>
             <div className="kv" style={{ marginTop: 10 }}>
@@ -589,7 +589,7 @@ export function TicketDashboard({ t }: { t: ServiceTicket }) {
               <div className="r"><span className="k2">Impact × Urgency</span><span>{t.impact} × {t.urgency}</span></div>
               <div className="r"><span className="k2"></span><span className="sub" style={{ fontSize: 11 }}>auto-set from impact × urgency — override here</span></div>
               <div className="r"><span className="k2">Status</span><span style={{ fontWeight: 600, color: statusColor[t.status] ?? 'var(--text)' }}>{t.status}</span></div>
-              <div className="r"><span className="k2">SLA due</span><span style={{ color: t.slaDue ? '#ffc05a' : 'var(--muted)' }}>{t.slaDue ? new Date(t.slaDue).toLocaleString() : '—'}</span></div>
+              <div className="r"><span className="k2">SLA due</span><span style={{ color: t.slaDue ? 'var(--high)' : 'var(--muted)' }}>{t.slaDue ? new Date(t.slaDue).toLocaleString() : '—'}</span></div>
               <div className="r"><span className="k2">Assignee</span><span>{t.assignee}</span></div>
               <div className="r"><span className="k2">Source</span><span>{t.source}</span></div>
             </div>

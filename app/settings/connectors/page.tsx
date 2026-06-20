@@ -104,7 +104,7 @@ export default async function ConnectorsPage() {
                   <div className="sub" style={{ marginTop: 4 }}>{cat.desc}</div>
                 </div>
                 {configured && enabled ? (
-                  <span className="pill" style={{ background: 'rgba(51,184,122,.14)', color: '#5fd49b' }}>
+                  <span className="pill tint-ok">
                     <span className="dot" style={{ background: 'var(--ok)' }} />Configured · Enabled
                   </span>
                 ) : configured ? (

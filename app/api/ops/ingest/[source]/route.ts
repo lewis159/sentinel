@@ -5,12 +5,15 @@
 // into ops.findings (keyed on the UNIQUE `fingerprint`) and self-heals fixed
 // findings when a later scan no longer reports them.
 //
-// Auth: header `x-ingest-signature` must equal HMAC-SHA256(rawBody, OPS_INGEST_SECRET).
+// Auth: PRIVILEGED, HMAC-only. Header `x-ingest-signature` must equal
+// HMAC-SHA256(rawBody, OPS_INGEST_SECRET). The least-privilege OPS_REPORT_TOKEN
+// is NOT accepted here. No plaintext token mode (scanners always sign).
 //   - OPS_INGEST_SECRET unset      → 503 { error: 'ingest not configured' }
 //   - signature missing / mismatch → 401 { error: '...' }
 
 import crypto from 'crypto';
 import { hasDb, q, q1 } from '@/lib/db';
+import { verifyPrivilegedHmac } from '@/lib/ingest-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,34 +32,21 @@ function sha256Hex(input: string): string {
   return crypto.createHash('sha256').update(input).digest('hex');
 }
 
-// Timing-safe compare of two hex signatures.
-function signatureMatches(expected: string, provided: string): boolean {
-  const a = Buffer.from(expected, 'hex');
-  const b = Buffer.from(provided, 'hex');
-  if (a.length !== b.length || a.length === 0) return false;
-  return crypto.timingSafeEqual(a, b);
-}
-
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ source: string }> }
 ) {
   try {
-    const secret = process.env.OPS_INGEST_SECRET;
-    if (!secret) {
-      return Response.json({ error: 'ingest not configured' }, { status: 503 });
-    }
-
     const { source } = await params;
 
     // Read the RAW body first — the HMAC must be computed over exactly the bytes
     // the client signed, before any JSON re-serialisation.
     const raw = await req.text();
 
-    const provided = req.headers.get('x-ingest-signature') ?? '';
-    const expected = crypto.createHmac('sha256', secret).update(raw).digest('hex');
-    if (!provided || !signatureMatches(expected, provided)) {
-      return Response.json({ error: 'invalid signature' }, { status: 401 });
+    // --- Auth: PRIVILEGED, HMAC-only (OPS_INGEST_SECRET) ---
+    const authed = verifyPrivilegedHmac(req, raw);
+    if (!authed.ok) {
+      return Response.json({ error: authed.error }, { status: authed.status });
     }
 
     if (!hasDb) {
