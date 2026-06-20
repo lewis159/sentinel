@@ -857,6 +857,126 @@ export async function upsertRoadmapItems(items: RoadmapUpsertInput[]): Promise<n
   return upserted;
 }
 
+// ---------- Roadmap in-app CRUD (Clerk-gated /api/roadmap, server-only) ----------
+// Distinct from upsertRoadmapItems (token-gated ingest): these power the operator
+// modal, validate inputs and return the mapped row so the UI can reflect the save.
+
+export const ROADMAP_APPS = ['YT', 'Sentinel', 'Bruce', 'Estate'] as const;
+export type RoadmapApp = (typeof ROADMAP_APPS)[number];
+
+function normStatus(status: unknown): RoadmapStatus {
+  return ROADMAP_STATUSES.includes(status as RoadmapStatus) ? (status as RoadmapStatus) : 'backlog';
+}
+function normApp(app: unknown): RoadmapApp {
+  return ROADMAP_APPS.includes(app as RoadmapApp) ? (app as RoadmapApp) : 'Estate';
+}
+
+export type RoadmapCreateInput = {
+  item_key?: string;       // optional — minted if absent
+  title: string;
+  description?: string;
+  status?: string;
+  app?: string;
+  sort_order?: number;
+};
+
+export type RoadmapUpdateInput = {
+  title?: string;
+  description?: string;
+  status?: string;
+  app?: string;
+  sort_order?: number;
+};
+
+const ROADMAP_COLS = 'item_key,title,description,status,app,sort_order';
+
+// Mint the next RM-#### key by scanning existing keys (race-tolerant enough for a
+// single-operator admin tool; the unique constraint on item_key is the backstop).
+async function nextRoadmapKey(): Promise<string> {
+  const rows = await q<{ item_key: string }>(
+    "select item_key from ops.roadmap_items where item_key ~ '^RM-[0-9]+$'"
+  );
+  let max = 0;
+  for (const r of rows) {
+    const n = Number(r.item_key.slice(3));
+    if (Number.isFinite(n) && n > max) max = n;
+  }
+  return `RM-${String(max + 1).padStart(3, '0')}`;
+}
+
+// Create a roadmap item. Title required; status/app validated against the enums;
+// item_key minted (RM-###) when not supplied. Returns the new row.
+export async function createRoadmapItem(input: RoadmapCreateInput): Promise<{ row: RoadmapItem | null }> {
+  if (!hasDb) throw new Error('no DB');
+  const title = typeof input.title === 'string' ? input.title.trim() : '';
+  if (!title) throw new Error('title is required');
+
+  const key = typeof input.item_key === 'string' && input.item_key.trim()
+    ? input.item_key.trim()
+    : await nextRoadmapKey();
+
+  const data = await q1<any>(
+    `insert into ops.roadmap_items (item_key, title, description, status, app, sort_order)
+     values ($1, $2, $3, $4, $5, $6)
+     returning ${ROADMAP_COLS}`,
+    [
+      key,
+      title,
+      typeof input.description === 'string' ? input.description : null,
+      normStatus(input.status),
+      normApp(input.app),
+      Number.isFinite(input.sort_order) ? Math.trunc(input.sort_order as number) : 0,
+    ]
+  );
+  return { row: data ? mapRoadmap(data) : null };
+}
+
+// Patch a roadmap item by item_key. Only supplied fields are updated; status/app
+// are validated. Returns the updated row, or null if the key doesn't exist.
+export async function updateRoadmapItem(
+  itemKey: string,
+  patch: RoadmapUpdateInput
+): Promise<{ row: RoadmapItem | null }> {
+  if (!hasDb) throw new Error('no DB');
+
+  const sets: string[] = [];
+  const vals: any[] = [itemKey];
+  const add = (frag: string, val: any) => { vals.push(val); sets.push(frag.replace('?', `$${vals.length}`)); };
+
+  if (patch.title !== undefined) {
+    const t = String(patch.title).trim();
+    if (!t) throw new Error('title cannot be empty');
+    add('title = ?', t);
+  }
+  if (patch.description !== undefined) add('description = ?', String(patch.description));
+  if (patch.status !== undefined) add('status = ?', normStatus(patch.status));
+  if (patch.app !== undefined) add('app = ?', normApp(patch.app));
+  if (patch.sort_order !== undefined) {
+    add('sort_order = ?', Number.isFinite(patch.sort_order) ? Math.trunc(patch.sort_order as number) : 0);
+  }
+
+  if (sets.length === 0) {
+    const data = await q1<any>(`select ${ROADMAP_COLS} from ops.roadmap_items where item_key=$1`, [itemKey]);
+    return { row: data ? mapRoadmap(data) : null };
+  }
+
+  const data = await q1<any>(
+    `update ops.roadmap_items set ${sets.join(', ')} where item_key=$1 returning ${ROADMAP_COLS}`,
+    vals
+  );
+  return { row: data ? mapRoadmap(data) : null };
+}
+
+// Delete a roadmap item by item_key. Returns true if a row was removed.
+export async function deleteRoadmapItem(itemKey: string): Promise<boolean> {
+  if (!hasDb) throw new Error('no DB');
+  const data = await q1<{ item_key: string }>(
+    'delete from ops.roadmap_items where item_key=$1 returning item_key',
+    [itemKey]
+  );
+  return Boolean(data);
+}
+
 export type ChangelogInput = {
   label: string;
   version?: string;

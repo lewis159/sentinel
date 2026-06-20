@@ -1,8 +1,9 @@
 import { getRoadmap } from '@/lib/data';
 import { requireGlobalAdminPage } from '@/lib/auth';
-import { KanbanBoard, type KanbanCard } from '@/components/KanbanBoard';
+import { type KanbanCard } from '@/components/KanbanBoard';
+import { RoadmapBoard } from '@/components/RoadmapBoard';
 import { LiveBadge } from '@/components/LiveBadge';
-import { ROADMAP_STATUSES, ROADMAP_STATUS_LABEL } from '@/lib/mock';
+import { ROADMAP_STATUSES, ROADMAP_STATUS_LABEL, type RoadmapItem } from '@/lib/mock';
 import { AutoRefresh } from '@/components/AutoRefresh';
 
 export const dynamic = 'force-dynamic';
@@ -15,7 +16,8 @@ export default async function RoadmapPage() {
   const cards: KanbanCard[] = rows.map((r) => ({
     id: r.itemKey, title: r.title, subtitle: r.description, app: r.app,
   }));
-  const byKey = new Map(rows.map((r) => [r.itemKey, r.status]));
+  const statusByKey: Record<string, string> = Object.fromEntries(rows.map((r) => [r.itemKey, r.status]));
+  const items: Record<string, RoadmapItem> = Object.fromEntries(rows.map((r) => [r.itemKey, r]));
 
   return (
     <div>
@@ -28,10 +30,9 @@ export default async function RoadmapPage() {
           </div>
           <div className="sub">Current release cycle · feeds the changelog on ship · agent-writable</div>
         </div>
-        <button className="btn sm">+ Add item</button>
       </div>
 
-      <KanbanBoard columns={columns} cards={cards} groupBy={(c) => byKey.get(c.id) ?? ROADMAP_STATUSES[0]} />
+      <RoadmapBoard columns={columns} cards={cards} statusByKey={statusByKey} items={items} />
     </div>
   );
 }
