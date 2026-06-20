@@ -29,6 +29,7 @@ export const WORKSPACES: Record<Workspace, { label: string; icon: string; home: 
       {
         group: 'Reference',
         items: [
+          { label: 'Graph', href: '/graph', icon: '⬡' },
           { label: 'Knowledge Base', href: '/kb', icon: '📘' },
           { label: 'Reports', href: '/reports', icon: '▤' },
         ],
@@ -88,6 +89,7 @@ export const WORKSPACES: Record<Workspace, { label: string; icon: string; home: 
       {
         group: 'Reference',
         items: [
+          { label: 'Graph', href: '/graph', icon: '⬡' },
           { label: 'Knowledge Base', href: '/kb', icon: '📘' },
           { label: 'Reports', href: '/reports', icon: '▤' },
         ],

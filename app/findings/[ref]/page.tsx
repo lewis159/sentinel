@@ -72,7 +72,7 @@ export default async function FindingDetail({ params }: { params: Promise<{ ref:
               <div className="r"><span className="k2">Age</span><span>{f.age}</span></div>
             </div>
           </div>
-          <LinksPanel edges={edges} />
+          <LinksPanel edges={edges} node={{ type: 'finding', id: f.ref }} />
         </div>
       </div>
     </div>
