@@ -48,7 +48,7 @@ export default async function UserAccessDetail({ params }: { params: Promise<{ i
 
       <div className="grid" style={{ gridTemplateColumns: '1fr 320px' }}>
         <div>
-          <UserAccessPanel user={{ id: user.id, name: user.name, email: user.email, access: user.access }} />
+          <UserAccessPanel user={{ id: user.id, name: user.name, email: user.email, access: user.access, roles: user.roles, entitlements: user.entitlements }} />
         </div>
 
         <div>

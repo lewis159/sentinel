@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { requireOpsAuth } from '@/lib/auth';
 import { setUserAccess } from '@/lib/access';
-import { isValidApp, isValidLevel } from '@/lib/apps';
+import { isValidApp, isValidLevel, isValidAppRole, type AppRole } from '@/lib/apps';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,8 +28,19 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!isValidApp(app)) return NextResponse.json({ error: `unknown app: ${app}` }, { status: 400 });
   if (!isValidLevel(level)) return NextResponse.json({ error: `invalid level: ${level}` }, { status: 400 });
 
+  // Optional per-app role (Sentinel). Validated when present; null clears it.
+  let appRole: AppRole | null | undefined;
+  if (body?.appRole === null) {
+    appRole = null;
+  } else if (body?.appRole !== undefined) {
+    const r = String(body.appRole);
+    if (!isValidAppRole(r)) return NextResponse.json({ error: `invalid app role: ${r}` }, { status: 400 });
+    appRole = r;
+  }
+
   try {
-    const result = await setUserAccess(id, app, level, actorId ?? 'unknown');
+    // setUserAccess rejects writes to YT-owned apps (display + request-only in P1).
+    const result = await setUserAccess(id, app, level, actorId ?? 'unknown', appRole);
     return NextResponse.json(result);
   } catch (e: any) {
     return NextResponse.json({ error: e?.message ?? 'failed' }, { status: 500 });
