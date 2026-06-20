@@ -446,6 +446,61 @@ td .t { font-weight: 600; } td .d { color: var(--muted); font-size: 11.5px; marg
 /* Metric-card metric picker (edit mode on section cards) */
 .td-metric-select { width: 100%; margin-bottom: 6px; font-size: 12px; }
 
+/* ---------- Monitoring widgets (Operations → Monitoring dashboard) ---------- */
+/* Shared states */
+.mon-state { color: var(--muted); font-size: 12.5px; padding: 8px 2px; }
+.mon-note { color: var(--faint); font-size: 11px; margin-top: 4px; }
+.mon-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+
+/* Big metric value (CPU, incidents count) */
+.mon-metric { display: flex; flex-direction: column; gap: 2px; }
+.mon-metric-v { font-size: 30px; font-weight: 800; line-height: 1; color: var(--text); }
+.mon-metric-l { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+
+/* CPU sparkline */
+.mon-cpu { display: flex; flex-direction: column; gap: 12px; height: 100%; }
+.mon-spark { width: 100%; height: 60px; flex: 1; min-height: 40px; }
+
+/* Topology tree */
+.mon-topo { display: flex; flex-direction: column; gap: 8px; }
+.mon-topo-stack { display: flex; flex-direction: column; }
+.mon-topo-stack-h {
+  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+  background: transparent; border: none; color: var(--text); cursor: pointer;
+  font-size: 12.5px; font-weight: 700; padding: 4px 2px;
+}
+.mon-topo-caret { color: var(--faint); font-size: 10px; width: 10px; }
+.mon-topo-count { color: var(--faint); font-size: 11px; margin-left: auto; }
+.mon-topo-svc {
+  display: flex; align-items: center; gap: 8px; padding: 3px 2px 3px 22px; font-size: 12px;
+}
+.mon-topo-svc-name { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mon-topo-replicas { color: var(--muted); font-size: 11px; margin-left: auto; flex-shrink: 0; }
+
+/* Uptime grid */
+.mon-uptime { display: flex; flex-direction: column; gap: 10px; }
+.mon-uptime-sum { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text); }
+.mon-uptime-grid { display: flex; flex-direction: column; gap: 6px; }
+.mon-uptime-chip {
+  display: flex; align-items: center; gap: 8px; padding: 5px 8px; font-size: 12px;
+  background: var(--panel-2); border: 1px solid var(--border-soft); border-radius: 6px;
+}
+.mon-uptime-chip.down { border-color: var(--high); }
+.mon-uptime-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+
+/* Open incidents list */
+.mon-inc { display: flex; flex-direction: column; gap: 12px; height: 100%; }
+.mon-inc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.mon-inc-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.mon-inc-row {
+  display: flex; align-items: center; gap: 8px; padding: 6px 6px; border-radius: 6px;
+  text-decoration: none; color: var(--text);
+}
+.mon-inc-row:hover { background: var(--panel-2); }
+.mon-inc-ref { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+.mon-inc-title { font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.mon-inc-age { flex-shrink: 0; font-size: 11px; }
+
 /* Activity timeline + composer */
 .act-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
 .act-item { border-left: 2px solid var(--border); padding: 2px 0 2px 12px; }

@@ -87,3 +87,154 @@ export async function getContainers(): Promise<{ rows: Container[]; live: boolea
     return { rows: mockContainers, live: false };
   }
 }
+
+// ---------------------------------------------------------------------------
+// Swarm topology (services + tasks → stack → service → task tree).
+//
+// The docker-socket-proxy exposes /services, /tasks and /nodes (read-only). We
+// build a compact tree the TopologyWidget renders: stacks (by the
+// com.docker.stack.namespace label) → services → running tasks, with desired
+// vs running replica counts. Mock fallback keeps the prototype rendering.
+// ---------------------------------------------------------------------------
+
+type DockerService = {
+  ID?: string;
+  Spec?: {
+    Name?: string;
+    Labels?: Record<string, string>;
+    Mode?: { Replicated?: { Replicas?: number }; Global?: Record<string, never> };
+  };
+};
+
+type DockerTask = {
+  ID?: string;
+  ServiceID?: string;
+  NodeID?: string;
+  DesiredState?: string;
+  Status?: { State?: string; Message?: string };
+  Slot?: number;
+};
+
+export type TopoTask = { id: string; slot: number | null; state: string; desiredState: string; node: string };
+export type TopoService = {
+  id: string;
+  name: string;
+  mode: 'replicated' | 'global' | 'unknown';
+  desired: number | null; // null for global
+  running: number;
+  tasks: TopoTask[];
+};
+export type TopoStack = { stack: string; services: TopoService[] };
+
+async function getServicesRaw(): Promise<DockerService[] | null> {
+  try {
+    const data = (await get('/v1.44/services')) as DockerService[];
+    return Array.isArray(data) ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+async function getTasksRaw(): Promise<DockerTask[] | null> {
+  try {
+    const data = (await get('/v1.44/tasks')) as DockerTask[];
+    return Array.isArray(data) ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+// Public helpers (services / tasks) — exposed per the build spec.
+export async function getServices(): Promise<{ rows: DockerService[]; live: boolean }> {
+  if (!hasDocker) return { rows: [], live: false };
+  const rows = await getServicesRaw();
+  return rows ? { rows, live: true } : { rows: [], live: false };
+}
+
+export async function getTasks(): Promise<{ rows: DockerTask[]; live: boolean }> {
+  if (!hasDocker) return { rows: [], live: false };
+  const rows = await getTasksRaw();
+  return rows ? { rows, live: true } : { rows: [], live: false };
+}
+
+// Mock topology so the widget renders without a live swarm.
+const mockTopology: TopoStack[] = [
+  {
+    stack: 'yt-transcriber',
+    services: [
+      {
+        id: 'svc_app', name: 'yt-transcriber_app', mode: 'replicated', desired: 2, running: 2,
+        tasks: [
+          { id: 't1', slot: 1, state: 'running', desiredState: 'running', node: 'node-1' },
+          { id: 't2', slot: 2, state: 'running', desiredState: 'running', node: 'node-1' },
+        ],
+      },
+      {
+        id: 'svc_redis', name: 'yt-transcriber_redis', mode: 'replicated', desired: 1, running: 1,
+        tasks: [{ id: 't3', slot: 1, state: 'running', desiredState: 'running', node: 'node-1' }],
+      },
+    ],
+  },
+  {
+    stack: 'yt-monitoring',
+    services: [
+      {
+        id: 'svc_prom', name: 'yt-monitoring_prometheus', mode: 'replicated', desired: 1, running: 1,
+        tasks: [{ id: 't4', slot: 1, state: 'running', desiredState: 'running', node: 'node-1' }],
+      },
+    ],
+  },
+];
+
+// Build the stack→service→task tree. `live` is false when the proxy is
+// unconfigured or either call fails (→ mock fallback).
+export async function getTopology(): Promise<{ stacks: TopoStack[]; live: boolean }> {
+  if (!hasDocker) return { stacks: mockTopology, live: false };
+  const [services, tasks] = await Promise.all([getServicesRaw(), getTasksRaw()]);
+  if (!services || !tasks) return { stacks: mockTopology, live: false };
+
+  // Index running/active tasks per service id.
+  const tasksByService = new Map<string, TopoTask[]>();
+  for (const t of tasks) {
+    const sid = t.ServiceID;
+    if (!sid) continue;
+    const task: TopoTask = {
+      id: (t.ID ?? '').slice(0, 12) || 'task',
+      slot: typeof t.Slot === 'number' ? t.Slot : null,
+      state: t.Status?.State ?? 'unknown',
+      desiredState: t.DesiredState ?? 'unknown',
+      node: (t.NodeID ?? '').slice(0, 12) || '—',
+    };
+    const arr = tasksByService.get(sid) ?? [];
+    arr.push(task);
+    tasksByService.set(sid, arr);
+  }
+
+  const byStack = new Map<string, TopoService[]>();
+  for (const s of services) {
+    const id = s.ID ?? '';
+    const name = s.Spec?.Name ?? id.slice(0, 12) ?? 'service';
+    const stack = s.Spec?.Labels?.['com.docker.stack.namespace'] ?? '(standalone)';
+    const mode: TopoService['mode'] = s.Spec?.Mode?.Replicated
+      ? 'replicated'
+      : s.Spec?.Mode?.Global
+        ? 'global'
+        : 'unknown';
+    const desired = mode === 'replicated' ? (s.Spec?.Mode?.Replicated?.Replicas ?? 0) : null;
+    const allTasks = (tasksByService.get(id) ?? []).sort((a, b) => (a.slot ?? 0) - (b.slot ?? 0));
+    const running = allTasks.filter((t) => t.state === 'running').length;
+    const svc: TopoService = { id: id.slice(0, 12) || 'svc', name, mode, desired, running, tasks: allTasks };
+    const arr = byStack.get(stack) ?? [];
+    arr.push(svc);
+    byStack.set(stack, arr);
+  }
+
+  const stacks: TopoStack[] = Array.from(byStack.entries())
+    .map(([stack, svcs]) => ({ stack, services: svcs.sort((a, b) => a.name.localeCompare(b.name)) }))
+    .sort((a, b) => a.stack.localeCompare(b.stack));
+
+  // No swarm services (plain container host) → fall back to mock so the widget
+  // still shows a meaningful tree rather than an empty one.
+  if (stacks.length === 0) return { stacks: mockTopology, live: false };
+  return { stacks, live: true };
+}
