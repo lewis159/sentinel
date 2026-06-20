@@ -7,6 +7,7 @@
 
 import { hasDb, q, q1 } from './db';
 import { getSupabase } from './connectors';
+import { getContainers } from './docker';
 import * as mock from './mock';
 import { KIND_STATUSES } from './mock';
 import type {
@@ -175,40 +176,185 @@ export async function getOneTicket(ref: string): Promise<{ row: Ticket | null; l
   }
 }
 
+// ---------- Components (ops.components) — hybrid derive-then-curate ----------
+// Components are the spine that links findings to the containers they run on.
+// They're auto-DERIVED from live container/service name prefixes (mapContainer
+// logic: name.split(/[_.]/)[0]) and then CURATED — operators can rename/merge.
+// Reads are DB-first with a mock fallback so the page always renders.
+
+export type ComponentRow = {
+  key: string;
+  name: string;
+  kind: string;
+  findings: number;
+  containers: number;
+};
+
+// Map a mock component shape (already has findings/containers) through unchanged.
+function mockComponents(): ComponentRow[] {
+  return (mock.components as any[]).map((c) => ({
+    key: c.key, name: c.name, kind: c.kind,
+    findings: Number(c.findings) || 0, containers: Number(c.containers) || 0,
+  }));
+}
+
+// All components with live finding + container counts. DB-first: reads
+// ops.components, left-joins finding counts (by component_label = key) and the
+// runs_on edge count for container totals. Falls back to mock when no DB / empty.
+export async function getComponents(): Promise<Sourced<ComponentRow>> {
+  if (!hasDb) return { rows: mockComponents(), live: false, note: 'no DB' };
+  try {
+    const data = await q<any>(
+      `select c.key, c.name, c.kind,
+              coalesce(f.n, 0)::int as findings,
+              coalesce(l.n, 0)::int as containers
+         from ops.components c
+         left join (
+           select component_label as k, count(*) as n
+             from ops.findings
+            where status <> 'fixed' and component_label is not null
+            group by component_label
+         ) f on f.k = c.key
+         left join (
+           select src_id as k, count(*) as n
+             from ops.links
+            where src_type = 'component' and dst_type = 'container' and relation = 'runs_on'
+            group by src_id
+         ) l on l.k = c.key
+        order by c.key asc`
+    );
+    if (data.length === 0) return { rows: mockComponents(), live: false, note: 'empty' };
+    return {
+      rows: data.map((r) => ({
+        key: r.key, name: r.name, kind: r.kind ?? 'service',
+        findings: Number(r.findings) || 0, containers: Number(r.containers) || 0,
+      })),
+      live: true,
+    };
+  } catch (e: any) {
+    return { rows: mockComponents(), live: false, note: e?.message ?? 'error' };
+  }
+}
+
+// Single component by key. DB-first with the same enriched counts; mock fallback.
+export async function getOneComponent(key: string): Promise<{ row: ComponentRow | null; live: boolean }> {
+  const fallback = () => mockComponents().find((c) => c.key === key) ?? null;
+  if (!hasDb) return { row: fallback(), live: false };
+  try {
+    const data = await q1<any>(
+      `select c.key, c.name, c.kind,
+              (select count(*) from ops.findings
+                where component_label = c.key and status <> 'fixed')::int as findings,
+              (select count(*) from ops.links
+                where src_type = 'component' and src_id = c.key
+                  and dst_type = 'container' and relation = 'runs_on')::int as containers
+         from ops.components c
+        where c.key = $1`,
+      [key]
+    );
+    if (!data) return { row: fallback(), live: false };
+    return {
+      row: {
+        key: data.key, name: data.name, kind: data.kind ?? 'service',
+        findings: Number(data.findings) || 0, containers: Number(data.containers) || 0,
+      },
+      live: true,
+    };
+  } catch {
+    return { row: fallback(), live: false };
+  }
+}
+
+// Upsert a component by key (idempotent). Used by the ingest auto-link path and
+// the topology reconcile. Only sets name on first insert; an operator rename
+// (curate side of "derive-then-curate") is preserved on conflict.
+export async function upsertComponent(key: string, name?: string, kind = 'service'): Promise<void> {
+  if (!hasDb) return;
+  await q(
+    `insert into ops.components (key, name, kind)
+       values ($1, $2, $3)
+     on conflict (key) do nothing`,
+    [key, name ?? key, kind]
+  );
+}
+
+// Reconcile ops.components + component→container edges from live topology. For
+// every live container, derive its component prefix (mapContainer logic),
+// upsert the component, and write an idempotent component --runs_on--> container
+// edge tagged created_by='auto:rule'. Returns counts; no-ops gracefully when
+// there's no DB or no live docker. Safe to call from a reconcile job or on-read.
+export async function reconcileComponentsFromTopology(): Promise<{ components: number; edges: number; live: boolean }> {
+  if (!hasDb) return { components: 0, edges: 0, live: false };
+  try {
+    const { rows: containers, live } = await getContainers();
+    if (!live) return { components: 0, edges: 0, live: false };
+    const seen = new Set<string>();
+    let edges = 0;
+    for (const c of containers) {
+      const key = c.component || c.name;
+      if (!key) continue;
+      if (!seen.has(key)) {
+        await upsertComponent(key, key, 'service');
+        seen.add(key);
+      }
+      await q(
+        `insert into ops.links (src_type, src_id, dst_type, dst_id, relation, created_by)
+           values ('component', $1, 'container', $2, 'runs_on', 'auto:rule')
+         on conflict (src_type, src_id, dst_type, dst_id, relation) do nothing`,
+        [key, c.name]
+      );
+      edges += 1;
+    }
+    return { components: seen.size, edges, live: true };
+  } catch {
+    return { components: 0, edges: 0, live: false };
+  }
+}
+
 // ---------- Finding graph edges (ops.links, both directions) ----------
 export type Edge = { rel: string; type: string; id: string; label: string; href: string };
 
 function hrefFor(type: string, id: string): string {
   switch (type) {
     case 'ticket': return `/tickets/${id}`;
-    case 'component': return `/components/${id}`;
+    case 'component': return `/components/${encodeURIComponent(id)}`;
     case 'kb': return `/kb/${id}`;
     case 'finding': return `/findings/${id}`;
+    case 'container': return `/infra/${encodeURIComponent(id)}`;
     case 'scan': return `/scans/runs/${id}`;
     default: return '#';
+  }
+}
+
+// Generic edge reader — generalises getFindingEdges / getTicketEdges to any node
+// type. Returns every ops.links row where (type,id) is on either side, mapped to
+// the "other" node as an Edge. DB-only; [] on no-DB / error.
+export async function getEdges(type: string, id: string): Promise<Edge[]> {
+  if (!hasDb) return [];
+  try {
+    const rows = await q<any>(
+      `select relation, src_type, src_id, dst_type, dst_id from ops.links
+        where (src_type = $1 and src_id = $2) or (dst_type = $1 and dst_id = $2)`,
+      [type, id]
+    );
+    return rows.map((l: any) => {
+      const isSrc = l.src_type === type && l.src_id === id;
+      const otherType = isSrc ? l.dst_type : l.src_type;
+      const otherId = isSrc ? l.dst_id : l.src_id;
+      return { rel: l.relation ?? 'linked', type: otherType, id: otherId, label: otherId, href: hrefFor(otherType, otherId) };
+    });
+  } catch {
+    return [];
   }
 }
 
 export async function getFindingEdges(ref: string): Promise<Edge[]> {
   const fallback = (): Edge[] => mock.findingLinks[ref] ?? [];
   if (!hasDb) return fallback();
-  try {
-    // Read links where this finding is on the source side OR the target side.
-    const rows = await q<any>(
-      "select relation,src_type,src_id,dst_type,dst_id from ops.links where (src_type='finding' and src_id=$1) or (dst_type='finding' and dst_id=$1)",
-      [ref]
-    );
-    if (rows.length === 0) return fallback();
-    return rows.map((l: any) => {
-      // Pick the side that is NOT this finding as the edge's "other" node.
-      const isSrc = l.src_type === 'finding' && l.src_id === ref;
-      const type = isSrc ? l.dst_type : l.src_type;
-      const id = isSrc ? l.dst_id : l.src_id;
-      return { rel: l.relation ?? 'linked', type, id, label: id, href: hrefFor(type, id) };
-    });
-  } catch {
-    return fallback();
-  }
+  const edges = await getEdges('finding', ref);
+  // Keep the mock fallback when there are no real edges yet (prototype always
+  // renders something on the canonical SEC-0009 demo finding).
+  return edges.length === 0 ? fallback() : edges;
 }
 
 // ---------- Ticket graph edges (ops.links, both directions) ----------
@@ -216,21 +362,7 @@ export async function getFindingEdges(ref: string): Promise<Edge[]> {
 // is on the src or dst side. Returns the "other" node as an Edge. DB-only — if
 // there's no DB or no rows, the UI shows a "No linked records" state.
 export async function getTicketEdges(ref: string): Promise<Edge[]> {
-  if (!hasDb) return [];
-  try {
-    const rows = await q<any>(
-      "select relation,src_type,src_id,dst_type,dst_id from ops.links where (src_type='ticket' and src_id=$1) or (dst_type='ticket' and dst_id=$1)",
-      [ref]
-    );
-    return rows.map((l: any) => {
-      const isSrc = l.src_type === 'ticket' && l.src_id === ref;
-      const type = isSrc ? l.dst_type : l.src_type;
-      const id = isSrc ? l.dst_id : l.src_id;
-      return { rel: l.relation ?? 'linked', type, id, label: id, href: hrefFor(type, id) };
-    });
-  } catch {
-    return [];
-  }
+  return getEdges('ticket', ref);
 }
 
 // ---------- Per-user saved layouts (ops.user_layouts) ----------
@@ -276,7 +408,9 @@ export async function raiseTicketFromFinding(findingRef: string): Promise<{ ref:
   if (!ticket) throw new Error('insert failed');
   const newRef = ticket.ref;
   await q(
-    "insert into ops.links (src_type,src_id,dst_type,dst_id,relation) values ('finding',$1,'ticket',$2,'raises')",
+    `insert into ops.links (src_type,src_id,dst_type,dst_id,relation,created_by)
+       values ('finding',$1,'ticket',$2,'raises','auto:rule')
+     on conflict (src_type, src_id, dst_type, dst_id, relation) do nothing`,
     [findingRef, newRef]
   );
   return { ref: newRef };
@@ -666,8 +800,8 @@ export async function createRelatedTicket(
   // Link source → new. Idempotent on the unique key (defensive — a fresh ref
   // won't collide, but ON CONFLICT keeps this safe if a ref is ever reused).
   await q(
-    `insert into ops.links (src_type, src_id, dst_type, dst_id, relation)
-     values ('ticket', $1, 'ticket', $2, $3)
+    `insert into ops.links (src_type, src_id, dst_type, dst_id, relation, created_by)
+     values ('ticket', $1, 'ticket', $2, $3, 'auto:rule')
      on conflict (src_type, src_id, dst_type, dst_id, relation) do nothing`,
     [sourceRef, newRef, RELATED_RELATION[kind]]
   );
@@ -682,7 +816,8 @@ export async function createRelatedTicket(
 export async function linkTicketToTicket(
   sourceRef: string,
   targetRef: string,
-  relation = 'related'
+  relation = 'related',
+  createdBy = 'manual'
 ): Promise<{ ok: boolean; error?: string }> {
   if (!hasDb) throw new Error('no DB');
 
@@ -694,12 +829,77 @@ export async function linkTicketToTicket(
   if (!src) return { ok: false, error: `ticket ${sourceRef} not found` };
 
   await q(
-    `insert into ops.links (src_type, src_id, dst_type, dst_id, relation)
-     values ('ticket', $1, 'ticket', $2, $3)
+    `insert into ops.links (src_type, src_id, dst_type, dst_id, relation, created_by)
+     values ('ticket', $1, 'ticket', $2, $3, $4)
      on conflict (src_type, src_id, dst_type, dst_id, relation) do nothing`,
-    [sourceRef, targetRef, relation]
+    [sourceRef, targetRef, relation, createdBy]
   );
 
+  return { ok: true };
+}
+
+// ---------- Generic manual link (ops.links) — powers POST /api/links ----------
+// Node-type + relation vocab the graph understands. Kept in sync with the
+// comments in db/init/08_links_graph.sql.
+export const LINK_NODE_TYPES = [
+  'finding', 'ticket', 'component', 'kb', 'container', 'user', 'scan', 'alert',
+] as const;
+export const LINK_RELATIONS = [
+  'raises', 'affects', 'runs_on', 'documents', 'runbook_for',
+  'has_problem', 'has_change', 'related', 'mitigates',
+] as const;
+export type LinkNodeType = (typeof LINK_NODE_TYPES)[number];
+
+// Resolve whether a (type,id) node actually exists, so we never create dangling
+// edges. KB lives in files (validated by the API route), container/user/scan/
+// alert ids aren't strongly enforced here — only the DB-backed entities are
+// checked. Returns true when we can't check (so the caller's own validation
+// takes over) or when the row exists.
+async function nodeExists(type: string, id: string): Promise<boolean> {
+  if (!hasDb) return false;
+  try {
+    switch (type) {
+      case 'finding': return Boolean(await q1<{ ref: string }>('select ref from ops.findings where ref=$1', [id]));
+      case 'ticket': return Boolean(await q1<{ ref: string }>('select ref from ops.tickets where ref=$1', [id]));
+      case 'component': return Boolean(await q1<{ key: string }>('select key from ops.components where key=$1', [id]));
+      default: return true; // kb / container / user / scan / alert — not DB-enforced here
+    }
+  } catch {
+    return false;
+  }
+}
+
+export type CreateLinkInput = {
+  srcType: string; srcId: string;
+  dstType: string; dstId: string;
+  relation?: string;
+  createdBy?: string;
+};
+
+// Insert a generic edge into ops.links (idempotent on the unique 5-tuple).
+// Validates both node types are in the vocab, the relation is in the vocab, and
+// (for DB-backed types) that both ends exist. Self-loops are rejected.
+export async function createLink(input: CreateLinkInput): Promise<{ ok: boolean; error?: string }> {
+  if (!hasDb) throw new Error('no DB');
+  const { srcType, srcId, dstType, dstId } = input;
+  const relation = input.relation && input.relation.trim() ? input.relation.trim() : 'related';
+  const createdBy = input.createdBy && input.createdBy.trim() ? input.createdBy.trim() : 'manual';
+
+  if (!(LINK_NODE_TYPES as readonly string[]).includes(srcType)) return { ok: false, error: `invalid src_type: ${srcType}` };
+  if (!(LINK_NODE_TYPES as readonly string[]).includes(dstType)) return { ok: false, error: `invalid dst_type: ${dstType}` };
+  if (!(LINK_RELATIONS as readonly string[]).includes(relation)) return { ok: false, error: `invalid relation: ${relation}` };
+  if (!srcId || !dstId) return { ok: false, error: 'src_id and dst_id are required' };
+  if (srcType === dstType && srcId === dstId) return { ok: false, error: 'cannot link a node to itself' };
+
+  if (!(await nodeExists(srcType, srcId))) return { ok: false, error: `${srcType} ${srcId} not found` };
+  if (!(await nodeExists(dstType, dstId))) return { ok: false, error: `${dstType} ${dstId} not found` };
+
+  await q(
+    `insert into ops.links (src_type, src_id, dst_type, dst_id, relation, created_by)
+       values ($1, $2, $3, $4, $5, $6)
+     on conflict (src_type, src_id, dst_type, dst_id, relation) do nothing`,
+    [srcType, srcId, dstType, dstId, relation, createdBy]
+  );
   return { ok: true };
 }
 
@@ -1019,6 +1219,84 @@ export async function addChangelogEntries(
     inserted += 1;
   }
   return { inserted, skipped };
+}
+
+// ---------- Global graph (ops.links + node metadata) — powers /api/graph ----------
+export type GraphNode = {
+  id: string;            // "type:ref" — globally unique in the graph
+  type: string;          // finding|ticket|component|kb|container|user|scan|alert
+  ref: string;           // the public ref/key/slug (the bare id)
+  label: string;         // display label
+  severity?: Severity;   // findings/tickets carry severity for colouring
+  status?: string;       // live state (container) / status (finding/ticket)
+  href: string;          // detail-page deep link
+};
+export type GraphEdge = { source: string; target: string; relation: string };
+export type Graph = { nodes: GraphNode[]; edges: GraphEdge[]; live: boolean };
+
+function gid(type: string, ref: string): string { return `${type}:${ref}`; }
+
+// Build the whole graph from ops.links, enriching nodes with metadata from
+// ops.findings / ops.tickets / ops.components and overlaying LIVE container state
+// onto container nodes (no snapshot table — read from the socket-proxy). Every
+// node referenced by an edge is materialised even if its metadata lookup misses,
+// so the graph never has dangling edges. DB-only; empty graph on no-DB / error.
+export async function getGraph(): Promise<Graph> {
+  if (!hasDb) return { nodes: [], edges: [], live: false };
+  try {
+    const links = await q<any>(
+      'select src_type, src_id, dst_type, dst_id, relation from ops.links'
+    );
+
+    // Collect the distinct nodes the edges reference, per type.
+    const nodeIds = new Map<string, { type: string; ref: string }>();
+    const want = (type: string, ref: string) => {
+      if (ref) nodeIds.set(gid(type, ref), { type, ref });
+    };
+    const edges: GraphEdge[] = links.map((l: any) => {
+      want(l.src_type, l.src_id);
+      want(l.dst_type, l.dst_id);
+      return { source: gid(l.src_type, l.src_id), target: gid(l.dst_type, l.dst_id), relation: l.relation };
+    });
+
+    // Pull metadata for the DB-backed types in bulk.
+    const [findingRows, ticketRows, compRows] = await Promise.all([
+      q<any>('select ref, title, severity, status from ops.findings'),
+      q<any>('select ref, title, priority, status from ops.tickets'),
+      q<any>('select key, name, kind from ops.components'),
+    ]);
+    const findingMeta = new Map(findingRows.map((r) => [r.ref, r]));
+    const ticketMeta = new Map(ticketRows.map((r) => [r.ref, r]));
+    const compMeta = new Map(compRows.map((r) => [r.key, r]));
+
+    // Live container state overlay (no snapshot table) — best-effort.
+    let containerState = new Map<string, string>();
+    try {
+      const { rows, live } = await getContainers();
+      if (live) containerState = new Map(rows.map((c) => [c.name, c.state]));
+    } catch { /* leave empty */ }
+
+    const nodes: GraphNode[] = Array.from(nodeIds.values()).map(({ type, ref }) => {
+      const base: GraphNode = { id: gid(type, ref), type, ref, label: ref, href: hrefFor(type, ref) };
+      if (type === 'finding') {
+        const m = findingMeta.get(ref);
+        if (m) { base.label = m.title ?? ref; base.severity = (m.severity ?? 'medium') as Severity; base.status = m.status; }
+      } else if (type === 'ticket') {
+        const m = ticketMeta.get(ref);
+        if (m) { base.label = m.title ?? ref; base.severity = (m.priority ?? 'medium') as Severity; base.status = m.status; }
+      } else if (type === 'component') {
+        const m = compMeta.get(ref);
+        if (m) { base.label = m.name ?? ref; }
+      } else if (type === 'container') {
+        base.status = containerState.get(ref) ?? 'unknown';
+      }
+      return base;
+    });
+
+    return { nodes, edges, live: true };
+  } catch {
+    return { nodes: [], edges: [], live: false };
+  }
 }
 
 // ---------- Connectivity probe (for a status badge) ----------

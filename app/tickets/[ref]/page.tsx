@@ -1,8 +1,8 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getOneTicket } from '@/lib/data';
+import { getOneTicket, getTicketEdges } from '@/lib/data';
 import { sevClass, sevLabel } from '@/lib/mock';
-import { LinksPanel, type Edge } from '@/components/LinksPanel';
+import { LinksPanel } from '@/components/LinksPanel';
 import { requireGlobalAdminPage } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
@@ -25,12 +25,8 @@ export default async function TicketDetail({ params }: { params: Promise<{ ref: 
   const { row: t, live } = await getOneTicket(ref);
   if (!t) return notFound();
 
-  // Mock edges — ticket→finding graph reads come in a later pass.
-  const edges: Edge[] = [];
-  if (t.finding) {
-    edges.push({ rel: 'raised-by', type: 'finding', id: t.finding, label: 'source finding', href: `/findings/${t.finding}` });
-  }
-  edges.push({ rel: 'owner', type: 'user', id: t.assignee, label: 'assignee', href: '#' });
+  // Real edges from ops.links (both directions).
+  const edges = await getTicketEdges(t.ref);
 
   return (
     <div>
@@ -94,7 +90,7 @@ export default async function TicketDetail({ params }: { params: Promise<{ ref: 
               <div className="r"><span className="k2">SLA</span><span style={{ color: 'var(--high)' }}>18h remaining</span></div>
             </div>
           </div>
-          <LinksPanel edges={edges} />
+          <LinksPanel edges={edges} node={{ type: 'ticket', id: t.ref }} />
         </div>
       </div>
     </div>

@@ -112,6 +112,37 @@ export async function POST(
         ]
       );
       upserted++;
+
+      // --- Auto-link the SPINE: finding --affects--> component ---
+      // Resolve the free-text component_label to a real ops.components row
+      // (hybrid derive-then-curate: upsert by key, operator can rename later),
+      // then write an idempotent edge. The finding ref isn't returned by the
+      // upsert above, so resolve it from the fingerprint. Best-effort: a failure
+      // here must never fail the ingest of the finding itself.
+      if (component) {
+        try {
+          const fr = await q1<{ ref: string }>(
+            'select ref from ops.findings where fingerprint=$1',
+            [fingerprint]
+          );
+          if (fr?.ref) {
+            await q(
+              `insert into ops.components (key, name, kind)
+                 values ($1, $1, 'service')
+               on conflict (key) do nothing`,
+              [component]
+            );
+            await q(
+              `insert into ops.links (src_type, src_id, dst_type, dst_id, relation, created_by)
+                 values ('finding', $1, 'component', $2, 'affects', 'auto:ingest')
+               on conflict (src_type, src_id, dst_type, dst_id, relation) do nothing`,
+              [fr.ref, component]
+            );
+          }
+        } catch {
+          /* auto-link is best-effort; the finding upsert already succeeded */
+        }
+      }
     }
 
     // Reconcile / self-heal: any auto-managed, non-override-locked finding for

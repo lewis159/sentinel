@@ -1,6 +1,9 @@
 import { containers, type Container } from '@/lib/mock';
-import { LinksPanel } from '@/components/LinksPanel';
+import { LinksPanel, type Edge } from '@/components/LinksPanel';
+import { getEdges } from '@/lib/data';
 import { requireGlobalAdminPage } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
 
 const stateTag: Record<string, [string, string]> = {
   running: ['st-done', 'Running'], paused: ['st-prog', 'Paused'], stopped: ['st-open', 'Stopped'],
@@ -42,10 +45,12 @@ export default async function ContainerDetail({ params }: { params: Promise<{ na
   const [scls, slab] = stateTag[c.state] ?? ['st-mute', c.state];
   const memPct = c.memLimit > 0 ? Math.min(100, Math.round((c.mem / c.memLimit) * 100)) : 0;
 
-  const edges = [
-    { rel: 'part-of', type: 'component', id: c.component, label: `${c.component} component`, href: `/components/${c.component}` },
-    { rel: 'on', type: 'container', id: c.node, label: `Swarm node ${c.node}`, href: '/infra' },
-  ];
+  // Real edges from ops.links keyed on the container name; fall back to a derived
+  // part-of-component edge so the panel is never empty.
+  const realEdges = await getEdges('container', c.name);
+  const edges: Edge[] = realEdges.length > 0
+    ? realEdges
+    : [{ rel: 'runs_on', type: 'component', id: c.component, label: `${c.component} component`, href: `/components/${encodeURIComponent(c.component)}` }];
 
   return (
     <div>
@@ -119,7 +124,7 @@ export default async function ContainerDetail({ params }: { params: Promise<{ na
               <div className="r"><span className="k2">Image</span><span className="mono" style={{ fontSize: 11 }}>ghcr.io/{c.component}:latest</span></div>
             </div>
           </div>
-          <LinksPanel edges={edges} />
+          <LinksPanel edges={edges} node={{ type: 'container', id: c.name }} />
         </div>
       </div>
     </div>
