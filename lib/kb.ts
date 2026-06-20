@@ -13,6 +13,7 @@ const TECHNICAL = new Set([
   'troubleshooting',
   'error-codes',
   'ha-runbook',
+  'staging',
 ]);
 
 export type KbDoc = { slug: string; title: string; group: 'Sections' | 'Technical' };
