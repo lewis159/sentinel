@@ -45,6 +45,7 @@ export const WORKSPACES: Record<Workspace, { label: string; icon: string; home: 
         group: 'Infrastructure',
         items: [
           { label: 'Infra', href: '/infra', icon: '◷' },
+          { label: 'Monitoring', href: '/monitoring', icon: '📈' },
           { label: 'Components', href: '/components', icon: '⬡' },
           { label: 'Resilience', href: '/resilience', icon: '🛡' },
           { label: 'Scans & Checks', href: '/scans', icon: '◎' },
@@ -99,7 +100,7 @@ export const WORKSPACES: Record<Workspace, { label: string; icon: string; home: 
 // longer appears in the Security workspace nav.
 const OWNS: Record<string, Workspace> = {
   findings: 'security', tickets: 'security',
-  infra: 'operations', components: 'operations', activity: 'operations', resilience: 'operations',
+  infra: 'operations', monitoring: 'operations', components: 'operations', activity: 'operations', resilience: 'operations',
   users: 'operations',
   incidents: 'operations', requests: 'operations', changes: 'operations', problems: 'operations', releases: 'operations',
   roadmap: 'operations', changelog: 'operations',
