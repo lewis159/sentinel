@@ -238,6 +238,10 @@ const MOCK_SETTINGS: EmailSettings = {
 };
 
 // ---------- Getters (mock-only in Phase 1) ----------
+// TODO(db): replace mock with `q('select … from ops.email_*')` once the
+// ops.email_* tables exist (see future migration). Each getter should then
+// follow the DB-first + mock-fallback pattern in lib/data.ts and flip
+// `live:true` when the query returns rows.
 
 export async function getEmailStats(): Promise<Sourced<EmailStats>> {
   return sourced(MOCK_STATS);
