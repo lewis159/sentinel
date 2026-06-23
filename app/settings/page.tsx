@@ -4,6 +4,7 @@ import { requireGlobalAdminPage } from '@/lib/auth';
 const cards = [
   { href: '/settings/connectors', icon: '🔗', title: 'Connectors', desc: 'Configure how Sentinel connects to external systems — Supabase, Docker, Hermes and more.' },
   { href: '/settings/channels', icon: '🔔', title: 'Channels', desc: 'Where alerts are delivered — email, Slack, Telegram, webhooks.' },
+  { href: '/settings/email', icon: '✉️', title: 'Email', desc: 'Templates, themes, deliverability & notification settings.' },
   { href: '/settings/integrations', icon: '🔌', title: 'Integrations', desc: 'Scanners, webhook sources, Hermes AI, Supabase and Clerk.' },
   { href: '/settings/schedules', icon: '🕑', title: 'Scan schedules', desc: 'When each automated check runs and its cadence.' },
   { href: '/settings/roles', icon: '🛡️', title: 'Roles & access', desc: 'Capability matrix and console membership.' },
