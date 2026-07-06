@@ -11,6 +11,7 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 //   - /api/ping               : container liveness healthcheck
 //   - /api/ops/ingest/(.*)    : webhook-in scanners, HMAC-verified in-route
 //   - /api/ingest/issue       : estate-app report-issue widget (token/HMAC in-route)
+//   - /api/ingest/alerts      : Grafana/Alertmanager alert-ingest → incidents (token/HMAC in-route)
 //   - /api/ingest/update      : agent/system ticket-update append (token/HMAC in-route)
 //   - /api/ingest/roadmap     : agent/CI roadmap-item upsert (token/HMAC in-route)
 //   - /api/ingest/changelog   : agent/CI changelog-entry append (token/HMAC in-route)
@@ -19,6 +20,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/ping',
   '/api/ops/ingest/(.*)',
   '/api/ingest/issue',
+  '/api/ingest/alerts',
   '/api/ingest/update',
   '/api/ingest/roadmap',
   '/api/ingest/changelog',
