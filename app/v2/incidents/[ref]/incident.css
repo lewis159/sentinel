@@ -1,0 +1,270 @@
+/* ============================================================================
+   Sentinel v2 — Incident DETAIL page styles. Every class is namespaced
+   `v2-inc-` and scoped under `.v2-shell` so nothing leaks into v1 or the rest
+   of v2. Colour comes from shell tokens (var(--...)) so light + dark both work.
+   `--purple` is not a shell token, so it carries an inline fallback here.
+   ========================================================================== */
+
+.v2-shell .v2-inc-page { display: flex; flex-direction: column; gap: 18px; }
+
+/* ---------- Header ---------- */
+.v2-shell .v2-inc-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.v2-shell .v2-inc-head-main { min-width: 0; }
+.v2-shell .v2-inc-head-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.v2-shell .v2-inc-head-actions { display: flex; gap: 8px; }
+.v2-shell .v2-inc-meta {
+  color: var(--muted);
+  font-size: 12.5px;
+  margin-top: 6px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.v2-shell .v2-inc-meta b { color: var(--text); font-weight: 600; }
+
+/* ---------- Status strip (4 stat cards) ---------- */
+.v2-shell .v2-inc-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+@media (max-width: 720px) {
+  .v2-shell .v2-inc-strip { grid-template-columns: repeat(2, 1fr); }
+}
+.v2-shell .v2-inc-sc {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 13px 15px;
+  min-width: 0;
+}
+.v2-shell .v2-inc-sc .k {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--faint);
+}
+.v2-shell .v2-inc-sc .v {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-strong);
+  margin-top: 7px;
+  line-height: 1.35;
+}
+.v2-shell .v2-inc-sc .v small { display: block; font-size: 11.5px; font-weight: 500; color: var(--muted); margin-top: 2px; }
+
+/* ---------- Two-column grid ---------- */
+.v2-shell .v2-inc-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+.v2-shell .v2-inc-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+@media (max-width: 980px) {
+  .v2-shell .v2-inc-grid { grid-template-columns: 1fr; }
+}
+
+/* ---------- Timeline ---------- */
+.v2-shell .v2-inc-tl { padding: 6px 16px 4px; }
+.v2-shell .v2-inc-ev {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  padding: 12px 0;
+  position: relative;
+}
+/* connector line down the dot column */
+.v2-shell .v2-inc-ev::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 24px;
+  bottom: -12px;
+  width: 2px;
+  background: var(--line-soft);
+}
+.v2-shell .v2-inc-ev:last-child::before { display: none; }
+.v2-shell .v2-inc-ev-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-top: 4px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+  background: var(--muted);
+}
+.v2-shell .v2-inc-ev-dot.rd { background: var(--crit); box-shadow: 0 0 0 3px var(--crit-bg); }
+.v2-shell .v2-inc-ev-dot.bl { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
+.v2-shell .v2-inc-ev-dot.am { background: var(--high); box-shadow: 0 0 0 3px var(--high-bg); }
+.v2-shell .v2-inc-ev-dot.pu {
+  background: var(--purple, #A78BFA);
+  box-shadow: 0 0 0 3px rgba(167, 139, 250, .16);
+}
+.v2-shell .v2-inc-ev-body { min-width: 0; }
+.v2-shell .v2-inc-ev-txt { font-size: 12.5px; line-height: 1.55; color: var(--text); }
+.v2-shell .v2-inc-ev-txt b { color: var(--text-strong); font-weight: 700; }
+.v2-shell .v2-inc-ev-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 5px;
+}
+.v2-shell .v2-inc-ev-time { font-size: 11px; color: var(--faint); }
+.v2-shell .v2-inc-ev-tag {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: var(--surface2);
+  color: var(--muted);
+}
+.v2-shell .v2-inc-ev-tag.auto { color: var(--accent); background: var(--accent-bg); }
+.v2-shell .v2-inc-ev-tag.wait { color: var(--high); background: var(--high-bg); }
+.v2-shell .v2-inc-ev-tag.draft {
+  color: var(--purple, #A78BFA);
+  background: rgba(167, 139, 250, .14);
+}
+
+/* ---------- Timeline composer ---------- */
+.v2-shell .v2-inc-composer {
+  display: flex;
+  gap: 8px;
+  padding: 14px 16px;
+  border-top: 1px solid var(--line-soft);
+}
+.v2-shell .v2-inc-composer-in {
+  flex: 1;
+  min-width: 0;
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 9px 12px;
+  font-size: 12.5px;
+  font-family: inherit;
+  color: var(--text);
+}
+.v2-shell .v2-inc-composer-in::placeholder { color: var(--faint); }
+.v2-shell .v2-inc-composer-in:focus { outline: none; border-color: var(--accent-brd); }
+
+/* ---------- Linked records ---------- */
+.v2-shell .v2-inc-link-list { display: flex; flex-direction: column; }
+.v2-shell .v2-inc-link {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--line-soft);
+  cursor: pointer;
+}
+.v2-shell .v2-inc-link:last-child { border-bottom: none; }
+.v2-shell .v2-inc-link:hover { background: var(--surface2); }
+.v2-shell .v2-inc-link-ic {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: var(--r-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface2);
+  color: var(--muted);
+}
+.v2-shell .v2-inc-link-ic.finding { color: var(--high); background: var(--high-bg); }
+.v2-shell .v2-inc-link-ic.change { color: var(--sky); background: var(--sky-bg); }
+.v2-shell .v2-inc-link-ic.ticket { color: var(--accent); background: var(--accent-bg); }
+.v2-shell .v2-inc-link-ic.kb {
+  color: var(--purple, #A78BFA);
+  background: rgba(167, 139, 250, .14);
+}
+.v2-shell .v2-inc-link-main { flex: 1; min-width: 0; }
+.v2-shell .v2-inc-link-id {
+  font-family: ui-monospace, Consolas, 'SF Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+.v2-shell .v2-inc-link-sub {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.v2-shell .v2-inc-link-kind {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--faint);
+  white-space: nowrap;
+}
+
+/* ---------- Affected services ---------- */
+.v2-shell .v2-inc-svc-list { display: flex; flex-direction: column; }
+.v2-shell .v2-inc-svc {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.v2-shell .v2-inc-svc:last-child { border-bottom: none; }
+.v2-shell .v2-inc-svc-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--muted);
+}
+.v2-shell .v2-inc-svc-dot.ok { background: var(--ok); box-shadow: 0 0 0 3px var(--ok-bg); }
+.v2-shell .v2-inc-svc-dot.degraded { background: var(--high); box-shadow: 0 0 0 3px var(--high-bg); }
+.v2-shell .v2-inc-svc-dot.down { background: var(--crit); box-shadow: 0 0 0 3px var(--crit-bg); }
+.v2-shell .v2-inc-svc-main { flex: 1; min-width: 0; }
+.v2-shell .v2-inc-svc-name { font-size: 12.5px; font-weight: 600; color: var(--text); }
+.v2-shell .v2-inc-svc-sub {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--faint);
+  margin-top: 2px;
+}
+.v2-shell .v2-inc-svc-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.v2-shell .v2-inc-svc-label.ok { color: var(--ok); background: var(--ok-bg); }
+.v2-shell .v2-inc-svc-label.degraded { color: var(--high); background: var(--high-bg); }
+.v2-shell .v2-inc-svc-label.down { color: var(--crit); background: var(--crit-bg); }
+
+/* ---------- Blast radius ---------- */
+.v2-shell .v2-inc-blast { padding: 16px; }
+.v2-shell .v2-inc-blast-txt {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text);
+}
+.v2-shell .v2-inc-blast-txt b { color: var(--text-strong); font-weight: 700; }

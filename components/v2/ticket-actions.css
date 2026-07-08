@@ -1,0 +1,76 @@
+/* Actionable ITIL detail controls — the client islands mounted inside the
+   server-rendered ServiceTicketDetail. Namespaced v2-ta-* so nothing leaks.
+   Colour comes from the shell tokens (var(--...)) only — no literals. */
+
+/* ---- Composer (Timeline card) ---- */
+.v2-shell .v2-ta-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-soft);
+}
+.v2-shell .v2-ta-textarea {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  padding: 9px 11px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--text);
+}
+.v2-shell .v2-ta-textarea::placeholder { color: var(--faint); }
+.v2-shell .v2-ta-textarea:focus { outline: none; border-color: var(--accent-brd); }
+.v2-shell .v2-ta-textarea:disabled { opacity: .6; cursor: not-allowed; }
+
+.v2-shell .v2-ta-composer-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* ---- Status control (header) ---- */
+.v2-shell .v2-ta-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.v2-shell .v2-ta-select {
+  padding: 5px 9px;
+  font: inherit;
+  font-size: 12.5px;
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  cursor: pointer;
+}
+.v2-shell .v2-ta-select:focus { outline: none; border-color: var(--accent-brd); }
+.v2-shell .v2-ta-select:disabled { opacity: .6; cursor: not-allowed; }
+
+/* ---- Shared state chips ---- */
+.v2-shell .v2-ta-state {
+  font-size: 11px;
+  color: var(--faint);
+  white-space: nowrap;
+}
+.v2-shell .v2-ta-err {
+  font-size: 12px;
+  color: var(--crit);
+  background: var(--crit-bg);
+  border: 1px solid var(--crit-bg);
+  border-radius: var(--r-sm);
+  padding: 6px 9px;
+  line-height: 1.45;
+}
+.v2-shell .v2-ta-err.inline {
+  background: transparent;
+  border: none;
+  padding: 0;
+}

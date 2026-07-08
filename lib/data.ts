@@ -611,6 +611,30 @@ export async function getTicketsByKind(kind: TicketKind): Promise<Sourced<Servic
   }
 }
 
+// Recent tickets created OR updated since an ISO cursor, newest first. Powers
+// the Discord bot's outbound-events poll (/api/bot/events). Uses updated_at when
+// present, else falls back to created_at, so both new tickets and status changes
+// surface. Returns [] with no DB (the bot simply sees no events in dev).
+export async function getRecentTickets(
+  sinceIso: string,
+  limit = 50,
+): Promise<Sourced<ServiceTicket>> {
+  if (!hasDb) return { rows: [], live: false, note: 'no DB' };
+  try {
+    const data = await q<any>(
+      `select ${TICKET_COLS}
+         from ops.tickets
+        where coalesce(updated_at, opened_at, created_at) > $1
+        order by coalesce(updated_at, opened_at, created_at) asc
+        limit $2`,
+      [sinceIso, limit],
+    );
+    return { rows: data.map(mapServiceTicket), live: true };
+  } catch (e: any) {
+    return { rows: [], live: false, note: e?.message ?? 'error' };
+  }
+}
+
 // Single ITIL record by ref (used by the detail pane / detail route).
 export async function getServiceTicket(ref: string): Promise<{ row: ServiceTicket | null; live: boolean }> {
   const fallback = () => mock.serviceTickets.find((t) => t.ref === ref) ?? null;

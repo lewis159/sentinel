@@ -1,0 +1,248 @@
+/* ---------------------------------------------------------------------------
+ * WidgetGrid (v2) chrome — v2-namespaced (.v2-wg-*), tokenised with the v2
+ * design tokens (see app/v2/v2.css). Mirrors the feel of v1's .td-* edit
+ * styling but on v2 surfaces. Panels are locked/clean when not editing; edit
+ * mode adds a faint dotted grid, visible resize handles, and a toolbar.
+ * ------------------------------------------------------------------------- */
+
+.v2-wg {
+  position: relative;
+}
+
+/* --- Panel (tile) chrome --------------------------------------------------- */
+.v2-wg-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+
+.v2-wg-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--line);
+  user-select: none;
+}
+
+.v2-wg-h h3 {
+  flex: 1 1 auto;
+  margin: 0;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: .01em;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Drag affordance only present in edit mode (class toggled by the component). */
+.v2-wg-drag { cursor: grab; }
+.v2-wg-drag:active { cursor: grabbing; }
+
+.v2-wg-grip {
+  flex: 0 0 auto;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--faint);
+}
+
+.v2-wg-remove {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: color .12s ease, background .12s ease, border-color .12s ease;
+}
+.v2-wg-remove:hover {
+  color: var(--text);
+  background: var(--accent-bg);
+  border-color: var(--accent-brd);
+}
+
+.v2-wg-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+}
+
+/* --- Edit-mode toolbar ----------------------------------------------------- */
+.v2-wg-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding: 8px 12px;
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+
+.v2-wg-hint {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.v2-wg-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Density selector */
+.v2-wg-density {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+.v2-wg-density-l {
+  padding: 0 6px 0 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.v2-wg-density-b {
+  min-width: 26px;
+  padding: 3px 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color .12s ease, background .12s ease, border-color .12s ease;
+}
+.v2-wg-density-b:hover { color: var(--text); }
+.v2-wg-density-b.on {
+  color: var(--text);
+  background: var(--accent-bg);
+  border-color: var(--accent-brd);
+}
+
+/* Add-widget button + picker */
+.v2-wg-add-wrap { position: relative; }
+
+.v2-wg-add,
+.v2-wg-btn {
+  padding: 5px 11px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: filter .12s ease, background .12s ease, border-color .12s ease, color .12s ease, opacity .12s ease;
+}
+.v2-wg-add:hover,
+.v2-wg-btn:hover { filter: brightness(1.08); }
+.v2-wg-add:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+  filter: none;
+}
+
+.v2-wg-btn.ghost {
+  color: var(--text);
+  background: transparent;
+  border-color: var(--line);
+}
+.v2-wg-btn.ghost:hover {
+  filter: none;
+  background: var(--surface);
+  border-color: var(--accent-brd);
+}
+
+.v2-wg-picker {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  min-width: 200px;
+  max-height: 300px;
+  overflow: auto;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, .35);
+}
+.v2-wg-picker-item {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  text-align: left;
+  font-size: 12.5px;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background .12s ease;
+}
+.v2-wg-picker-item:hover { background: var(--accent-bg); }
+.v2-wg-picker-empty {
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* --- Editing state: dotted grid + visible resize handles -------------------- */
+.v2-wg-rgl { position: relative; }
+
+.v2-wg.editing .v2-wg-rgl {
+  background-image:
+    radial-gradient(var(--line-soft) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: -1px -1px;
+  border-radius: var(--r);
+}
+
+.v2-wg.editing .v2-wg-panel {
+  border-color: var(--line-soft);
+}
+
+/* react-grid-layout placeholder while dragging/resizing. */
+.v2-wg .react-grid-item.react-grid-placeholder {
+  background: var(--accent-bg);
+  border: 1px dashed var(--accent-brd);
+  border-radius: var(--r);
+  opacity: 1;
+}
+
+/* Resize handle: hidden when locked, faint until hover in edit mode. */
+.v2-wg .react-resizable-handle {
+  opacity: 0;
+  transition: opacity .12s ease;
+}
+.v2-wg.editing .react-resizable-handle {
+  opacity: .55;
+}
+.v2-wg.editing .react-grid-item:hover .react-resizable-handle {
+  opacity: 1;
+}

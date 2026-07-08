@@ -1,0 +1,351 @@
+/* ============================================================================
+   Hermes floor — page-specific styles. Namespaced `v2-floor-` and scoped under
+   the v2 shell so tokens (var(--...)) resolve from app/v2/v2.css. No hard-coded
+   colours — the Risk agent's brand purple uses the --purple design token.
+   ========================================================================== */
+
+/* ---------- Header ---------- */
+.v2-floor-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.v2-floor-title {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+/* Live indicator */
+.v2-floor-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  color: var(--crit);
+  background: var(--crit-bg);
+  border: 1px solid var(--crit);
+  border-radius: 20px;
+  padding: 3px 9px 3px 8px;
+}
+.v2-floor-live .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--crit);
+  box-shadow: 0 0 0 0 var(--crit);
+  animation: v2-floor-pulse 1.8s ease-out infinite;
+}
+
+@keyframes v2-floor-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(240, 97, 109, .55); }
+  70% { box-shadow: 0 0 0 6px rgba(240, 97, 109, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(240, 97, 109, 0); }
+}
+
+/* ---------- Presence row ---------- */
+.v2-floor-presence {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin: 18px 0 20px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+.v2-floor-person {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  width: 62px;
+  text-align: center;
+}
+.v2-floor-avatar {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: .01em;
+  color: var(--ring, var(--muted));
+  background: var(--surface2);
+  border: 2px solid var(--ring, var(--muted));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring, var(--muted)) 16%, transparent);
+}
+.v2-floor-avatar .status {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 2px solid var(--surface);
+}
+.v2-floor-avatar .status.active { background: var(--ok); }
+.v2-floor-avatar .status.busy { background: var(--high); }
+.v2-floor-avatar .status.idle { background: var(--faint); }
+.v2-floor-person .nm {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--muted);
+  line-height: 1.2;
+}
+
+/* ---------- Layout ---------- */
+.v2-floor-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 1080px) {
+  .v2-floor-grid { grid-template-columns: 1fr; }
+}
+
+/* ---------- Thread (left) ---------- */
+.v2-floor-thread-h {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.v2-floor-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+.v2-floor-tag .ic {
+  color: var(--accent);
+  display: inline-flex;
+}
+
+.v2-floor-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 16px;
+}
+
+.v2-floor-msg {
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+}
+.v2-floor-bubble-av {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--ring, var(--muted));
+  background: color-mix(in srgb, var(--ring, var(--muted)) 15%, var(--surface2));
+  border: 1px solid color-mix(in srgb, var(--ring, var(--muted)) 45%, transparent);
+  margin-top: 2px;
+}
+.v2-floor-bubble {
+  flex: 1;
+  min-width: 0;
+  background: var(--surface2);
+  border: 1px solid var(--line-soft);
+  border-radius: 3px 12px 12px 12px;
+  padding: 9px 12px;
+}
+.v2-floor-bubble .who {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--ring, var(--text));
+  letter-spacing: .02em;
+}
+.v2-floor-bubble .txt {
+  font-size: 12.5px;
+  color: var(--text);
+  margin-top: 3px;
+  line-height: 1.5;
+}
+
+/* System-style message (Orchestrator) */
+.v2-floor-msg.system .v2-floor-bubble {
+  background: var(--accent-bg);
+  border: 1px dashed var(--accent-brd);
+  border-radius: 10px;
+}
+.v2-floor-msg.system .v2-floor-bubble .txt {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* Typing indicator */
+.v2-floor-typing {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 2px 2px 2px 39px;
+  font-size: 12px;
+  color: var(--muted);
+  font-style: italic;
+}
+.v2-floor-dots {
+  display: inline-flex;
+  gap: 4px;
+}
+.v2-floor-dots i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: v2-floor-bounce 1.3s ease-in-out infinite;
+}
+.v2-floor-dots i:nth-child(2) { animation-delay: .18s; }
+.v2-floor-dots i:nth-child(3) { animation-delay: .36s; }
+
+@keyframes v2-floor-bounce {
+  0%, 60%, 100% { opacity: .3; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-3px); }
+}
+
+/* Composer */
+.v2-floor-composer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--line-soft);
+}
+.v2-floor-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 9px 12px;
+  font-size: 12.5px;
+  color: var(--text);
+  font-family: inherit;
+}
+.v2-floor-input::placeholder { color: var(--faint); }
+.v2-floor-input:focus {
+  outline: none;
+  border-color: var(--accent-brd);
+}
+.v2-floor-approve {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--ok);
+  color: #04140D;
+  border: none;
+  border-radius: var(--r-sm);
+  padding: 9px 14px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+.v2-floor-approve:hover { filter: brightness(1.06); }
+
+/* ---------- Collaboration cards (right) ---------- */
+.v2-floor-collab {
+  padding: 14px 16px;
+}
+.v2-floor-collab-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.v2-floor-collab-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+.v2-floor-collab-ic {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ring, var(--accent));
+  background: color-mix(in srgb, var(--ring, var(--accent)) 14%, transparent);
+}
+.v2-floor-collab-title .nm {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-strong);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.v2-floor-collab-title .nm small {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--faint);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.v2-floor-parties {
+  display: flex;
+  align-items: center;
+  margin: 12px 0 10px;
+}
+.v2-floor-parties .mini {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--ring, var(--muted));
+  background: color-mix(in srgb, var(--ring, var(--muted)) 15%, var(--surface));
+  border: 1.5px solid var(--surface);
+  box-shadow: 0 0 0 1.5px var(--ring, var(--muted));
+  margin-left: -6px;
+}
+.v2-floor-parties .mini:first-child { margin-left: 0; }
+.v2-floor-parties .sep {
+  font-size: 11px;
+  color: var(--faint);
+  margin: 0 8px 0 12px;
+  font-weight: 700;
+}
+
+.v2-floor-collab-msg {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.v2-floor-collab-msg b { color: var(--text); font-weight: 700; }
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .v2-floor-live .dot,
+  .v2-floor-dots i {
+    animation: none;
+  }
+}

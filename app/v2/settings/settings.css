@@ -1,0 +1,349 @@
+/* ============================================================================
+   Sentinel v2 — Settings hub + Hermes governance console.
+   All classes namespaced `v2-set-`. Tokens/base classes come from v2.css and are
+   scoped under `.v2-shell`; this file only adds layout + settings-specific chrome.
+   ========================================================================== */
+
+/* ---------- Header row ---------- */
+.v2-set-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.v2-set-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.v2-set-back:hover { color: var(--text); }
+
+/* ---------- Two-pane layout ---------- */
+.v2-set-layout {
+  display: grid;
+  grid-template-columns: 248px 1fr;
+  gap: 22px;
+  align-items: start;
+}
+@media (max-width: 980px) {
+  .v2-set-layout { grid-template-columns: 1fr; }
+}
+
+/* ---------- Left category nav ---------- */
+.v2-set-nav {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 12px;
+  position: sticky;
+  top: 76px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.v2-set-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 8px 10px;
+  color: var(--faint);
+  font-size: 12.5px;
+  margin-bottom: 8px;
+}
+.v2-set-search svg { flex-shrink: 0; opacity: .8; }
+
+.v2-set-group {
+  font-size: 9.5px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--faint);
+  font-weight: 700;
+  padding: 12px 8px 5px;
+}
+.v2-set-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: var(--r-sm);
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 500;
+  position: relative;
+}
+.v2-set-item:hover { background: rgba(255, 255, 255, .045); color: var(--text); }
+.v2-set-item .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--faint);
+  flex-shrink: 0;
+}
+.v2-set-item.on {
+  background: var(--accent-bg);
+  color: var(--text-strong);
+  font-weight: 600;
+}
+.v2-set-item.on .dot { background: var(--accent); }
+
+/* ---------- Right content pane ---------- */
+.v2-set-content { min-width: 0; display: flex; flex-direction: column; gap: 18px; }
+
+.v2-set-section {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 18px 18px 20px;
+}
+.v2-set-section > h3 {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-strong);
+  margin-bottom: 2px;
+}
+.v2-set-section > .desc {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+
+/* ---------- Field (static, input-styled) ---------- */
+.v2-set-fields { display: grid; gap: 14px; }
+.v2-set-fields.two { grid-template-columns: repeat(2, 1fr); }
+.v2-set-fields.three { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 720px) {
+  .v2-set-fields.two, .v2-set-fields.three { grid-template-columns: 1fr; }
+}
+.v2-set-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.v2-set-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.v2-set-input {
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 9px 12px;
+  font-size: 12.5px;
+  color: var(--text-strong);
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.v2-set-input .hint { color: var(--faint); font-weight: 500; }
+
+/* ---------- Toggle rows ---------- */
+.v2-set-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 0;
+  border-top: 1px solid var(--line-soft);
+}
+.v2-set-toggle .lab { font-size: 12.5px; font-weight: 600; color: var(--text); }
+.v2-set-toggle .note { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+/* switch visual (static) */
+.v2-set-switch {
+  width: 40px;
+  height: 22px;
+  border-radius: 20px;
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  position: relative;
+  flex-shrink: 0;
+}
+.v2-set-switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--faint);
+  transition: none;
+}
+.v2-set-switch.on { background: var(--accent-bg); border-color: var(--accent-brd); }
+.v2-set-switch.on::after { left: auto; right: 2px; background: var(--accent); }
+
+/* small inline swatch */
+.v2-set-swatches { display: flex; align-items: center; gap: 8px; }
+.v2-set-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, .18);
+  flex-shrink: 0;
+}
+
+.v2-set-foot {
+  font-size: 11.5px;
+  color: var(--faint);
+  padding: 4px 2px 0;
+}
+
+/* ============================================================================
+   Hermes governance
+   ========================================================================== */
+.v2-set-hcard { padding: 0; }
+.v2-set-hbody { padding: 16px; }
+
+/* agent chips */
+.v2-set-agents { display: flex; flex-wrap: wrap; gap: 10px; }
+.v2-set-agent {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 6px 12px 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.v2-set-agent .swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--ag, var(--accent));
+}
+/* mini switch inside chips */
+.v2-set-mini {
+  width: 28px;
+  height: 16px;
+  border-radius: 12px;
+  background: var(--ok-bg);
+  border: 1px solid rgba(52, 211, 153, .4);
+  position: relative;
+  flex-shrink: 0;
+}
+.v2-set-mini::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--ok);
+}
+
+/* handling chips */
+.v2-set-hpill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.v2-set-hpill.auto { color: var(--ok); background: var(--ok-bg); }
+.v2-set-hpill.draft { color: var(--sky); background: var(--sky-bg); }
+.v2-set-hpill.human { color: var(--high); background: var(--high-bg); }
+
+/* threshold grid */
+.v2-set-thresh {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+@media (max-width: 720px) { .v2-set-thresh { grid-template-columns: 1fr 1fr; } }
+
+/* escalation rules */
+.v2-set-rules { display: flex; flex-direction: column; }
+.v2-set-rule {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line-soft);
+  font-size: 12.5px;
+}
+.v2-set-rule:first-child { border-top: none; }
+.v2-set-rule .cond { color: var(--text); font-weight: 500; }
+.v2-set-rule .arr { color: var(--faint); font-weight: 700; }
+.v2-set-rule .who {
+  color: var(--text-strong);
+  font-weight: 600;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+@media (max-width: 620px) {
+  .v2-set-rule { grid-template-columns: 1fr; gap: 4px; }
+  .v2-set-rule .arr { display: none; }
+}
+.v2-set-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  border: 1px dashed var(--accent-brd);
+  border-radius: var(--r-sm);
+  padding: 8px 12px;
+  align-self: flex-start;
+  cursor: pointer;
+}
+
+/* customer-facing toggle chips */
+.v2-set-cfchips { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 16px; }
+.v2-set-cfchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.v2-set-cfchip.off { color: var(--muted); }
+.v2-set-cfchip.locked { color: var(--faint); border-style: dashed; }
+
+.v2-set-checks { display: flex; flex-direction: column; gap: 9px; }
+.v2-set-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+  color: var(--text);
+}
+.v2-set-check .box {
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  background: var(--ok-bg);
+  border: 1px solid rgba(52, 211, 153, .45);
+  color: var(--ok);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+/* section header inside plain cards (reuses v2-card-h styling but with subtitle) */
+.v2-set-ch { display: flex; flex-direction: column; gap: 2px; }
+.v2-set-ch .st { font-size: 11px; color: var(--muted); font-weight: 500; }

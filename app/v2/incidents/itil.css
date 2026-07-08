@@ -1,0 +1,58 @@
+/* ============================================================================
+   Sentinel v2 — ITIL list styles. Shared by the incidents / requests / problems
+   / releases list pages via components/v2/ItilList.tsx. Every class is
+   namespaced `v2-itil-` and scoped under `.v2-shell` so nothing leaks into v1
+   or the rest of v2. Tokens come from app/v2/v2.css.
+   ========================================================================== */
+
+/* Vertical rhythm for the page's top-level sections. */
+.v2-shell .v2-itil-page { display: flex; flex-direction: column; gap: 18px; }
+
+/* Card wrapper around the table so it reads as one surface. */
+.v2-shell .v2-itil-table-wrap { overflow-x: auto; }
+
+/* Ref cell — monospace, accent, links to the detail route. */
+.v2-shell .v2-itil-ref {
+  font: 600 12px ui-monospace, Consolas, monospace;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.v2-shell .v2-itil-ref:hover { text-decoration: underline; }
+
+/* Title cell — links to the same detail route, sits on the strong text colour. */
+.v2-shell .v2-itil-title {
+  color: var(--text-strong);
+  font-weight: 600;
+}
+.v2-shell .v2-itil-title:hover { color: var(--accent); }
+
+/* Small status tag — neutral chip that carries the workflow state. */
+.v2-shell .v2-itil-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  text-transform: capitalize;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.v2-shell .v2-itil-app { color: var(--muted); }
+.v2-shell .v2-itil-age {
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Empty state. */
+.v2-shell .v2-itil-empty {
+  padding: 40px 16px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}

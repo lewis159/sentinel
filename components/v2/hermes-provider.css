@@ -1,0 +1,112 @@
+/* ============================================================================
+   Sentinel v2 — Hermes provider (OpenRouter) settings card body.
+   Classes namespaced `v2-hp-`. Tokens come from v2.css (scoped under `.v2-shell`);
+   this file only adds layout for the provider config card. Colors are tokens only.
+   ========================================================================== */
+
+.v2-hp-body { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+
+/* generic field row */
+.v2-hp-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.v2-hp-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.v2-hp-help { font-size: 11px; color: var(--faint); font-weight: 500; }
+
+/* provider (static) */
+.v2-hp-provider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+.v2-hp-provider .v2-hp-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+/* text / password inputs */
+.v2-hp-input {
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 9px 12px;
+  font-size: 12.5px;
+  color: var(--text-strong);
+  min-height: 38px;
+  width: 100%;
+  font-family: inherit;
+}
+.v2-hp-input::placeholder { color: var(--faint); }
+.v2-hp-input:focus { outline: none; border-color: var(--accent-brd); }
+
+/* key status line */
+.v2-hp-keyrow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.v2-hp-keyset {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.v2-hp-keyset .ok { color: var(--ok); font-weight: 800; }
+.v2-hp-keyset .src { color: var(--muted); font-weight: 500; }
+
+/* small text buttons (reveal / remove) */
+.v2-hp-textbtn {
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 0;
+}
+.v2-hp-textbtn:hover { color: var(--accent-deep); }
+.v2-hp-textbtn.danger { color: var(--crit); }
+.v2-hp-textbtn:disabled { color: var(--faint); cursor: default; }
+
+/* replace-key reveal block */
+.v2-hp-reveal { display: flex; flex-direction: column; gap: 8px; }
+
+/* notes */
+.v2-hp-note {
+  font-size: 11.5px;
+  color: var(--faint);
+  font-weight: 500;
+}
+.v2-hp-note.env {
+  color: var(--sky);
+  background: var(--sky-bg);
+  border-radius: var(--r-sm);
+  padding: 8px 10px;
+}
+
+/* footer action row */
+.v2-hp-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid var(--line-soft);
+  padding-top: 14px;
+}
+.v2-hp-status { font-size: 12px; font-weight: 600; }
+.v2-hp-status.saving { color: var(--muted); }
+.v2-hp-status.saved { color: var(--ok); }
+.v2-hp-status.error { color: var(--crit); }
+
+.v2-hp-loading { font-size: 12px; color: var(--muted); padding: 16px; }

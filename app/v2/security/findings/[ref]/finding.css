@@ -1,0 +1,123 @@
+/* ============================================================================
+   Sentinel v2 — Security finding detail page. All classes namespaced `v2-fd-*`
+   so nothing collides with the shell (app/v2/v2.css) or sibling detail pages.
+   Colour comes from shell tokens only.
+   ========================================================================== */
+
+.v2-fd-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ---------- Header ---------- */
+.v2-fd-head {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.v2-fd-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.v2-fd-meta b { color: var(--text); font-weight: 600; }
+
+/* ---------- Two-column grid ---------- */
+.v2-fd-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 18px;
+  align-items: start;
+}
+@media (max-width: 1080px) {
+  .v2-fd-grid { grid-template-columns: 1fr; }
+}
+.v2-fd-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* ---------- Card body ---------- */
+.v2-fd-body { padding: 16px; }
+.v2-fd-desc {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+.v2-fd-desc.empty { color: var(--muted); }
+
+/* ---------- Key/value facts ---------- */
+.v2-fd-kv {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 18px;
+  font-size: 12.5px;
+}
+.v2-fd-kv dt {
+  color: var(--muted);
+  font-weight: 600;
+}
+.v2-fd-kv dd {
+  color: var(--text);
+  font-weight: 600;
+  margin: 0;
+  text-align: right;
+}
+
+/* ---------- Status / actions row ---------- */
+.v2-fd-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-top: 1px solid var(--line-soft);
+}
+.v2-fd-status .k { font-size: 11px; color: var(--muted); font-weight: 600; }
+.v2-fd-status .v { font-size: 13px; color: var(--text-strong); font-weight: 700; }
+
+/* ---------- Linked records ---------- */
+.v2-fd-link-list { display: flex; flex-direction: column; }
+.v2-fd-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.v2-fd-link:last-child { border-bottom: none; }
+.v2-fd-link:hover { background: var(--surface2); }
+.v2-fd-link-main { min-width: 0; flex: 1; }
+.v2-fd-link-id { font-size: 13px; font-weight: 600; color: var(--text); }
+.v2-fd-link-sub {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.v2-fd-link-kind {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: var(--surface2);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.v2-fd-empty {
+  padding: 16px;
+  font-size: 12.5px;
+  color: var(--muted);
+}

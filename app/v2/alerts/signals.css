@@ -1,0 +1,188 @@
+/* ============================================================================
+   Sentinel v2 — shared "Signals" stylesheet for the Alerts + Activity pages.
+   Every class is namespaced `v2-sig-*` so it never collides with the v2 shell
+   tokens/classes in app/v2/v2.css. Colours reference the shell's design tokens
+   (scoped under .v2-shell) so both themes are covered automatically.
+   ========================================================================== */
+
+/* ---------- Page header ---------- */
+.v2-sig-head {
+  margin-bottom: 20px;
+}
+
+/* ---------- Alerts: card + rows ---------- */
+.v2-sig-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.v2-sig-row {
+  display: grid;
+  grid-template-columns: 84px 1fr auto auto;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.v2-sig-row:last-child { border-bottom: none; }
+.v2-sig-row:hover { background: var(--surface2); }
+
+.v2-sig-main { min-width: 0; }
+.v2-sig-msg {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.35;
+}
+.v2-sig-rule {
+  margin-top: 4px;
+  font: 11px ui-monospace, Consolas, 'SF Mono', monospace;
+  color: var(--faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- Severity pill (all five bands) ---------- */
+.v2-sig-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.v2-sig-pill::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+.v2-sig-pill.critical { color: var(--crit); background: var(--crit-bg); }
+.v2-sig-pill.high     { color: var(--high); background: var(--high-bg); }
+.v2-sig-pill.medium   { color: var(--sky);  background: var(--sky-bg); }
+.v2-sig-pill.low      { color: var(--ok);   background: var(--ok-bg); }
+.v2-sig-pill.info     { color: var(--muted); background: var(--surface2); }
+
+/* ---------- Status chip ---------- */
+.v2-sig-status {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+  color: var(--muted);
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 9px;
+  white-space: nowrap;
+}
+.v2-sig-status.firing       { color: var(--crit); border-color: var(--crit-bg); background: var(--crit-bg); }
+.v2-sig-status.acknowledged { color: var(--high); border-color: var(--high-bg); background: var(--high-bg); }
+.v2-sig-status.resolved     { color: var(--ok);   border-color: var(--ok-bg);   background: var(--ok-bg); }
+
+.v2-sig-when {
+  font-size: 11.5px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-align: right;
+  min-width: 44px;
+}
+
+/* ---------- Empty state ---------- */
+.v2-sig-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 48px 16px;
+  text-align: center;
+}
+.v2-sig-empty .ic {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ok-bg);
+  color: var(--ok);
+  font-size: 17px;
+}
+.v2-sig-empty .t { font-size: 13.5px; font-weight: 600; color: var(--text); }
+.v2-sig-empty .d { font-size: 12px; color: var(--muted); }
+
+/* ---------- Activity: vertical timeline ---------- */
+.v2-sig-feed {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 16px 8px;
+}
+.v2-sig-item {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  gap: 12px;
+  align-items: start;
+  padding: 12px 0;
+  position: relative;
+}
+/* Connector line running through the dots (hidden on the last item). */
+.v2-sig-item::before {
+  content: "";
+  position: absolute;
+  left: 11px;
+  top: 30px;
+  bottom: -12px;
+  width: 2px;
+  background: var(--line-soft);
+}
+.v2-sig-item:last-child::before { display: none; }
+
+.v2-sig-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  line-height: 1;
+  background: var(--accent-bg);
+  color: var(--accent);
+  border: 1px solid var(--accent-brd);
+  z-index: 1;
+  flex-shrink: 0;
+}
+.v2-sig-dot.security { background: var(--crit-bg); color: var(--crit); border-color: var(--crit-bg); }
+.v2-sig-dot.ops      { background: var(--sky-bg);  color: var(--sky);  border-color: var(--sky-bg); }
+.v2-sig-dot.support  { background: var(--accent-bg); color: var(--accent); border-color: var(--accent-brd); }
+.v2-sig-dot.ok       { background: var(--ok-bg);   color: var(--ok);   border-color: var(--ok-bg); }
+
+.v2-sig-txt {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.45;
+  padding-top: 3px;
+}
+.v2-sig-time {
+  font-size: 11px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  padding-top: 4px;
+}
+
+@media (max-width: 640px) {
+  .v2-sig-row { grid-template-columns: 72px 1fr; row-gap: 8px; }
+  .v2-sig-row .v2-sig-status,
+  .v2-sig-row .v2-sig-when { grid-column: 2; justify-self: start; text-align: left; }
+}

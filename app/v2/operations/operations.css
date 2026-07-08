@@ -1,0 +1,194 @@
+/* ============================================================================
+   Sentinel v2 — Operations (monitoring) page styles. All classes namespaced
+   `v2-op-` and every colour/spacing value resolves through a shell token
+   (var(--...)). Nothing here redefines a token; the page renders inside the
+   v2 shell so the token scope (.v2-shell) is already in effect.
+   ========================================================================== */
+
+/* ---------- Page rhythm ---------- */
+.v2-op {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ---------- Metric cards (CPU / Memory) ---------- */
+.v2-op-metrics { grid-template-columns: repeat(2, 1fr); }
+
+.v2-op-metric { padding: 16px; }
+.v2-op-metric .v2-op-k {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.v2-op-metric-top {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 10px;
+}
+.v2-op-big {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -.02em;
+  line-height: 1;
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
+}
+.v2-op-bigsub {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.v2-op-spark {
+  width: 132px;
+  height: 44px;
+  flex-shrink: 0;
+  display: block;
+}
+
+/* ---------- Services list ---------- */
+.v2-op-svc {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.v2-op-svc:last-child { border-bottom: none; }
+.v2-op-svc:hover { background: var(--surface2); }
+
+.v2-op-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--muted);
+  box-shadow: 0 0 0 3px transparent;
+}
+.v2-op-dot.ok { background: var(--ok); box-shadow: 0 0 0 3px var(--ok-bg); }
+.v2-op-dot.wn { background: var(--high); box-shadow: 0 0 0 3px var(--high-bg); }
+.v2-op-dot.rd { background: var(--crit); box-shadow: 0 0 0 3px var(--crit-bg); }
+
+.v2-op-svc-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.v2-op-svc-rep {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 34px;
+  text-align: right;
+}
+.v2-op-svc-up {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  min-width: 58px;
+  text-align: right;
+}
+
+/* ---------- Incidents ---------- */
+.v2-op-inc {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.v2-op-inc:hover { background: var(--surface2); }
+.v2-op-inc-t { font-size: 13px; font-weight: 600; color: var(--text); }
+.v2-op-inc-meta {
+  font-size: 11.5px;
+  color: var(--faint);
+  margin-top: 3px;
+}
+
+/* ---------- Change window ---------- */
+.v2-op-chg {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-top: 1px solid var(--line-soft);
+}
+.v2-op-chg-b { font-size: 12.5px; color: var(--muted); }
+.v2-op-chg-b b { color: var(--text); font-weight: 600; }
+.v2-op-chg .v2-op-chg-lab {
+  font-size: 10px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--faint);
+  font-weight: 700;
+}
+
+@media (max-width: 1080px) {
+  .v2-op-metrics { grid-template-columns: 1fr; }
+}
+
+/* ============================================================================
+   Widget-board additions. The board (WidgetGrid) supplies each tile's frame +
+   title, so widgets render inner content only. `.v2-op-w` is the shared body
+   padding for tiles that aren't edge-to-edge lists (Services/Incidents keep
+   their own row padding and sit flush).
+   ========================================================================== */
+.v2-op-w { padding: 16px; }
+
+/* Change-window as a standalone tile: no divider border when it stands alone. */
+.v2-op-chg.v2-op-chg--solo { border-top: none; }
+
+/* ---------- Uptime widget ---------- */
+.v2-op-slo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.v2-op-slo b { color: var(--ok); font-weight: 700; }
+.v2-op-slo-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--ok);
+  box-shadow: 0 0 0 3px var(--ok-bg);
+}
+
+/* ---------- Disk widget ---------- */
+.v2-op-disk-row { margin-bottom: 16px; }
+.v2-op-disk-row:last-child { margin-bottom: 0; }
+.v2-op-disk-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+.v2-op-disk-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.v2-op-disk-used {
+  font-size: 11.5px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+.v2-op-disk-pct {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.v2-op-disk-track {
+  display: block;
+  height: 7px;
+  border-radius: 4px;
+  background: var(--surface2);
+  overflow: hidden;
+}
+.v2-op-disk-fill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+}

@@ -1,4 +1,5 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
+import { NextResponse } from 'next/server';
 
 // Auth-only middleware, matching the YT app's known-good pattern. Unauthenticated
 // users hitting a protected route are redirected to sign-in. Per-app authorization
@@ -15,6 +16,7 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 //   - /api/ingest/update      : agent/system ticket-update append (token/HMAC in-route)
 //   - /api/ingest/roadmap     : agent/CI roadmap-item upsert (token/HMAC in-route)
 //   - /api/ingest/changelog   : agent/CI changelog-entry append (token/HMAC in-route)
+//   - /api/bot/(.*)           : Discord bot surface (OPS_BOT_TOKEN token/HMAC in-route)
 const isPublicRoute = createRouteMatcher([
   '/sign-in(.*)',
   '/api/ping',
@@ -24,14 +26,38 @@ const isPublicRoute = createRouteMatcher([
   '/api/ingest/update',
   '/api/ingest/roadmap',
   '/api/ingest/changelog',
+  '/api/bot/(.*)',
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
+  // TEST-ONLY E2E bypass — DOUBLE-GATED, inert in production. Active only when
+  // process.env.E2E_TEST_MODE === '1' AND NODE_ENV !== 'production' (a prod build
+  // ignores it even if the env var leaks). Skips the Clerk auth/redirect guard so
+  // the Playwright suite renders the app without a real session, while still
+  // stamping x-sentinel-shell=v2 for /v2 paths (mirrors the logic below). Real
+  // deployments never set E2E_TEST_MODE, so normal behavior is unchanged.
+  if (process.env.E2E_TEST_MODE === '1' && process.env.NODE_ENV !== 'production') {
+    if (req.nextUrl.pathname.startsWith('/v2')) {
+      const headers = new Headers(req.headers);
+      headers.set('x-sentinel-shell', 'v2');
+      return NextResponse.next({ request: { headers } });
+    }
+    return NextResponse.next();
+  }
+
   if (!isPublicRoute(req)) {
     const { userId, redirectToSignIn } = await auth();
     if (!userId) {
       return redirectToSignIn();
     }
+  }
+
+  // Additive v2 shell signal: tag requests under /v2 with a header the root
+  // layout reads to swap in the parallel v2 shell. v1 paths are untouched.
+  if (req.nextUrl.pathname.startsWith('/v2')) {
+    const headers = new Headers(req.headers);
+    headers.set('x-sentinel-shell', 'v2');
+    return NextResponse.next({ request: { headers } });
   }
 });
 

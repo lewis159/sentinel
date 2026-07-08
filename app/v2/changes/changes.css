@@ -1,0 +1,267 @@
+/* ============================================================================
+   Sentinel v2 — Change calendar / CAB page styles. All classes namespaced
+   `v2-cal-` and every colour/spacing value resolves through a shell token
+   (var(--...)). Nothing here redefines a token; the page renders inside the
+   v2 shell so the token scope (.v2-shell) is already in effect.
+   ========================================================================== */
+
+/* ---------- Page rhythm ---------- */
+.v2-cal {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ---------- Header row (title + controls) ---------- */
+.v2-cal-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.v2-cal-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Month nav ( ◂ July 2026 ▸ ) */
+.v2-cal-monthnav {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 4px;
+}
+.v2-cal-navbtn {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+  line-height: 1;
+}
+.v2-cal-navbtn:hover { background: var(--surface2); color: var(--text); }
+.v2-cal-monthlabel {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-strong);
+  padding: 0 8px;
+  min-width: 92px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Month / Week segmented toggle */
+.v2-cal-seg {
+  display: inline-flex;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 3px;
+  gap: 2px;
+}
+.v2-cal-seg button {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.v2-cal-seg button.on {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+/* ---------- Legend ---------- */
+.v2-cal-legend {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.v2-cal-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.v2-cal-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.v2-cal-swatch.ok { background: var(--ok); }
+.v2-cal-swatch.high { background: var(--high); }
+.v2-cal-swatch.sky { background: var(--sky); }
+.v2-cal-swatch.crit { background: var(--crit); }
+
+/* ---------- Month grid ---------- */
+.v2-cal-grid {
+  padding: 0;
+  overflow: hidden;
+}
+.v2-cal-week,
+.v2-cal-dow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+.v2-cal-dow {
+  border-bottom: 1px solid var(--line);
+  background: var(--surface2);
+}
+.v2-cal-dow div {
+  padding: 9px 12px;
+  font-size: 10px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.v2-cal-cell {
+  min-height: 104px;
+  padding: 8px 9px;
+  border-right: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  position: relative;
+}
+/* remove the trailing edges so the grid sits flush inside the card */
+.v2-cal-cell:nth-child(7n) { border-right: none; }
+.v2-cal-week:last-child .v2-cal-cell { border-bottom: none; }
+.v2-cal-cell:hover { background: var(--surface2); }
+
+.v2-cal-cell.dim { background: rgba(255, 255, 255, .012); }
+.v2-cal-cell.dim .v2-cal-daynum { color: var(--faint); }
+:root[data-theme="light"] .v2-cal-cell.dim { background: rgba(0, 0, 0, .015); }
+
+.v2-cal-daynum {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+/* Today marker */
+.v2-cal-cell.today .v2-cal-daynum {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  border-radius: 11px;
+  background: var(--accent);
+  color: #fff;
+}
+.v2-cal-cell.today { box-shadow: inset 0 0 0 1.5px var(--accent-brd); }
+
+/* ---------- Change chips inside a day cell ---------- */
+.v2-cal-chip {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  padding: 3px 7px;
+  border-radius: 5px;
+  border-left: 2.5px solid var(--muted);
+  background: var(--surface2);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.v2-cal-chip.ok { border-left-color: var(--ok); background: var(--ok-bg); color: var(--ok); }
+.v2-cal-chip.high { border-left-color: var(--high); background: var(--high-bg); color: var(--high); }
+.v2-cal-chip.sky { border-left-color: var(--sky); background: var(--sky-bg); color: var(--sky); }
+.v2-cal-chip.crit { border-left-color: var(--crit); background: var(--crit-bg); color: var(--crit); }
+
+/* ---------- CAB queue ---------- */
+.v2-cal-cab-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.v2-cal-cab-row:last-child { border-bottom: none; }
+.v2-cal-cab-row:hover { background: var(--surface2); }
+
+.v2-cal-cab-ref {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .02em;
+}
+.v2-cal-cab-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-top: 2px;
+}
+.v2-cal-cab-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 11.5px;
+  color: var(--faint);
+  flex-wrap: wrap;
+}
+.v2-cal-cab-meta .dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--faint);
+  flex-shrink: 0;
+}
+
+.v2-cal-cab-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.v2-cal-approve,
+.v2-cal-reject {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: var(--r-sm);
+  padding: 7px 13px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+.v2-cal-approve { color: var(--ok); border-color: var(--ok-bg); background: var(--ok-bg); }
+.v2-cal-approve:hover { border-color: var(--ok); }
+.v2-cal-reject { color: var(--muted); }
+.v2-cal-reject:hover { color: var(--crit); border-color: var(--crit); }
+
+@media (max-width: 720px) {
+  .v2-cal-cell { min-height: 84px; }
+  .v2-cal-cab-row { grid-template-columns: 1fr; }
+  .v2-cal-cab-actions { justify-content: flex-start; }
+}

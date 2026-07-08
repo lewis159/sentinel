@@ -51,6 +51,13 @@ export async function POST(req: Request) {
 
   try {
     const { ref } = await createTicket(input);
+    // Fire-and-forget autonomous triage: auto-draft a Hermes proposal so the
+    // approval queue populates without a human opening the ticket. Dynamic
+    // import keeps the hermes deps off the hot path; the .catch guarantees it
+    // can never affect this response. Deliberately NOT awaited.
+    void import('@/lib/hermes/auto-triage')
+      .then((m) => m.autoTriage(ref, input.kind))
+      .catch(() => {});
     return Response.json({ ok: true, ref }, { status: 201 });
   } catch (e: any) {
     return Response.json({ ok: false, error: e?.message ?? 'create failed' }, { status: 500 });

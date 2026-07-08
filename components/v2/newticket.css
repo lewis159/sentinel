@@ -1,0 +1,122 @@
+/* New-ticket modal — namespaced v2-nt-*. Co-located with NewTicketModal.tsx. */
+
+.v2-nt-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 60px 16px 16px;
+  background: rgba(3, 6, 12, 0.55);
+  backdrop-filter: blur(2px);
+  overflow-y: auto;
+}
+
+.v2-nt-modal {
+  width: 100%;
+  max-width: 520px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.v2-nt-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.v2-nt-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.v2-nt-x {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+}
+.v2-nt-x:hover { color: var(--text); background: var(--surface2); }
+
+.v2-nt-body {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.v2-nt-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.v2-nt-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.v2-nt-label {
+  font-size: 10.5px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.v2-nt-input,
+.v2-nt-select,
+.v2-nt-textarea {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12.5px;
+  padding: 9px 11px;
+}
+.v2-nt-textarea { resize: vertical; min-height: 84px; }
+
+.v2-nt-input:focus,
+.v2-nt-select:focus,
+.v2-nt-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.v2-nt-err {
+  font-size: 12px;
+  color: var(--crit, #ff6b6b);
+  background: var(--crit-bg, rgba(255, 107, 107, .12));
+  border-radius: var(--r-sm);
+  padding: 8px 11px;
+}
+
+.v2-nt-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--line);
+  background: var(--surface2);
+}
+
+.v2-nt-modal button[disabled] {
+  opacity: .6;
+  cursor: not-allowed;
+}
