@@ -33,6 +33,7 @@ load_secret() {
 [ -n "${DATABASE_URL_FILE:-}" ]         && load_secret DATABASE_URL         "$DATABASE_URL_FILE"
 [ -n "${OPS_INGEST_SECRET_FILE:-}" ]    && load_secret OPS_INGEST_SECRET    "$OPS_INGEST_SECRET_FILE"
 [ -n "${OPS_REPORT_TOKEN_FILE:-}" ]     && load_secret OPS_REPORT_TOKEN     "$OPS_REPORT_TOKEN_FILE"
+[ -n "${INFISICAL_CLIENT_SECRET_FILE:-}" ] && load_secret INFISICAL_CLIENT_SECRET "$INFISICAL_CLIENT_SECRET_FILE"
 
 # 2) Fall back to conventional secret mount paths.
 load_secret CLERK_SECRET_KEY     /run/secrets/clerk_secret_key
@@ -40,6 +41,11 @@ load_secret CLERK_ENCRYPTION_KEY /run/secrets/clerk_encryption_key
 load_secret DATABASE_URL         /run/secrets/sentinel_database_url
 load_secret OPS_INGEST_SECRET    /run/secrets/ops_ingest_secret
 load_secret OPS_REPORT_TOKEN     /run/secrets/ops_report_token
+# Infisical Universal Auth client secret (Sentinel reads OPENROUTER_API_KEY etc.
+# from Infisical at runtime; only the client secret is a Docker secret — the
+# client id / project id / site url are non-secret env). Hermes stays dormant if
+# unset.
+load_secret INFISICAL_CLIENT_SECRET /run/secrets/infisical_client_secret
 
 # Hand off to the container CMD (e.g. node server.js) as PID 1's child.
 exec "$@"
