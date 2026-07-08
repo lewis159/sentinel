@@ -1,0 +1,116 @@
+/* ============================================================================
+   Sentinel v2 — Operations · Infrastructure. Shared styles for the Components,
+   Scans & checks, and Resilience pages. Every class is namespaced `v2-inf-` and
+   leans on the shell tokens declared in ../v2.css (imported by the shell). This
+   file only adds the few primitives those three pages need on top of the shared
+   .v2-card / .v2-table / .v2-pill classes.
+   ========================================================================== */
+
+/* ---------- Page header ---------- */
+.v2-inf-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.v2-inf-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ---------- Live / mock source badge ---------- */
+.v2-inf-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 20px;
+  white-space: nowrap;
+  color: var(--muted);
+  background: var(--surface2);
+  border: 1px solid var(--line);
+}
+.v2-inf-badge .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--faint);
+  flex-shrink: 0;
+}
+.v2-inf-badge.live { color: var(--ok); background: var(--ok-bg); border-color: transparent; }
+.v2-inf-badge.live .dot { background: var(--ok); }
+
+/* ---------- Monospace cell text ---------- */
+.v2-inf-mono {
+  font-family: ui-monospace, Consolas, 'SF Mono', monospace;
+  font-size: 12px;
+  color: var(--text);
+}
+
+/* ---------- Table primary / secondary text ---------- */
+.v2-inf-name { font-weight: 600; color: var(--text); }
+.v2-inf-dim { color: var(--muted); }
+.v2-inf-num { font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+
+/* ---------- Kind tags (service/infra/route + resilience/security/scalability) ---------- */
+.v2-inf-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  padding: 3px 9px;
+  border-radius: 6px;
+  text-transform: capitalize;
+  color: var(--muted);
+  background: var(--surface2);
+}
+.v2-inf-tag.k-service,
+.v2-inf-tag.k-resilience { color: var(--accent); background: var(--accent-bg); }
+.v2-inf-tag.k-infra,
+.v2-inf-tag.k-scalability { color: var(--purple); background: var(--purple-bg); }
+.v2-inf-tag.k-route { color: var(--sky); background: var(--sky-bg); }
+.v2-inf-tag.k-security { color: var(--crit); background: var(--crit-bg); }
+
+/* ---------- Catalogue cards (resilience checks) ---------- */
+.v2-inf-cat {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+@media (max-width: 1080px) { .v2-inf-cat { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 720px) { .v2-inf-cat { grid-template-columns: 1fr; } }
+
+.v2-inf-catcard {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 15px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.v2-inf-catcard .top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.v2-inf-catcard .nm { font-size: 13.5px; font-weight: 700; color: var(--text-strong); }
+.v2-inf-catcard .desc { font-size: 12px; color: var(--muted); line-height: 1.55; }
+
+/* ---------- Section heading between blocks ---------- */
+.v2-inf-sec {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 12px;
+}

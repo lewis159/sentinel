@@ -28,3 +28,8 @@ npm-debug.log*
 
 # local tooling (preview server config)
 .claude/
+
+# tests / e2e artifacts
+/test-results/
+/playwright-report/
+**/node_modules/

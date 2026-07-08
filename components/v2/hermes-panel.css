@@ -1,0 +1,220 @@
+/* Live Hermes copilot panel — mounted inside the v2 ticket detail views.
+   Namespaced v2-hz-* so nothing leaks; colour comes from the shell tokens
+   (var(--...)) only — no literals. Purple accent marks it as the Hermes agent. */
+
+.v2-shell .v2-hz-card { border-color: var(--purple); }
+
+.v2-shell .v2-hz-head {
+  border-bottom-color: var(--purple);
+}
+.v2-shell .v2-hz-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  color: var(--purple);
+  background: var(--purple-bg);
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+
+.v2-shell .v2-hz-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.v2-shell .v2-hz-tagline {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+  margin: 0;
+}
+
+/* ---- Actions row ---- */
+.v2-shell .v2-hz-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.v2-shell .v2-hz-primary {
+  background: var(--purple);
+}
+.v2-shell .v2-hz-primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+  background: var(--purple);
+}
+.v2-shell .v2-hz-primary:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+.v2-shell .v2-hz-caption {
+  font-size: 11px;
+  color: var(--faint);
+}
+
+/* ---- Loading ---- */
+.v2-shell .v2-hz-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.v2-shell .v2-hz-dots {
+  display: inline-flex;
+  gap: 4px;
+}
+.v2-shell .v2-hz-dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--purple);
+  opacity: .35;
+  animation: v2-hz-blink 1.2s infinite ease-in-out;
+}
+.v2-shell .v2-hz-dots span:nth-child(2) { animation-delay: .2s; }
+.v2-shell .v2-hz-dots span:nth-child(3) { animation-delay: .4s; }
+
+@keyframes v2-hz-blink {
+  0%, 80%, 100% { opacity: .3; }
+  40% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .v2-shell .v2-hz-dots span {
+    animation: none;
+    opacity: .6;
+  }
+}
+
+/* ---- Not-configured / generic note ---- */
+.v2-shell .v2-hz-note {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+}
+.v2-shell .v2-hz-note code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  color: var(--text);
+}
+
+/* ---- Error ---- */
+.v2-shell .v2-hz-err {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--crit);
+  background: var(--crit-bg);
+  border: 1px solid var(--crit-bg);
+  border-radius: var(--r-sm);
+  padding: 8px 11px;
+}
+.v2-shell .v2-hz-sent {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ok);
+  background: var(--ok-bg);
+  border-radius: var(--r-sm);
+  padding: 8px 11px;
+}
+
+/* ---- Chips (classification / priority) ---- */
+.v2-shell .v2-hz-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.v2-shell .v2-hz-chip { text-transform: none; }
+
+/* ---- Confidence bar ---- */
+.v2-shell .v2-hz-conf {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.v2-shell .v2-hz-conf-top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+}
+.v2-shell .v2-hz-conf-top b {
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
+}
+.v2-shell .v2-hz-conf-track {
+  height: 6px;
+  background: var(--surface2);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.v2-shell .v2-hz-conf-fill {
+  height: 100%;
+  border-radius: 6px;
+  background: var(--purple);
+  transition: width .3s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .v2-shell .v2-hz-conf-fill { transition: none; }
+}
+
+/* ---- Reasoning ---- */
+.v2-shell .v2-hz-reason {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text);
+  margin: 0;
+}
+
+/* ---- Sources ---- */
+.v2-shell .v2-hz-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.v2-shell .v2-hz-src {
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+
+/* ---- Editable draft ---- */
+.v2-shell .v2-hz-draft-lab {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: -4px;
+}
+.v2-shell .v2-hz-textarea {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.55;
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--text);
+}
+.v2-shell .v2-hz-textarea::placeholder { color: var(--faint); }
+.v2-shell .v2-hz-textarea:focus {
+  outline: none;
+  border-color: var(--purple);
+}
+.v2-shell .v2-hz-textarea:disabled { opacity: .6; cursor: not-allowed; }
+
+/* ---- Model footnote ---- */
+.v2-shell .v2-hz-model {
+  font-size: 10.5px;
+  color: var(--faint);
+}

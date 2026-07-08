@@ -1,0 +1,141 @@
+/* ============================================================================
+   Sentinel v2 — ADMIN · Access page. Section-specific classes only; base
+   classes + tokens come from app/v2/v2.css. Everything here is namespaced
+   `v2-adm-` and reads colours via var(--...) so it inherits the shell theme.
+   ========================================================================== */
+
+/* Header + section spacing (the header row + card stack) */
+.v2-adm-head { margin-bottom: 18px; align-items: flex-start; }
+
+/* ---------- Staff member cell ---------- */
+.v2-adm-staff { display: flex; align-items: center; gap: 11px; }
+.v2-adm-av {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--surface2);
+  border: 1px solid var(--line);
+}
+/* The global / owner avatar gets the accent gradient (matches .v2-who .av). */
+.v2-adm-av.accent {
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+  border: none;
+}
+.v2-adm-name { font-weight: 600; color: var(--text); line-height: 1.25; }
+.v2-adm-email { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+/* ---------- Role chip ---------- */
+.v2-adm-role {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 6px;
+  color: var(--muted);
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  white-space: nowrap;
+}
+.v2-adm-role.adm {
+  color: var(--accent);
+  background: var(--accent-bg);
+  border-color: var(--accent-brd);
+}
+
+/* ---------- Sections-granted cell: the grant dots ---------- */
+.v2-adm-grants { display: flex; align-items: center; gap: 10px; }
+.v2-adm-dots { display: inline-flex; gap: 5px; }
+.v2-adm-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  background: transparent;
+  border: 1.5px solid var(--line);
+  box-sizing: border-box;
+}
+.v2-adm-dot.on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+/* Interactive dots (buttons in the editor) — reset native button styling. */
+button.v2-adm-dot {
+  padding: 0;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: transform 0.08s ease, border-color 0.12s ease, background 0.12s ease;
+}
+button.v2-adm-dot:not(:disabled):hover {
+  transform: scale(1.15);
+  border-color: var(--accent);
+}
+button.v2-adm-dot:disabled { cursor: default; }
+/* Locked dots (overview / global admin) — clearly non-editable. */
+.v2-adm-dot.locked { opacity: 0.75; }
+.v2-adm-glabel {
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Role select ---------- */
+.v2-adm-select {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 5px 26px 5px 9px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M2 3.5L5 6.5L8 3.5' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+}
+.v2-adm-select:hover { border-color: var(--accent-brd); }
+.v2-adm-select:focus { outline: none; border-color: var(--accent); }
+
+/* ---------- Save cell (per-row state + button) ---------- */
+.v2-adm-savecell {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  justify-content: flex-end;
+}
+.v2-adm-savebtn { padding: 5px 14px; font-size: 11px; }
+.v2-adm-savestate {
+  font-size: 10.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.v2-adm-savestate.ok { color: var(--ok, #3fb950); }
+.v2-adm-savestate.err { color: var(--danger, #f85149); }
+
+/* ---------- Empty state ---------- */
+.v2-adm-empty { font-size: 13px; color: var(--muted); text-align: center; }
+
+/* ---------- Legend row (below the table) ---------- */
+.v2-adm-legend {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding: 0 2px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.v2-adm-leg { display: inline-flex; align-items: center; gap: 7px; }
+.v2-adm-leg .v2-adm-dot { width: 10px; height: 10px; }
+.v2-adm-legorder { margin-left: auto; color: var(--faint); }

@@ -10,3 +10,10 @@ README.md
 .env.*
 .vercel
 *.tsbuildinfo
+
+discord-bot
+tests
+test-results
+playwright-report
+vitest.config.ts
+playwright.config.ts

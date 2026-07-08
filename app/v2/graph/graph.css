@@ -1,0 +1,87 @@
+/* ============================================================================
+   Sentinel v2 — /v2/graph (estate topology). All classes namespaced `v2-gr-`;
+   colours pull from the v2 tokens defined in v2.css. Cytoscape paints node fills
+   from baked hexes in GraphCanvas.tsx (canvas can't read CSS vars).
+   ========================================================================== */
+
+.v2-gr-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Card wrapping the canvas */
+.v2-gr-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.v2-gr-wrap {
+  position: relative;
+  width: 100%;
+  min-height: 520px;
+  height: 60vh;
+  background: var(--surface);
+}
+
+.v2-gr-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Overlaid state messages (loading / error / empty) */
+.v2-gr-state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 6px;
+  padding: 24px;
+  color: var(--muted);
+  font-size: 12.5px;
+  pointer-events: none;
+}
+.v2-gr-empty-t {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+.v2-gr-empty-d {
+  max-width: 360px;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+/* Legend */
+.v2-gr-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 2px;
+}
+.v2-gr-leg {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.v2-gr-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.v2-gr-dot.crit { background: var(--crit); }
+.v2-gr-dot.high { background: var(--high); }
+.v2-gr-dot.sky { background: var(--sky); }
+.v2-gr-dot.accent { background: var(--accent); }
+.v2-gr-dot.purple { background: var(--purple); }
+.v2-gr-dot.muted { background: var(--muted); }

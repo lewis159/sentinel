@@ -1,0 +1,170 @@
+/* ============================================================================
+   Sentinel v2 — Customer 360 page styles. Every class is namespaced `v2-cust-`
+   and scoped under `.v2-shell` so nothing leaks into v1 or the rest of v2. All
+   colour comes from the shell tokens (var(--...)) so light + dark both work.
+   ========================================================================== */
+
+.v2-shell .v2-cust-page { display: flex; flex-direction: column; gap: 18px; }
+
+/* ---------- Header ---------- */
+.v2-shell .v2-cust-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.v2-shell .v2-cust-avatar {
+  width: 58px;
+  height: 58px;
+  flex-shrink: 0;
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+}
+.v2-shell .v2-cust-head-main { min-width: 0; flex: 1; }
+.v2-shell .v2-cust-head-pills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+/* Purple "upsell" pill — mirrors .v2-pill sizing but uses the purple token. */
+.v2-shell .v2-cust-pill-upsell {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 20px;
+  white-space: nowrap;
+  color: var(--purple);
+  background: var(--purple-bg);
+  border: 1px solid var(--purple);
+}
+
+/* ---------- Stat strip ---------- */
+.v2-shell .v2-cust-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+.v2-shell .v2-cust-tile-of {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0;
+}
+
+@media (max-width: 1080px) {
+  .v2-shell .v2-cust-stats { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ---------- Two-column grid ---------- */
+.v2-shell .v2-cust-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+.v2-shell .v2-cust-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+@media (max-width: 980px) {
+  .v2-shell .v2-cust-grid { grid-template-columns: 1fr; }
+}
+
+/* ---------- Open tickets ---------- */
+.v2-shell .v2-cust-tickets { display: flex; flex-direction: column; }
+.v2-shell .v2-cust-trow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--line-soft);
+  cursor: pointer;
+}
+.v2-shell .v2-cust-trow:last-child { border-bottom: none; }
+.v2-shell .v2-cust-trow:hover { background: var(--surface2); }
+.v2-shell .v2-cust-tref {
+  font-family: ui-monospace, Consolas, 'SF Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-strong);
+  flex-shrink: 0;
+  width: 72px;
+}
+.v2-shell .v2-cust-ttitle {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.v2-shell .v2-cust-tage {
+  font-size: 11px;
+  color: var(--faint);
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Usage ---------- */
+.v2-shell .v2-cust-cycle {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--faint);
+}
+.v2-shell .v2-cust-usage { padding: 16px; }
+
+/* ---------- Hermes note ---------- */
+.v2-shell .v2-cust-hermes { border-color: var(--purple); }
+.v2-shell .v2-cust-hermes-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  padding: 3px 8px;
+  border-radius: 20px;
+  color: var(--purple);
+  background: var(--purple-bg);
+  border: 1px solid var(--purple);
+}
+.v2-shell .v2-cust-hermes-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.v2-shell .v2-cust-hermes-body p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.v2-shell .v2-cust-hermes-body p b { color: var(--text-strong); font-weight: 700; }
+.v2-shell .v2-cust-hermes-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* ---------- Account ---------- */
+.v2-shell .v2-cust-account { padding: 6px 16px 10px; }
+.v2-shell .v2-cust-arow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.v2-shell .v2-cust-arow:last-child { border-bottom: none; }
+.v2-shell .v2-cust-arow .k { font-size: 11.5px; color: var(--muted); font-weight: 600; }
+.v2-shell .v2-cust-arow .val {
+  font-size: 12.5px;
+  color: var(--text-strong);
+  font-weight: 600;
+  text-align: right;
+}

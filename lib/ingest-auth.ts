@@ -113,6 +113,16 @@ export function verifyPrivilegedIngest(req: Request, raw: string): IngestAuthRes
 }
 
 /**
+ * BOT tier. Accepts ONLY `OPS_BOT_TOKEN` (token OR HMAC). For the `/api/bot/*`
+ * surface consumed by the Discord bot — a parallel, single-token surface kept
+ * separate from `OPS_INGEST_SECRET` so a compromised bot host can be cut off by
+ * rotating this one token without disturbing estate-app / CI ingest.
+ */
+export function verifyBotIngest(req: Request, raw: string): IngestAuthResult {
+  return verifyIngest(req, raw, [process.env.OPS_BOT_TOKEN]);
+}
+
+/**
  * PRIVILEGED, HMAC-ONLY tier. Accepts ONLY an `OPS_INGEST_SECRET` HMAC signature
  * (no plaintext token) — for the scanner webhook at /api/ops/ingest/[source],
  * whose callers always sign the raw body and never present a shared token in

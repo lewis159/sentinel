@@ -1,0 +1,165 @@
+/* ============================================================================
+   Sentinel v2 — ADMIN · Access (Apps + Organizations). Section-specific classes
+   only; base classes + tokens come from app/v2/v2.css. Everything here is
+   namespaced `v2-acc-` and reads colours via var(--...) so it inherits the shell
+   theme. Imported by both access/apps/page.tsx and access/orgs/page.tsx.
+   ========================================================================== */
+
+/* ---------- Shared header row ---------- */
+.v2-acc-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+/* ---------- Apps: card grid ---------- */
+.v2-acc-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+@media (max-width: 1080px) {
+  .v2-acc-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 680px) {
+  .v2-acc-grid { grid-template-columns: 1fr; }
+}
+
+.v2-acc-app {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 16px;
+}
+.v2-acc-app:hover { border-color: var(--accent-brd); }
+
+.v2-acc-app-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.v2-acc-logo {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: var(--r-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+  letter-spacing: .02em;
+}
+.v2-acc-name { font-size: 14px; font-weight: 700; color: var(--text-strong); line-height: 1.2; }
+.v2-acc-sub { font-size: 11px; color: var(--muted); margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+.v2-acc-desc {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.45;
+  margin-top: 12px;
+  min-height: 34px;
+}
+
+.v2-acc-ctl {
+  font-size: 11px;
+  color: var(--faint);
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-soft);
+}
+.v2-acc-ctl b { color: var(--muted); font-weight: 600; }
+
+.v2-acc-foot {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 12px;
+}
+.v2-acc-count {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -.02em;
+  color: var(--text-strong);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.v2-acc-count-lab { font-size: 11.5px; color: var(--muted); }
+
+.v2-acc-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  padding: 2px 7px;
+  border-radius: 5px;
+  color: var(--muted);
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+/* ---------- Orgs: member cell ---------- */
+.v2-acc-member { display: flex; align-items: center; gap: 10px; }
+.v2-acc-av {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--surface2);
+  border: 1px solid var(--line);
+}
+.v2-acc-mlabel { font-size: 12.5px; font-weight: 600; color: var(--text); }
+
+.v2-acc-role {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 6px;
+  color: var(--muted);
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  white-space: nowrap;
+}
+.v2-acc-role.adm {
+  color: var(--accent);
+  background: var(--accent-bg);
+  border-color: var(--accent-brd);
+}
+
+.v2-acc-org-h {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.v2-acc-org-h h3 { font-size: 13.5px; font-weight: 700; color: var(--text-strong); margin: 0; }
+
+/* ---------- Empty state ---------- */
+.v2-acc-empty {
+  padding: 40px 24px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+.v2-acc-empty .t { font-weight: 600; color: var(--text); font-size: 14px; }
+.v2-acc-empty .d { margin-top: 6px; font-size: 12px; color: var(--muted); }
+
+.v2-acc-mt { margin-top: 16px; }

@@ -1,0 +1,252 @@
+/* ============================================================================
+   Sentinel v2 — Testing & quality-gates page styles. All classes namespaced
+   `v2-qg-` and every colour/space pulled from the shell tokens defined in
+   ../v2.css. Loaded via `import './testing.css'` at the top of page.tsx.
+   ========================================================================== */
+
+/* Vertical rhythm — the shell's .v2-content has no inter-section gap, so the
+   page owns its own stack. */
+.v2-qg {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ---------- Header ---------- */
+.v2-qg-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.v2-qg-head .actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-shrink: 0;
+}
+
+/* ---------- Gate banner ---------- */
+.v2-qg-gate {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 16px;
+  border-radius: var(--r);
+  border: 1px solid var(--crit-brd, rgba(240, 97, 109, .38));
+  background: var(--crit-bg);
+}
+.v2-qg-gate .ic {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--crit);
+}
+.v2-qg-gate .msg {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.v2-qg-gate .msg b { color: var(--crit); font-weight: 700; }
+.v2-qg-gate .v2-pill { margin-left: auto; flex-shrink: 0; }
+
+/* ---------- Suite grid ---------- */
+.v2-qg-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+@media (max-width: 1080px) {
+  .v2-qg-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 720px) {
+  .v2-qg-grid { grid-template-columns: 1fr; }
+}
+
+.v2-qg-suite {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 15px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  position: relative;
+  overflow: hidden;
+}
+.v2-qg-suite::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--tint, var(--muted));
+}
+.v2-qg-suite.s-crit { --tint: var(--crit); }
+.v2-qg-suite.s-high { --tint: var(--high); }
+.v2-qg-suite.s-ok { --tint: var(--ok); }
+
+.v2-qg-suite .top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.v2-qg-suite .ic {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: var(--r-sm);
+  background: var(--surface2);
+  border: 1px solid var(--line-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+}
+.v2-qg-suite .ic svg { width: 16px; height: 16px; }
+.v2-qg-suite .nm {
+  min-width: 0;
+  flex: 1;
+}
+.v2-qg-suite .nm b {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-strong);
+  line-height: 1.25;
+}
+.v2-qg-suite .nm small {
+  font-size: 11px;
+  color: var(--faint);
+}
+.v2-qg-suite .top .v2-pill { flex-shrink: 0; }
+
+/* Stat row inside each suite card */
+.v2-qg-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+}
+.v2-qg-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.v2-qg-stat .n {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-strong);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.01em;
+}
+.v2-qg-stat .n.crit { color: var(--crit); }
+.v2-qg-stat .n.high { color: var(--high); }
+.v2-qg-stat .n.ok { color: var(--ok); }
+.v2-qg-stat .l {
+  font-size: 10px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+}
+.v2-qg-stat a.l { color: var(--accent); text-transform: none; letter-spacing: 0; font-size: 11px; }
+
+/* Big single-score variant (Lighthouse) */
+.v2-qg-score {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.v2-qg-score .big {
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--ok);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.02em;
+}
+.v2-qg-score .of { font-size: 12px; color: var(--muted); font-weight: 600; }
+
+/* ---------- Failing — needs action list ---------- */
+.v2-qg-fail {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.v2-qg-fail:last-child { border-bottom: none; }
+.v2-qg-fail:hover { background: var(--surface2); }
+
+.v2-qg-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: 3px 7px;
+  border-radius: 5px;
+  background: var(--surface2);
+  color: var(--muted);
+  white-space: nowrap;
+  min-width: 46px;
+  justify-content: center;
+}
+.v2-qg-tag.e2e { color: var(--crit); background: var(--crit-bg); }
+.v2-qg-tag.dast { color: var(--high); background: var(--high-bg); }
+.v2-qg-tag.link { color: var(--sky); background: var(--sky-bg); }
+
+.v2-qg-fail .sev {
+  width: 3px;
+  align-self: stretch;
+  border-radius: 3px;
+  background: var(--tint, var(--muted));
+}
+.v2-qg-fail.f-crit { --tint: var(--crit); }
+.v2-qg-fail.f-high { --tint: var(--high); }
+
+.v2-qg-fail .body { min-width: 0; }
+.v2-qg-fail .body .t {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.v2-qg-fail .body .m {
+  font: 11px ui-monospace, Consolas, monospace;
+  color: var(--muted);
+  margin-top: 3px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.v2-qg-fail .body .m a { color: var(--accent); font-weight: 600; }
+
+.v2-qg-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.v2-qg-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.v2-qg-chip:hover { color: var(--text); border-color: var(--accent-brd); }
+.v2-qg-chip svg { width: 12px; height: 12px; }
