@@ -61,8 +61,59 @@
   background: var(--tint, var(--muted));
 }
 
+/* ---------- Decided (read-only) rows ---------- */
+.v2-apq-row.is-decided { opacity: .72; }
+.v2-apq-row.is-decided:hover { background: transparent; }
+
 /* ---------- Row body ---------- */
 .v2-apq-body { flex: 1; min-width: 0; }
+
+/* ---------- Head row: persona badge · tool · status pill ---------- */
+.v2-apq-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 7px;
+}
+.v2-apq-tool {
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 5px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* ---------- Status pill ---------- */
+.v2-apq-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface2);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.v2-apq-pill.pending { color: var(--accent); background: var(--accent-bg); border-color: var(--accent-brd); }
+.v2-apq-pill.exec { color: var(--ok); background: var(--ok-bg, var(--accent-bg)); border-color: var(--ok); }
+.v2-apq-pill.sent { color: var(--ok); background: var(--ok-bg, var(--accent-bg)); }
+.v2-apq-pill.denied { color: var(--crit); background: var(--crit-bg); border-color: var(--crit); }
+
+.v2-apq-kind {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--faint);
+}
 .v2-apq-title {
   font-weight: 700;
   font-size: 13.5px;
@@ -181,6 +232,95 @@
   color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ---------- "What will execute" panel (action proposals) ---------- */
+.v2-apq-exec {
+  margin-top: 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  overflow: hidden;
+}
+.v2-apq-exec > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 11.5px;
+  color: var(--muted);
+  user-select: none;
+}
+.v2-apq-exec > summary::-webkit-details-marker { display: none; }
+.v2-apq-exec > summary:hover { color: var(--text); background: var(--surface2); }
+.v2-apq-exec-lbl {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+.v2-apq-exec-lbl svg { opacity: .8; }
+.v2-apq-exec-tool {
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11px;
+  color: var(--accent);
+}
+.v2-apq-exec[open] > summary .v2-apq-exec-tool { display: none; }
+.v2-apq-exec-body {
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--line-soft);
+}
+.v2-apq-exec-cap {
+  font-size: 9.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--faint);
+  margin: 4px 0 5px;
+}
+.v2-apq-exec-name {
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.v2-apq-args {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  background: var(--surface2);
+  border: 1px solid var(--line-soft);
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text);
+  white-space: pre;
+  overflow-x: auto;
+}
+.v2-apq-exec-result { margin-top: 10px; }
+.v2-apq-exec-res {
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.5;
+}
+.v2-apq-exec-when {
+  margin-top: 4px;
+  font-size: 10.5px;
+  color: var(--faint);
+}
+
+/* ---------- Read-only "done" label (decided rows) ---------- */
+.v2-apq-done {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--faint);
+  white-space: nowrap;
 }
 
 /* ---------- Per-row error ---------- */
