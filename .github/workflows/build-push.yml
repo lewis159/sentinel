@@ -1,21 +1,40 @@
 name: Build & Push Sentinel
 
 # Builds the Sentinel image and pushes it to GHCR on every push to main,
-# or manually via the Actions tab. After a successful build+push it triggers
-# an auto-redeploy by POSTing a Portainer SERVICE WEBHOOK (Portainer re-pulls
-# :latest and rolls the service using ITS OWN creds — CI never holds the
-# Portainer admin token). Mirrors the estate pattern in
-# bentech-infra/docs/ci-cd-staging.md.
+# or manually via the Actions tab. After a successful build+push, on PROD
+# deploys (push to main or a manual workflow_dispatch) it triggers an
+# auto-redeploy using the estate GitOps flow ("flavor B"):
 #
-# Redeploy secret: PORTAINER_WEBHOOK_SENTINEL
-#   - Value is an opaque Portainer service-webhook URL
-#     (https://<portainer-host>/api/webhooks/<uuid>) — a capability URL scoped
-#     to exactly one service. Treat it as a secret.
-#   - Create it: Portainer -> the Sentinel service -> Service webhooks ->
-#     toggle ON -> copy the URL, then:
-#       gh secret set PORTAINER_WEBHOOK_SENTINEL -R lewis159/sentinel
-#   - Until the secret is set the redeploy step is SKIPPED (not failed), so the
-#     workflow still passes before the webhook is provisioned.
+#   build+push  ghcr.io/lewis159/sentinel:<sha> (+ :latest)
+#     -> checkout lewis159/bentech-infra (fine-grained PAT)
+#     -> bump the image SHA in stacks/sentinel-ops-app.yml to this <sha>
+#     -> commit + push to bentech-infra main
+#     -> POST the Portainer GIT-STACK webhook for stack 23 (sentinel-ops-app)
+#          -> Portainer re-pulls bentech-infra, sees the new pinned image, and
+#             rolls the Swarm service using ITS OWN creds.
+#
+# Why git-stack (not a service webhook): Portainer Community Edition has NO
+# service webhooks (Business-only). CE git-managed stacks DO expose a stack
+# redeploy webhook, so the redeploy trigger is the git-stack webhook. CI never
+# holds the Portainer admin token — it holds only a scoped PAT (to push the
+# image bump) and the opaque git-stack webhook URL.
+#
+# Redeploy secrets (BOTH required; the chain is skipped-green until both exist):
+#   GITOPS_INFRA_TOKEN        Fine-grained GitHub PAT, contents:write on
+#                             lewis159/bentech-infra ONLY. Used to push the SHA
+#                             bump commit.
+#                               gh secret set GITOPS_INFRA_TOKEN -R lewis159/sentinel
+#   PORTAINER_WEBHOOK_SENTINEL  Opaque Portainer GIT-STACK webhook URL for stack
+#                             23 (sentinel-ops-app):
+#                             https://<portainer-host>/api/stacks/webhooks/<uuid>
+#                             Enable it on the stack after converting stack 23 to
+#                             a Git stack pointing at bentech-infra
+#                             stacks/sentinel-ops-app.yml. Treat as a secret.
+#                               gh secret set PORTAINER_WEBHOOK_SENTINEL -R lewis159/sentinel
+#
+# Until BOTH secrets are set, the entire redeploy chain is SKIPPED (not failed),
+# so the workflow still passes before the webhook/PAT are provisioned. Once set,
+# a failed push or a non-2xx webhook POST fails the job loudly.
 
 on:
   push:
@@ -26,13 +45,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: read      # cross-repo push uses GITOPS_INFRA_TOKEN, not GITHUB_TOKEN
       packages: write
-    # Map the (possibly-unset) secret to a job-level env var so the redeploy
-    # step's `if:` can gate on it. Secrets can't be referenced directly in an
-    # `if:` expression, and a secret mapped at STEP level isn't visible to that
-    # same step's own `if:` — so it must live at job level.
+    # Map the (possibly-unset) redeploy secrets to job-level env vars so each
+    # redeploy step's `if:` can gate on them. Secrets can't be referenced
+    # directly in an `if:` expression, and a secret mapped at STEP level isn't
+    # visible to that same step's own `if:` — so they must live at job level.
     env:
+      INFRA_TOKEN: ${{ secrets.GITOPS_INFRA_TOKEN }}
       HOOK: ${{ secrets.PORTAINER_WEBHOOK_SENTINEL }}
     steps:
       - uses: actions/checkout@v4
@@ -61,15 +81,52 @@ jobs:
           build-args: |
             NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
 
-      # Auto-redeploy: POST the opaque Portainer service webhook so Portainer
-      # re-pulls :latest and rolls the service. Runs only for prod deploys
-      # (push to main, or a manual workflow_dispatch) — never for the
-      # feat/clerk-auth build. Skipped when the secret is unset (env.HOOK == '');
-      # -f makes curl exit non-zero on any non-2xx response, so a broken/misfired
-      # webhook fails the job loudly instead of passing silently.
-      - name: Trigger Portainer redeploy
-        if: ${{ (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && env.HOOK != '' }}
+      # ── GitOps redeploy (flavor B) ─────────────────────────────────────────
+      # All three steps below run ONLY for prod deploys (push to main, or a
+      # manual workflow_dispatch) AND only when BOTH redeploy secrets are set
+      # (env.INFRA_TOKEN != '' && env.HOOK != ''). Any of those unmet => the
+      # step is skipped-green, so the feat/clerk-auth build and the
+      # not-yet-provisioned state both pass.
+
+      - name: Checkout bentech-infra (GitOps stack repo)
+        if: ${{ (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && env.INFRA_TOKEN != '' && env.HOOK != '' }}
+        uses: actions/checkout@v4
+        with:
+          repository: lewis159/bentech-infra
+          ref: main
+          token: ${{ secrets.GITOPS_INFRA_TOKEN }}
+          path: infra
+          persist-credentials: true
+
+      - name: Bump image SHA in bentech-infra & push
+        id: bump
+        if: ${{ (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && env.INFRA_TOKEN != '' && env.HOOK != '' }}
+        working-directory: infra
         run: |
-          echo "Triggering Portainer service webhook for Sentinel..."
+          set -euo pipefail
+          NEW_SHA="${{ github.sha }}"
+          FILE="stacks/sentinel-ops-app.yml"
+          # Precise, anchored replace: only the 40-hex tag on the sentinel image
+          # line. Anchored on the literal prefix, matches exactly 40 hex chars,
+          # so it can never touch :latest/:staging or any other line.
+          sed -E -i "s|(image: ghcr\.io/lewis159/sentinel:)[0-9a-f]{40}|\1${NEW_SHA}|" "$FILE"
+          if git diff --quiet -- "$FILE"; then
+            echo "Image already pinned to ${NEW_SHA} — nothing to commit; skipping push + redeploy."
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git config user.name  "sentinel-ci[bot]"
+          git config user.email "sentinel-ci[bot]@users.noreply.github.com"
+          git add "$FILE"
+          git commit -m "deploy(sentinel): ops.bentech.dev -> ${NEW_SHA::7}"
+          git push origin HEAD:main
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Trigger Portainer git-stack redeploy
+        # Only POST when a new commit was actually pushed (a no-op bump leaves the
+        # git stack unchanged, so there's nothing new to redeploy).
+        if: ${{ steps.bump.outputs.pushed == 'true' && env.INFRA_TOKEN != '' && env.HOOK != '' }}
+        run: |
+          echo "POSTing Portainer git-stack webhook for sentinel-ops-app (stack 23)..."
           curl -fsS -X POST "$HOOK"
-          echo "Portainer redeploy triggered."
+          echo "Portainer git-stack redeploy triggered."

@@ -15,6 +15,14 @@ name: Build & Push (STAGING) Sentinel
 # :staging-<sha> (+ moving :staging) so it can never be mistaken for a prod
 # (:latest) image.
 #
+# NOTE ON REDEPLOY MECHANISM: this staging workflow intentionally keeps the
+# service-webhook redeploy below, NOT the GitOps git-stack flow used by prod
+# (build-push.yml). Staging is NOT a git-managed Portainer stack: its compose
+# file (sentinel-ops-staging.yml) is not captured in bentech-infra, so there is
+# no stack file to bump and no git-stack webhook to POST. If/when the staging
+# stack is captured into bentech-infra and converted to a Git stack, migrate
+# this to the same flavor-B flow as build-push.yml.
+#
 # Optional auto-redeploy of the STAGING service uses its OWN independent secret
 # so it can never touch the prod service:
 #   Redeploy secret: PORTAINER_WEBHOOK_SENTINEL_STAGING
