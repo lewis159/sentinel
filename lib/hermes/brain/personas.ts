@@ -4,6 +4,7 @@
 // for one persona and auto for another). P0 ships one persona: `pa`.
 import type { ToolAutonomy } from './tools/types';
 import { PA_SOUL } from './personas/pa';
+import { COPILOT_PERSONAS, type CopilotMeta } from './personas/copilots';
 
 export type Persona = {
   id: string;
@@ -14,6 +15,10 @@ export type Persona = {
   autonomyByTool?: Record<string, ToolAutonomy>;
   // Optional OpenRouter model override; falls back to the configured global model.
   model?: string;
+  // Present on the five DRAFT-ONLY department copilots (support/incident/
+  // escalation/billing/security). Carries how their user turn + KB block are
+  // phrased so the runner (brain/copilot.ts) reproduces each draft verbatim.
+  copilot?: CopilotMeta;
 };
 
 export const PA_PERSONA: Persona = {
@@ -25,7 +30,20 @@ export const PA_PERSONA: Persona = {
   model: process.env.HERMES_PA_MODEL || undefined,
 };
 
-const PERSONAS = new Map<string, Persona>([[PA_PERSONA.id, PA_PERSONA]]);
+// The five department copilots, registered from personas/copilots.ts. Each has a
+// per-persona model override env (HERMES_<ID>_MODEL) but defaults to the global.
+const COPILOT_PERSONA_LIST: Persona[] = COPILOT_PERSONAS.map((c) => ({
+  id: c.id,
+  systemPrompt: c.systemPrompt,
+  allowedTools: c.allowedTools,
+  copilot: c.copilot,
+  model: process.env[`HERMES_${c.id.toUpperCase()}_MODEL`] || undefined,
+}));
+
+const PERSONAS = new Map<string, Persona>([
+  [PA_PERSONA.id, PA_PERSONA],
+  ...COPILOT_PERSONA_LIST.map((p): [string, Persona] => [p.id, p]),
+]);
 
 export function getPersona(id: string): Persona | undefined {
   return PERSONAS.get(id);

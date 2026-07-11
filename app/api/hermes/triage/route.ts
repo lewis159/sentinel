@@ -18,11 +18,7 @@
 import { NextResponse } from 'next/server';
 import { requireSectionApi } from '@/lib/auth';
 import { getServiceTicket, getOneTicket } from '@/lib/data';
-import { draftSupportReply } from '@/lib/hermes/support-agent';
-import { assessIncident } from '@/lib/hermes/incident-agent';
-import { draftEscalation } from '@/lib/hermes/escalation-agent';
-import { assessBilling } from '@/lib/hermes/billing-agent';
-import { assessSecurity } from '@/lib/hermes/security-agent';
+import { runCopilotProposal } from '@/lib/hermes/brain/copilot';
 import { saveProposal } from '@/lib/hermes/proposals';
 import { AGENT_META, type AgentKey } from '@/lib/hermes/agent-meta';
 
@@ -92,26 +88,9 @@ export async function POST(req: Request) {
 
     const agentInput = { ref, title, description, priority, status };
 
-    // Dispatch to the chosen department agent. Each returns a HermesProposal.
-    let proposal;
-    switch (agent) {
-      case 'incident':
-        proposal = await assessIncident(agentInput);
-        break;
-      case 'escalation':
-        proposal = await draftEscalation(agentInput);
-        break;
-      case 'billing':
-        proposal = await assessBilling(agentInput);
-        break;
-      case 'security':
-        proposal = await assessSecurity(agentInput);
-        break;
-      case 'support':
-      default:
-        proposal = await draftSupportReply(agentInput);
-        break;
-    }
+    // Route through the shared Brain: `agent` is also the copilot persona id
+    // (support/incident/escalation/billing/security). Returns a HermesProposal.
+    const proposal = await runCopilotProposal({ persona: agent, input: agentInput });
 
     // On a successful proposal, persist it so it feeds the approval queue.
     // Returns null in dev (no DB) — the queue is simply empty there.
