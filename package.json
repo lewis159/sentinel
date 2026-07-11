@@ -15,6 +15,9 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^5.7.0",
+    "@langchain/core": "^1.2.2",
+    "@langchain/langgraph": "^1.4.7",
+    "@langchain/langgraph-checkpoint-postgres": "^1.0.4",
     "@supabase/supabase-js": "^2.108.2",
     "@types/react-grid-layout": "^1.3.6",
     "cytoscape": "^3.34.0",
@@ -23,7 +26,8 @@
     "pg": "^8.21.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-grid-layout": "^1.5.2"
+    "react-grid-layout": "^1.5.2",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@clerk/testing": "^1.3.0",
