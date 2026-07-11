@@ -32,24 +32,26 @@ import { createTicket, getServiceTicket, addTicketComment, updateTicket } from '
 import { verifySupportIntake } from '@/lib/ingest-auth';
 import { intakeEnabled } from '@/lib/hermes/brain/flags';
 import { runCopilotProposal } from '@/lib/hermes/brain/copilot';
+import {
+  clientIp, corsHeaders, readCappedText, isJsonContentType,
+  chatBodySchema, CAPS, RATE,
+} from '@/lib/intake-guards';
+import { checkRateLimit } from '@/lib/rate-limit';
 import type { Severity } from '@/lib/mock';
 
 export const dynamic = 'force-dynamic';
 
-// CORS: the widget fetches from the customer app's origin (scribuo.com). The
-// token/HMAC is the real access control; CORS just lets the browser fetch succeed.
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, x-ingest-token, x-ingest-signature, Authorization',
-};
+const METHODS = 'POST, OPTIONS';
 
-function json(body: unknown, status = 200) {
-  return Response.json(body, { status, headers: CORS });
+// CORS: the widget fetches from the customer app's origin (scribuo.com). The
+// token/HMAC is the real access control; CORS is scoped to SUPPORT_CORS_ALLOWED_ORIGINS
+// when set (else '*' for back-compat). No credentials are ever used.
+function json(req: Request, body: unknown, status = 200, extra?: Record<string, string>) {
+  return Response.json(body, { status, headers: { ...corsHeaders(req, METHODS), ...extra } });
 }
 
-export async function OPTIONS() {
-  return new Response(null, { status: 204, headers: CORS });
+export async function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: corsHeaders(req, METHODS) });
 }
 
 // Confidence (0-100) at/under which an L1 answer is treated as not good enough to
@@ -90,26 +92,41 @@ function str(v: unknown): string | undefined {
 }
 
 export async function POST(req: Request) {
-  const raw = await req.text();
+  // 1. Content-type + size cap BEFORE any auth / DB / LLM work.
+  if (!isJsonContentType(req)) return json(req, { error: 'content-type must be application/json' }, 415);
+  const { raw, tooLarge } = await readCappedText(req, CAPS.chatBodyBytes);
+  if (tooLarge) return json(req, { error: 'payload too large' }, 413);
 
-  const authed = verifySupportIntake(req, raw);
-  if (!authed.ok) return json({ error: authed.error }, authed.status);
-
-  if (!intakeEnabled()) {
-    return json({ error: 'support intake disabled' }, 503);
+  // 2. Per-IP sliding-window rate limit (LLM-cost + ticket-spam control). Placed
+  // before auth so an invalid-token flood is throttled too. Per-instance only.
+  const rl = checkRateLimit(`chat:${clientIp(req)}`, { limit: RATE.chatPerMin, windowMs: RATE.windowMs });
+  if (!rl.ok) {
+    return json(req, { error: 'rate limit exceeded' }, 429, { 'Retry-After': String(rl.retryAfterSec) });
   }
 
-  let body: any;
-  try { body = JSON.parse(raw); } catch { return json({ error: 'invalid JSON body' }, 400); }
+  // 3. Auth (token/HMAC over the exact raw bytes) + feature flag.
+  const authed = verifySupportIntake(req, raw);
+  if (!authed.ok) return json(req, { error: authed.error }, authed.status);
 
-  const message = str(body?.message);
-  if (!message) return json({ error: 'message is required' }, 400);
+  if (!intakeEnabled()) {
+    return json(req, { error: 'support intake disabled' }, 503);
+  }
 
-  const email = str(body?.email);
-  const name = str(body?.name);
-  const tenantRef = str(body?.tenantRef) ?? null; // Clerk org id if signed in, else null
-  const escalate = body?.escalate === true;
-  const requestedConversationId = str(body?.conversationId);
+  // 4. Parse + strictly validate/bound every field.
+  let parsedJson: unknown;
+  try { parsedJson = JSON.parse(raw); } catch { return json(req, { error: 'invalid JSON body' }, 400); }
+  const parsed = chatBodySchema.safeParse(parsedJson);
+  if (!parsed.success) return json(req, { error: 'invalid request' }, 400);
+  const body = parsed.data;
+
+  const message = str(body.message);
+  if (!message) return json(req, { error: 'message is required' }, 400);
+
+  const email = str(body.email);
+  const name = str(body.name);
+  const tenantRef = str(body.tenantRef) ?? null; // Clerk org id if signed in, else null (UNTRUSTED hint)
+  const escalate = body.escalate === true;
+  const requestedConversationId = str(body.conversationId);
 
   // Identity carried ONLY through attrs (the shared multi-tenant contract).
   const identityAttrs = {
@@ -134,7 +151,7 @@ export async function POST(req: Request) {
         kind: 'request',
         title,
         description: message,
-        app: str(body?.app) ?? 'Scribuo',
+        app: str(body.app) ?? 'Scribuo',
         impact: 'medium',
         urgency: 'medium',
         status: 'new', // support-queue inbox state
@@ -165,7 +182,7 @@ export async function POST(req: Request) {
         (email ? ` by email at ${email}` : ' shortly') +
         `. Your reference is ${ref}.`;
       await addTicketComment(ref, reply, 'Hermes · Support', 'ai-reply');
-      return json({ reply, chunks: [reply], ticketRef: ref, conversationId: ref, escalated: true, confidence: null });
+      return json(req, { reply, chunks: [reply], ticketRef: ref, conversationId: ref, escalated: true, confidence: null });
     }
 
     // --- 4. L1 grounded answer via the DRAFT-ONLY support copilot ----------
@@ -185,7 +202,7 @@ export async function POST(req: Request) {
         // Keep the ticket's priority in step with the copilot's read (no status change).
         await updateTicket(ref, { priority: toSeverity(proposal.priority) });
       }
-      return json({
+      return json(req, {
         reply: draft,
         chunks: chunkReply(draft),
         ticketRef: ref,
@@ -214,7 +231,7 @@ export async function POST(req: Request) {
       (email ? ` at ${email}` : ' shortly') +
       `. Your reference is ${ref}.`;
     await addTicketComment(ref, holding, 'Hermes · Support', 'ai-reply');
-    return json({
+    return json(req, {
       reply: holding,
       chunks: [holding],
       ticketRef: ref,
@@ -223,6 +240,8 @@ export async function POST(req: Request) {
       confidence,
     });
   } catch (e: any) {
-    return json({ ok: false, error: e?.message ?? 'chat intake failed' }, 500);
+    // Never leak internal error detail to the public caller.
+    console.error('[support/chat] intake failed:', e?.message ?? e);
+    return json(req, { ok: false, error: 'chat intake failed' }, 500);
   }
 }

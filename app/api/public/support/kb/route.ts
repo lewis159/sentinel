@@ -14,21 +14,29 @@
 import { verifySupportIntake } from '@/lib/ingest-auth';
 import { intakeEnabled } from '@/lib/hermes/brain/flags';
 import { retrieveKb } from '@/lib/hermes/kb-context';
+import {
+  clientIp, corsHeaders, readCappedText, isJsonContentType,
+  kbBodySchema, CAPS, RATE,
+} from '@/lib/intake-guards';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, x-ingest-token, x-ingest-signature, Authorization',
-};
+const METHODS = 'GET, POST, OPTIONS';
 
-function json(body: unknown, status = 200) {
-  return Response.json(body, { status, headers: CORS });
+function json(req: Request, body: unknown, status = 200, extra?: Record<string, string>) {
+  return Response.json(body, { status, headers: { ...corsHeaders(req, METHODS), ...extra } });
 }
 
-export async function OPTIONS() {
-  return new Response(null, { status: 204, headers: CORS });
+export async function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: corsHeaders(req, METHODS) });
+}
+
+// Per-IP rate limit shared by GET and POST. Returns a 429 Response when tripped.
+function rateLimited(req: Request): Response | null {
+  const rl = checkRateLimit(`kb:${clientIp(req)}`, { limit: RATE.kbPerMin, windowMs: RATE.windowMs });
+  if (rl.ok) return null;
+  return json(req, { error: 'rate limit exceeded' }, 429, { 'Retry-After': String(rl.retryAfterSec) });
 }
 
 // Public base for KB deep-links back into the live v2 KB (article slugs resolve
@@ -36,41 +44,56 @@ export async function OPTIONS() {
 const KB_BASE = (process.env.SUPPORT_KB_PUBLIC_BASE ?? '').replace(/\/$/, '');
 
 async function handle(req: Request, query: string, limit: number) {
-  const results = (await retrieveKb(query, limit)).map((a) => ({
-    slug: a.slug,
-    title: a.title,
-    body: a.body,
-    url: KB_BASE ? `${KB_BASE}/v2/kb/${a.slug}` : `/v2/kb/${a.slug}`,
-  }));
-  // Coarse status surfaced alongside deflection results. There is no live status
-  // source wired to this public surface yet, so we report a static 'operational';
-  // when a status source lands, resolve it here without changing the contract.
-  return json({ results, status: 'operational' });
+  try {
+    const results = (await retrieveKb(query, limit)).map((a) => ({
+      slug: a.slug,
+      title: a.title,
+      body: a.body,
+      url: KB_BASE ? `${KB_BASE}/v2/kb/${a.slug}` : `/v2/kb/${a.slug}`,
+    }));
+    // Coarse status surfaced alongside deflection results. There is no live status
+    // source wired to this public surface yet, so we report a static 'operational';
+    // when a status source lands, resolve it here without changing the contract.
+    return json(req, { results, status: 'operational' });
+  } catch (e: any) {
+    console.error('[support/kb] search failed:', e?.message ?? e);
+    return json(req, { error: 'kb search failed' }, 500);
+  }
 }
 
 export async function GET(req: Request) {
+  const limited = rateLimited(req);
+  if (limited) return limited;
   // GET has no body to HMAC-sign; the widget presents the token header.
   const authed = verifySupportIntake(req, '');
-  if (!authed.ok) return json({ error: authed.error }, authed.status);
-  if (!intakeEnabled()) return json({ error: 'support intake disabled' }, 503);
+  if (!authed.ok) return json(req, { error: authed.error }, authed.status);
+  if (!intakeEnabled()) return json(req, { error: 'support intake disabled' }, 503);
 
   const url = new URL(req.url);
-  const q = (url.searchParams.get('q') ?? '').trim();
-  if (!q) return json({ results: [], status: 'operational' });
+  const q = (url.searchParams.get('q') ?? '').trim().slice(0, CAPS.query);
+  if (!q) return json(req, { results: [], status: 'operational' });
   const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 3, 1), 8);
   return handle(req, q, limit);
 }
 
 export async function POST(req: Request) {
-  const raw = await req.text();
-  const authed = verifySupportIntake(req, raw);
-  if (!authed.ok) return json({ error: authed.error }, authed.status);
-  if (!intakeEnabled()) return json({ error: 'support intake disabled' }, 503);
+  const limited = rateLimited(req);
+  if (limited) return limited;
+  if (!isJsonContentType(req)) return json(req, { error: 'content-type must be application/json' }, 415);
+  const { raw, tooLarge } = await readCappedText(req, CAPS.kbBodyBytes);
+  if (tooLarge) return json(req, { error: 'payload too large' }, 413);
 
-  let body: any;
-  try { body = raw ? JSON.parse(raw) : {}; } catch { return json({ error: 'invalid JSON body' }, 400); }
-  const q = (typeof body?.q === 'string' ? body.q : '').trim();
-  if (!q) return json({ results: [], status: 'operational' });
-  const limit = Math.min(Math.max(Number(body?.limit) || 3, 1), 8);
+  const authed = verifySupportIntake(req, raw);
+  if (!authed.ok) return json(req, { error: authed.error }, authed.status);
+  if (!intakeEnabled()) return json(req, { error: 'support intake disabled' }, 503);
+
+  let parsedJson: unknown;
+  try { parsedJson = raw ? JSON.parse(raw) : {}; } catch { return json(req, { error: 'invalid JSON body' }, 400); }
+  const parsed = kbBodySchema.safeParse(parsedJson);
+  if (!parsed.success) return json(req, { error: 'invalid request' }, 400);
+
+  const q = (parsed.data.q ?? '').trim();
+  if (!q) return json(req, { results: [], status: 'operational' });
+  const limit = Math.min(Math.max(parsed.data.limit ?? 3, 1), 8);
   return handle(req, q, limit);
 }
