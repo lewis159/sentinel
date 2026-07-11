@@ -36,6 +36,7 @@ import { getTool, toolsFor, toOpenAiTools } from './tools';
 import type { ToolContext } from './tools/types';
 import { getCheckpointer } from './checkpointer';
 import { brainEnabled } from './flags';
+import { resolveAutonomy, type AutonomyMode } from './autonomy';
 
 // ---------- decision carried across an interrupt on resume ----------
 export type ApprovalDecision = { approved: boolean; by: string; reason?: string };
@@ -102,26 +103,37 @@ async function toolsNode(state: BrainStateT): Promise<Partial<BrainStateT>> {
   const last = state.messages[state.messages.length - 1];
   const calls = last && last.role === 'assistant' ? last.tool_calls ?? [] : [];
 
-  // Parse each wire call back into {id, name, args, gated}.
-  const parsed = calls.map((wc) => {
-    let args: Record<string, unknown> = {};
-    try {
-      args = wc.function.arguments ? JSON.parse(wc.function.arguments) : {};
-    } catch {
-      args = {};
-    }
-    const tool = getTool(wc.function.name);
-    const gated =
-      tool && persona ? autonomyFor(persona, tool.name, tool.autonomy) === 'gated' : false;
-    return { id: wc.id, name: wc.function.name, args, tool, gated };
-  });
+  const persona_id_early = state.persona ?? 'pa';
 
-  // PHASE 1 — collect approval decisions for gated calls. interrupt() throws the
+  // Parse each wire call back into {id, name, args, mode}. The effective mode is
+  // resolved through the autonomy CONFIG STORE (DB dial → persona override → tool
+  // default), so flipping a dial in the settings UI changes gate behaviour here
+  // with no code change. See lib/hermes/brain/autonomy.ts + settings/hermes.
+  const parsed = await Promise.all(
+    calls.map(async (wc) => {
+      let args: Record<string, unknown> = {};
+      try {
+        args = wc.function.arguments ? JSON.parse(wc.function.arguments) : {};
+      } catch {
+        args = {};
+      }
+      const tool = getTool(wc.function.name);
+      // Static fallback = persona override → tool's own default ('auto'|'gated').
+      const fallback: AutonomyMode =
+        tool && persona ? autonomyFor(persona, tool.name, tool.autonomy) : 'auto';
+      const mode: AutonomyMode = tool
+        ? await resolveAutonomy(persona_id_early, tool.name, fallback)
+        : 'auto';
+      return { id: wc.id, name: wc.function.name, args, tool, mode };
+    }),
+  );
+
+  // PHASE 1 — collect approval decisions for GATED calls. interrupt() throws the
   // first time (pausing the graph) and returns the decision on resume. No tool
   // side-effects happen here, so re-running the node on resume is safe.
   const decisions = new Map<string, ApprovalDecision>();
   for (const c of parsed) {
-    if (!c.gated || !c.tool) continue;
+    if (c.mode !== 'gated' || !c.tool) continue;
     const decision = interrupt({
       kind: 'approval',
       tool: c.name,
@@ -142,7 +154,20 @@ async function toolsNode(state: BrainStateT): Promise<Partial<BrainStateT>> {
       out.push({ role: 'tool', tool_call_id: c.id, content: `Unknown tool: ${c.name}` });
       continue;
     }
-    if (c.gated) {
+    // draft_only — the agent may PROPOSE the call, but nothing executes (even
+    // "safe" reads). Record the proposed call so the model can present it.
+    if (c.mode === 'draft_only') {
+      const describe = c.tool.describeCall
+        ? c.tool.describeCall(c.args)
+        : `${c.name}(${JSON.stringify(c.args)})`;
+      out.push({
+        role: 'tool',
+        tool_call_id: c.id,
+        content: `NOT executed — "${c.name}" is draft-only for the ${persona_id} persona. Proposed call: ${describe}. Present this as a recommendation for a human; do not claim it was done.`,
+      });
+      continue;
+    }
+    if (c.mode === 'gated') {
       const d = decisions.get(c.id);
       if (!d || !d.approved) {
         out.push({

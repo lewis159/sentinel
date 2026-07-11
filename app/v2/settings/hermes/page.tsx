@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { requireSectionPage } from '@/lib/auth';
 import HermesProviderSettings from '@/components/v2/HermesProviderSettings';
+import HermesAutonomyDials from '@/components/v2/HermesAutonomyDials';
 import '../settings.css';
 
 export const dynamic = 'force-dynamic';
@@ -15,25 +16,6 @@ const AGENTS: { name: string; color: string }[] = [
   { name: 'Risk', color: PURPLE },
   { name: 'CTO', color: PURPLE },
   { name: 'Orchestrator', color: 'var(--sky)' },
-];
-
-type Handling = { label: string; kind: 'auto' | 'draft' | 'human' };
-const INTENTS: { intent: string; handling: Handling }[] = [
-  { intent: 'FAQ / how-to', handling: { label: 'Auto-resolve', kind: 'auto' } },
-  { intent: 'Status / usage lookup', handling: { label: 'Auto-send', kind: 'auto' } },
-  { intent: 'Account basics', handling: { label: 'Draft', kind: 'draft' } },
-  { intent: 'Refund / credit', handling: { label: 'Human only', kind: 'human' } },
-  { intent: 'Quota / entitlement', handling: { label: 'Draft + gate', kind: 'draft' } },
-  { intent: 'Cancellation', handling: { label: 'Human only', kind: 'human' } },
-];
-
-const THRESHOLDS: { label: string; value: string }[] = [
-  { label: 'Auto-refund cap', value: '£15' },
-  { label: 'Refund cap / customer / 30d', value: '£30' },
-  { label: 'Quota bump max', value: '2× tier' },
-  { label: 'Bump time-box', value: '14 days' },
-  { label: 'Auto-actions / customer / wk', value: '1' },
-  { label: 'Founder approval SLA', value: '4 hrs' },
 ];
 
 const RULES: { cond: string; who: string[] }[] = [
@@ -64,7 +46,6 @@ export default async function V2HermesGovernancePage() {
             You hold the dials — set what each agent may do alone, what needs you, and when to escalate.
           </div>
         </div>
-        <button className="v2-btn">Save changes</button>
       </div>
 
       <div className="v2-set-content">
@@ -98,53 +79,20 @@ export default async function V2HermesGovernancePage() {
           </div>
         </div>
 
-        {/* 2 — Autonomy by intent */}
+        {/* 2 — Autonomy dials (live) — persona × tool modes + thresholds. These
+            are the REAL gates the Brain reads (resolveAutonomy); saving persists
+            to hermes.autonomy_config and changes gate behaviour with no redeploy. */}
         <div className="v2-card v2-set-hcard">
           <div className="v2-card-h">
             <div className="v2-set-ch">
-              <h3>Autonomy by intent</h3>
-              <span className="st">What Hermes may do on its own for each request type.</span>
+              <h3>Autonomy dials</h3>
+              <span className="st">
+                What each persona may do per tool — auto, gated (needs approval), or draft-only.
+                These are the live gates the Brain enforces.
+              </span>
             </div>
           </div>
-          <table className="v2-table">
-            <thead>
-              <tr>
-                <th>Intent</th>
-                <th>Handling</th>
-              </tr>
-            </thead>
-            <tbody>
-              {INTENTS.map((r) => (
-                <tr key={r.intent}>
-                  <td>{r.intent}</td>
-                  <td>
-                    <span className={`v2-set-hpill ${r.handling.kind}`}>{r.handling.label}</span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* 3 — Approval thresholds */}
-        <div className="v2-card v2-set-hcard">
-          <div className="v2-card-h">
-            <div className="v2-set-ch">
-              <h3>Approval thresholds</h3>
-              <span className="st">Hard limits before a human must sign off.</span>
-            </div>
-          </div>
-          <div className="v2-set-hbody">
-            <div className="v2-set-thresh">
-              {THRESHOLDS.map((t) => (
-                <div key={t.label} className="v2-set-field">
-                  <span className="v2-set-label">{t.label}</span>
-                  <div className="v2-set-input">{t.value}</div>
-                </div>
-              ))}
-            </div>
-            <div className="v2-set-foot">If unanswered past SLA → auto-hold.</div>
-          </div>
+          <HermesAutonomyDials />
         </div>
 
         {/* 4 — Escalation routing */}
