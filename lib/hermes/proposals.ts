@@ -133,11 +133,55 @@ export async function listProposals(opts?: {
 }
 
 /**
+ * Persist a Brain gated-action proposal (the interrupt → proposal half of the
+ * action spine). Carries the pending tool call inside `proposal.action` so the
+ * Approve path can resume the graph and run the tool for real. Returns the id.
+ */
+export async function saveActionProposal(p: {
+  ref: string;
+  agent: string;
+  title: string;
+  summary: string;
+  tool: string;
+  args: Record<string, unknown>;
+  threadId: string;
+  callId?: string;
+  persona?: string;
+  describe?: string;
+}): Promise<string | null> {
+  const proposal: HermesProposal = {
+    ok: true,
+    configured: true,
+    classification: p.describe ?? `${p.tool} (pending approval)`,
+    draft: p.describe,
+    reasoning: `Gated tool "${p.tool}" is awaiting your approval before it runs.`,
+    action: {
+      tool: p.tool,
+      args: p.args,
+      threadId: p.threadId,
+      callId: p.callId,
+      persona: p.persona,
+    },
+  };
+  return saveProposal({
+    ref: p.ref,
+    agent: p.agent,
+    kind: 'action',
+    title: p.title,
+    summary: p.summary,
+    proposal,
+  });
+}
+
+/**
  * Act on a proposal from the approval queue.
- *   - approve:    if the proposal carries a draft, post it to the ticket as a
- *                 reply, then mark it sent.
+ *   - approve:    ACTION proposals (proposal.action present) → resume the paused
+ *                 Brain graph and RUN the gated tool for real, then record the
+ *                 result + decision. DRAFT proposals → post the draft to the
+ *                 ticket as a reply (legacy copilot behaviour). Either way → sent.
  *   - mark-sent:  mark sent WITHOUT posting (reply already sent elsewhere).
- *   - dismiss:    mark dismissed.
+ *   - dismiss:    ACTION proposals → resume the graph with a rejection so the
+ *                 agent can respond; then mark dismissed. DRAFT → just dismiss.
  */
 export async function actOnProposal(
   id: string,
@@ -153,11 +197,35 @@ export async function actOnProposal(
     );
     if (!rec) return { ok: false, error: 'proposal not found' };
 
+    const proposal: HermesProposal =
+      typeof rec.proposal === 'string' ? JSON.parse(rec.proposal) : rec.proposal;
+    const isAction = Boolean(proposal?.action?.tool && proposal?.action?.threadId);
+
     if (action === 'approve') {
-      const proposal: HermesProposal =
-        typeof rec.proposal === 'string'
-          ? JSON.parse(rec.proposal)
-          : rec.proposal;
+      if (isAction) {
+        // Resume the paused graph and execute the gated tool for real.
+        const { resumeThread } = await import('@/lib/hermes/brain/graph');
+        const res = await resumeThread({
+          threadId: proposal.action!.threadId,
+          decision: { approved: true, by },
+        });
+        if (res.status === 'error') return { ok: false, error: res.error };
+        if (res.status === 'disabled')
+          return { ok: false, error: 'Hermes Brain is disabled (HERMES_BRAIN_ENABLED)' };
+        // Persist the execution result back onto the proposal for audit/history.
+        const executed: HermesProposal = {
+          ...proposal,
+          action: { ...proposal.action!, result: res.toolResult, executedAt: new Date().toISOString() },
+        };
+        await q(
+          `update ops.hermes_proposals
+              set status = 'sent', decided_at = now(), decided_by = $2, proposal = $3::jsonb
+            where id = $1`,
+          [id, by, JSON.stringify(executed)],
+        );
+        return { ok: true };
+      }
+
       if (proposal?.draft && rec.ref) {
         await addTicketComment(rec.ref, proposal.draft, by, 'reply');
       }
@@ -180,7 +248,19 @@ export async function actOnProposal(
       return { ok: true };
     }
 
-    // dismiss
+    // dismiss — for an ACTION proposal, resume the graph with a rejection so the
+    // agent replies accordingly (best-effort; we still mark it dismissed).
+    if (isAction) {
+      try {
+        const { resumeThread } = await import('@/lib/hermes/brain/graph');
+        await resumeThread({
+          threadId: proposal.action!.threadId,
+          decision: { approved: false, by, reason: 'declined from the approval queue' },
+        });
+      } catch {
+        /* best-effort — dismissal still records below */
+      }
+    }
     await q(
       `update ops.hermes_proposals
           set status = 'dismissed', decided_at = now(), decided_by = $2
