@@ -153,6 +153,9 @@ export type ServiceTicket = {
   status: string; priority: Severity; impact: string; urgency: string;
   app: EstateApp | string; assignee: string; source: string;
   slaDue: string | null; age: string;
+  // P3 — when the assignee was set (first-class ops.tickets.assigned_at). Optional
+  // so existing rows/mocks that predate assignment stay valid.
+  assignedAt?: string | null;
   // P2 multi-tenancy — the tenant (Clerk org id) + customer contact this ticket
   // belongs to. Null on internal/estate tickets. Read-through from attrs when a
   // column is unset (see lib/data.ts mapServiceTicket).

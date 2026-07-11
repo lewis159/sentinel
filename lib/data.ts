@@ -580,7 +580,12 @@ function mapServiceTicket(r: any): ServiceTicket {
     impact: r.impact ?? '—',
     urgency: r.urgency ?? '—',
     app: r.app ?? 'Estate',
-    assignee: attrs.assignee ?? '—',
+    // P3 — prefer the first-class assignee column, falling back to the attrs
+    // contract for rows written before the column existed (read-through).
+    assignee: r.assignee ?? attrs.assignee ?? '—',
+    assignedAt: r.assigned_at
+      ? (r.assigned_at instanceof Date ? r.assigned_at.toISOString() : r.assigned_at)
+      : null,
     source: r.source ?? 'manual',
     slaDue: r.sla_due ? (r.sla_due instanceof Date ? r.sla_due.toISOString() : r.sla_due) : null,
     age: rel(r.opened_at ?? r.created_at),
@@ -599,7 +604,7 @@ function safeJson(s: string): any {
 }
 
 const TICKET_COLS =
-  'ref,kind,title,description,status,priority,impact,urgency,app,source,sla_due,opened_at,created_at,tenant_ref,customer_email,customer_name,attrs';
+  'ref,kind,title,description,status,priority,impact,urgency,app,source,sla_due,opened_at,created_at,tenant_ref,customer_email,customer_name,assignee,assigned_at,attrs';
 
 // All ITIL records of a given kind (incident|request|change|problem|release).
 //
@@ -951,6 +956,64 @@ export async function updateTicket(
     vals
   );
   return { row: data ? mapServiceTicket(data) : null };
+}
+
+// ---------- P3 — ticket ownership (assignment) ----------
+// Set a ticket's owner. Writes the first-class assignee column + assigned_at AND
+// mirrors attrs.assignee (the shared contract) so readers on either side resolve
+// the same owner. Pass assignee '' or '—' to UNASSIGN (clears the column + stamp).
+// Additive — does not change updateTicket's signature or the createTicket path.
+export async function assignTicket(
+  ref: string,
+  assigneeId: string,
+): Promise<{ row: ServiceTicket | null }> {
+  if (!hasDb) throw new Error('no DB');
+  const clean = (assigneeId ?? '').trim();
+  const unassign = clean === '' || clean === '—';
+
+  const data = await q1<any>(
+    `update ops.tickets
+        set assignee    = $2,
+            assigned_at = case when $2 is null then null else now() end,
+            attrs = coalesce(attrs, '{}'::jsonb)
+                    || jsonb_build_object('assignee', coalesce($2, '—')),
+            updated_at  = now()
+      where ref = $1
+      returning ${TICKET_COLS}`,
+    [ref, unassign ? null : clean],
+  );
+  return { row: data ? mapServiceTicket(data) : null };
+}
+
+// Every open-ish ticket owned by `assigneeId` (a Clerk user id / label), newest
+// first — powers an "assigned to me" queue. Matches the first-class column, with
+// an attrs.assignee fallback for rows written before the column existed.
+export async function getTicketsAssignedTo(
+  assigneeId: string,
+): Promise<Sourced<ServiceTicket>> {
+  const id = (assigneeId ?? '').trim();
+  if (!hasDb || !id) {
+    return {
+      rows: mock.serviceTickets.filter((t) => t.assignee === id),
+      live: false,
+      note: hasDb ? 'no assignee' : 'no DB',
+    };
+  }
+  try {
+    const data = await q<any>(
+      `select ${TICKET_COLS} from ops.tickets
+        where assignee = $1 or attrs->>'assignee' = $1
+        order by opened_at desc nulls last`,
+      [id],
+    );
+    return { rows: data.map(mapServiceTicket), live: true };
+  } catch (e: any) {
+    return {
+      rows: mock.serviceTickets.filter((t) => t.assignee === id),
+      live: false,
+      note: e?.message ?? 'error',
+    };
+  }
 }
 
 // ---------- Related-record creation + linking (ops.links) ----------
