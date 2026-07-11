@@ -157,6 +157,65 @@ describe('getTicketsByKind tenant scoping', () => {
 });
 
 // ---------------------------------------------------------------------------
+// getTicketsByKind — zero-rows vs no-DB (the tenant-isolation invariant).
+//
+// The mock fallback (fabricated ticket rows) must fire ONLY when the query
+// could not run (no DB / connection error), NEVER when a real query returned
+// zero rows. A tenant-scoped call must never surface mock rows at all — so a
+// tenant with genuinely no tickets can never be shown another/fake tenant's
+// data. `live` must stay accurate: real-but-empty = live:true.
+//
+// Discriminator: mock.serviceTickets contains 3 'incident' rows (INC-0001..3),
+// so if the fallback were (wrongly) firing, an 'incident' read would return a
+// non-empty, live:false result. The correct behaviour is [] with live:true.
+// ---------------------------------------------------------------------------
+describe('getTicketsByKind zero-rows vs no-DB (tenant isolation)', () => {
+  it('(a) DB present + zero rows, unscoped → [] with live:true (NOT mock rows)', async () => {
+    // qReturns is empty ⇒ the pg mock resolves []. hasDb is true (beforeEach).
+    const res = await getTicketsByKind('incident');
+    expect(res.live).toBe(true);
+    expect(res.rows).toEqual([]);
+  });
+
+  it('(b) DB present + zero rows, tenantRef-scoped → [] with live:true (NOT mock rows)', async () => {
+    const res = await getTicketsByKind('incident', { tenantRef: 'org_empty' });
+    // The scoped predicate was still applied to the real query...
+    const [sql, params] = lastQ();
+    expect(sql).toMatch(/and tenant_ref=\$2/i);
+    expect(params).toEqual(['incident', 'org_empty']);
+    // ...and an empty real result is real-empty, not a mock fallback.
+    expect(res.live).toBe(true);
+    expect(res.rows).toEqual([]);
+  });
+
+  it('scoped call never falls back to mock when the DB is absent', async () => {
+    H.state.dbPresent = false;
+    const res = await getTicketsByKind('incident', { tenantRef: 'org_x' });
+    expect(res.rows).toEqual([]);
+    expect(res.live).toBe(false);
+    // The pg layer must not even be consulted with no DB.
+    expect(q).not.toHaveBeenCalled();
+  });
+
+  it('scoped call never falls back to mock when the query errors', async () => {
+    H.q.mockImplementationOnce(async () => {
+      throw new Error('connection refused');
+    });
+    const res = await getTicketsByKind('incident', { tenantRef: 'org_x' });
+    expect(res.rows).toEqual([]);
+    expect(res.live).toBe(false);
+  });
+
+  it('unscoped call KEEPS the mock fallback when the DB is absent (dev DX preserved)', async () => {
+    H.state.dbPresent = false;
+    const res = await getTicketsByKind('incident');
+    expect(res.live).toBe(false);
+    expect(res.rows.length).toBeGreaterThan(0);
+    expect(res.rows.every((t) => t.kind === 'incident')).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // createTicket — dual-write: first-class columns AND mirrored into attrs.
 // q1 is called twice: (1) mint the ref, (2) the INSERT. We capture the INSERT
 // call to assert on the persisted columns + attrs mirror.
