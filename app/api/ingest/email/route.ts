@@ -31,21 +31,22 @@ import { createTicket, addTicketComment, findTicketByEmailMessageIds, appendEmai
 import { verifyEmailIngest } from '@/lib/ingest-auth';
 import { intakeEnabled } from '@/lib/hermes/brain/flags';
 import { runCopilotProposal } from '@/lib/hermes/brain/copilot';
+import {
+  corsHeaders, readCappedText, isJsonContentType, stripHtml,
+  emailBodySchema, boundThreadIds, CAPS, RATE,
+} from '@/lib/intake-guards';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, x-ingest-token, x-ingest-signature, Authorization',
-};
+const METHODS = 'POST, OPTIONS';
 
-function json(body: unknown, status = 200) {
-  return Response.json(body, { status, headers: CORS });
+function json(req: Request, body: unknown, status = 200, extra?: Record<string, string>) {
+  return Response.json(body, { status, headers: { ...corsHeaders(req, METHODS), ...extra } });
 }
 
-export async function OPTIONS() {
-  return new Response(null, { status: 204, headers: CORS });
+export async function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: corsHeaders(req, METHODS) });
 }
 
 function str(v: unknown): string | undefined {
@@ -69,26 +70,45 @@ function parseRefs(v: unknown): string[] {
 }
 
 export async function POST(req: Request) {
-  const raw = await req.text();
+  // 1. Content-type + size cap before any auth / DB / LLM work.
+  if (!isJsonContentType(req)) return json(req, { error: 'content-type must be application/json' }, 415);
+  const { raw, tooLarge } = await readCappedText(req, CAPS.emailBodyBytes);
+  if (tooLarge) return json(req, { error: 'payload too large' }, 413);
 
+  // 2. Auth FIRST (this is a server-to-server webhook; the CF Email Worker holds
+  // OPS_EMAIL_TOKEN). Auth before rate limit so an UNauthenticated flood cannot
+  // exhaust the shared global bucket and DoS legitimate inbound email.
   const authed = verifyEmailIngest(req, raw);
-  if (!authed.ok) return json({ error: authed.error }, authed.status);
+  if (!authed.ok) return json(req, { error: authed.error }, authed.status);
 
-  if (!intakeEnabled()) return json({ error: 'email intake disabled' }, 503);
+  if (!intakeEnabled()) return json(req, { error: 'email intake disabled' }, 503);
 
-  let body: any;
-  try { body = JSON.parse(raw); } catch { return json({ error: 'invalid JSON body' }, 400); }
+  // 3. GLOBAL rate limit (not per-IP: all mail arrives from the one worker IP).
+  // Bounds ticket-spam even if OPS_EMAIL_TOKEN leaks. Per-instance only.
+  const rl = checkRateLimit('email:global', { limit: RATE.emailPerMin, windowMs: RATE.windowMs });
+  if (!rl.ok) return json(req, { error: 'rate limit exceeded' }, 429, { 'Retry-After': String(rl.retryAfterSec) });
+
+  // 4. Parse + validate/bound. Unknown keys stripped; oversized fields rejected.
+  let parsedJson: unknown;
+  try { parsedJson = JSON.parse(raw); } catch { return json(req, { error: 'invalid JSON body' }, 400); }
+  const parsed = emailBodySchema.safeParse(parsedJson);
+  if (!parsed.success) return json(req, { error: 'invalid request' }, 400);
+  const body: any = parsed.data;
 
   // Normalize across Cloudflare-worker JSON and common header-name variants.
   const headers = (body?.headers && typeof body.headers === 'object') ? body.headers : {};
-  const subject = str(body?.subject) ?? str(headers['subject']) ?? '(no subject)';
+  const subject = (str(body?.subject) ?? str(headers['subject']) ?? '(no subject)').slice(0, CAPS.subject);
   const from = str(body?.from) ?? str(headers['from']);
-  const text = str(body?.text) ?? str(body?.body) ?? str(body?.html) ?? '';
-  const messageId = str(body?.messageId) ?? str(body?.['message-id']) ?? str(headers['message-id']) ?? '';
+  // Prefer plain text; if only HTML is provided, strip tags — NEVER store raw
+  // inbound markup as a comment body. Cap the stored length.
+  const rawText = str(body?.text) ?? str(body?.body);
+  const htmlText = str(body?.html) ? stripHtml(str(body?.html)!) : undefined;
+  const text = (rawText ?? htmlText ?? '').slice(0, CAPS.emailText);
+  const messageId = (str(body?.messageId) ?? str(body?.['message-id']) ?? str(headers['message-id']) ?? '').slice(0, CAPS.messageId);
   const inReplyTo = str(body?.inReplyTo) ?? str(body?.['in-reply-to']) ?? str(headers['in-reply-to']);
   const references = parseRefs(body?.references ?? headers['references']);
 
-  if (!from) return json({ error: 'from is required' }, 400);
+  if (!from) return json(req, { error: 'from is required' }, 400);
 
   const { name: fromName, email: fromEmail } = parseFrom(from);
   const name = str(body?.name) ?? fromName;
@@ -106,14 +126,16 @@ export async function POST(req: Request) {
 
   try {
     // --- Threading: append to an existing ticket if this is a reply ---------
-    const threadIds = [inReplyTo, ...references].filter(Boolean) as string[];
+    // Bound the In-Reply-To/References fan-out so a crafted email cannot force a
+    // huge jsonb `?|` scan (CAPS.maxThreadIds, well-formed + de-duped).
+    const threadIds = boundThreadIds(inReplyTo, references);
     const existing = threadIds.length ? await findTicketByEmailMessageIds(threadIds) : null;
 
     if (existing) {
       const commentBody = `Re: ${subject}\n\n${messageBody}`;
       await addTicketComment(existing.ref, commentBody, name ?? fromEmail ?? 'Customer', 'customer');
       if (messageId) await appendEmailMessageId(existing.ref, messageId);
-      return json({ ok: true, ref: existing.ref, threaded: true }, 201);
+      return json(req, { ok: true, ref: existing.ref, threaded: true }, 201);
     }
 
     // --- New ticket ---------------------------------------------------------
@@ -151,8 +173,10 @@ export async function POST(req: Request) {
       }
     }
 
-    return json({ ok: true, ref, threaded: false }, 201);
+    return json(req, { ok: true, ref, threaded: false }, 201);
   } catch (e: any) {
-    return json({ ok: false, error: e?.message ?? 'email ingest failed' }, 500);
+    // Never leak internal error detail to the caller.
+    console.error('[ingest/email] ingest failed:', e?.message ?? e);
+    return json(req, { ok: false, error: 'email ingest failed' }, 500);
   }
 }
