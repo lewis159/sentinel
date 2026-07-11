@@ -133,6 +133,53 @@ export async function listProposals(opts?: {
 }
 
 /**
+ * Queue feed for the approval UI. Returns PENDING proposals first, then the most
+ * recently-decided rows (sent/dismissed) so the operator can still see WHAT just
+ * executed — newest-first within each group. Decided rows render read-only in the
+ * queue. Empty array with no DB or on error. Default limit 50.
+ */
+export async function getHermesProposals(opts?: {
+  limit?: number;
+}): Promise<HermesProposalRecord[]> {
+  if (!hasDb) return [];
+  const limit = opts?.limit ?? 50;
+  try {
+    await ensureTable();
+    const rows = await q<any>(
+      `select id, ref, agent, kind, title, summary, proposal, status, created_at
+         from ops.hermes_proposals
+        order by (status <> 'pending'), created_at desc
+        limit $1`,
+      [limit],
+    );
+    return rows.map(mapRow);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Fetch a single proposal by id. Null with no DB, if not found, or on error.
+ */
+export async function getHermesProposal(
+  id: string,
+): Promise<HermesProposalRecord | null> {
+  if (!hasDb) return null;
+  try {
+    await ensureTable();
+    const row = await q1<any>(
+      `select id, ref, agent, kind, title, summary, proposal, status, created_at
+         from ops.hermes_proposals
+        where id = $1`,
+      [id],
+    );
+    return row ? mapRow(row) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Persist a Brain gated-action proposal (the interrupt → proposal half of the
  * action spine). Carries the pending tool call inside `proposal.action` so the
  * Approve path can resume the graph and run the tool for real. Returns the id.
