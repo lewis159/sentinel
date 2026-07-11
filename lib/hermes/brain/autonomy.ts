@@ -35,10 +35,19 @@ export const DEFAULT_TOOL_MODES: AutonomyToolRow[] = [
   { persona: 'pa', tool: 'getDeployStatus', mode: 'auto' },
   { persona: 'pa', tool: 'broadcastStatus', mode: 'auto' },
   { persona: 'pa', tool: 'updateTicket', mode: 'gated' },
+  // The five department copilots: safe reads AUTO so an agentic copilot turn can
+  // look things up on its own. Support additionally carries updateTicket as a
+  // GATED action (interrupt → approval → execute once — the same spine as the PA).
+  // The other four keep updateTicket draft_only defensively (it is not in their
+  // allowedTools, so they cannot call it regardless).
   ...(['support', 'incident', 'escalation', 'billing', 'security'] as const).flatMap((p) =>
-    (['getTicket', 'listTickets', 'updateTicket', 'getDeployStatus'] as const).map(
-      (t): AutonomyToolRow => ({ persona: p, tool: t, mode: 'draft_only' }),
+    (['getTicket', 'listTickets', 'getDeployStatus'] as const).map(
+      (t): AutonomyToolRow => ({ persona: p, tool: t, mode: 'auto' }),
     ),
+  ),
+  { persona: 'support', tool: 'updateTicket', mode: 'gated' },
+  ...(['incident', 'escalation', 'billing', 'security'] as const).map(
+    (p): AutonomyToolRow => ({ persona: p, tool: 'updateTicket', mode: 'draft_only' }),
   ),
 ];
 
