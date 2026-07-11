@@ -1,8 +1,21 @@
 name: Build & Push Sentinel
 
 # Builds the Sentinel image and pushes it to GHCR on every push to main,
-# or manually via the Actions tab. Deploy is a separate manual step in
-# Portainer (docker service update / re-pull the stack).
+# or manually via the Actions tab. After a successful build+push it triggers
+# an auto-redeploy by POSTing a Portainer SERVICE WEBHOOK (Portainer re-pulls
+# :latest and rolls the service using ITS OWN creds — CI never holds the
+# Portainer admin token). Mirrors the estate pattern in
+# bentech-infra/docs/ci-cd-staging.md.
+#
+# Redeploy secret: PORTAINER_WEBHOOK_SENTINEL
+#   - Value is an opaque Portainer service-webhook URL
+#     (https://<portainer-host>/api/webhooks/<uuid>) — a capability URL scoped
+#     to exactly one service. Treat it as a secret.
+#   - Create it: Portainer -> the Sentinel service -> Service webhooks ->
+#     toggle ON -> copy the URL, then:
+#       gh secret set PORTAINER_WEBHOOK_SENTINEL -R lewis159/sentinel
+#   - Until the secret is set the redeploy step is SKIPPED (not failed), so the
+#     workflow still passes before the webhook is provisioned.
 
 on:
   push:
@@ -15,6 +28,12 @@ jobs:
     permissions:
       contents: read
       packages: write
+    # Map the (possibly-unset) secret to a job-level env var so the redeploy
+    # step's `if:` can gate on it. Secrets can't be referenced directly in an
+    # `if:` expression, and a secret mapped at STEP level isn't visible to that
+    # same step's own `if:` — so it must live at job level.
+    env:
+      HOOK: ${{ secrets.PORTAINER_WEBHOOK_SENTINEL }}
     steps:
       - uses: actions/checkout@v4
 
@@ -41,3 +60,16 @@ jobs:
           # The Clerk publishable key is NOT secret, so it's a repo Actions VARIABLE.
           build-args: |
             NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+
+      # Auto-redeploy: POST the opaque Portainer service webhook so Portainer
+      # re-pulls :latest and rolls the service. Runs only for prod deploys
+      # (push to main, or a manual workflow_dispatch) — never for the
+      # feat/clerk-auth build. Skipped when the secret is unset (env.HOOK == '');
+      # -f makes curl exit non-zero on any non-2xx response, so a broken/misfired
+      # webhook fails the job loudly instead of passing silently.
+      - name: Trigger Portainer redeploy
+        if: ${{ (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && env.HOOK != '' }}
+        run: |
+          echo "Triggering Portainer service webhook for Sentinel..."
+          curl -fsS -X POST "$HOOK"
+          echo "Portainer redeploy triggered."

@@ -13,7 +13,21 @@ name: Build & Push (STAGING) Sentinel
 # pk_test is PUBLIC (client-side), so it's a workflow_dispatch input with the
 # shared Clerk DEV instance default — NOT a repo secret. Output is tagged
 # :staging-<sha> (+ moving :staging) so it can never be mistaken for a prod
-# (:latest) image. Deploy is a separate step (bentech-infra deploy.yml).
+# (:latest) image.
+#
+# Optional auto-redeploy of the STAGING service uses its OWN independent secret
+# so it can never touch the prod service:
+#   Redeploy secret: PORTAINER_WEBHOOK_SENTINEL_STAGING
+#     - Opaque Portainer service-webhook URL for the *staging* Sentinel service
+#       (https://<portainer-host>/api/webhooks/<uuid>). Distinct from the prod
+#       PORTAINER_WEBHOOK_SENTINEL — keep them separate.
+#     - Create it: Portainer -> the STAGING Sentinel service -> Service webhooks
+#       -> toggle ON -> copy the URL, then:
+#         gh secret set PORTAINER_WEBHOOK_SENTINEL_STAGING -R lewis159/sentinel
+#     - Until this secret is set the redeploy step is SKIPPED (not failed), so
+#       the staging build still succeeds and the prior "bentech-infra deploy.yml"
+#       path remains the way staging goes live. Set the secret only when you
+#       want this build to redeploy the staging service directly.
 
 on:
   workflow_dispatch:
@@ -35,6 +49,12 @@ jobs:
     permissions:
       contents: read
       packages: write
+    # Map the (possibly-unset) staging webhook secret to a job-level env var so
+    # the redeploy step's `if:` can gate on it. Secrets can't be referenced
+    # directly in `if:`, and a STEP-level env isn't visible to that step's own
+    # `if:`, so it must live at job level.
+    env:
+      HOOK: ${{ secrets.PORTAINER_WEBHOOK_SENTINEL_STAGING }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -67,3 +87,14 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ inputs.clerk_publishable_key }}
+
+      # Optional auto-redeploy of the STAGING service. Skipped when the staging
+      # webhook secret is unset (env.HOOK == '') so this build stays a pure
+      # build+push until you opt in. -f makes curl exit non-zero on any non-2xx
+      # response, so a broken webhook fails the job loudly.
+      - name: Trigger Portainer redeploy (staging)
+        if: ${{ env.HOOK != '' }}
+        run: |
+          echo "Triggering Portainer STAGING service webhook for Sentinel..."
+          curl -fsS -X POST "$HOOK"
+          echo "Portainer staging redeploy triggered."
