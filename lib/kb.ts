@@ -80,3 +80,12 @@ export function getDoc(slug: string): { title: string; html: string } | null {
   const html = marked.parse(rewriteLinks(raw)) as string;
   return { title, html };
 }
+
+// Raw markdown + title for a doc (unrendered). Used by the Hermes KB indexer
+// (lib/hermes/kb-index.ts) to chunk + embed article source text. Returns null
+// for an unknown/invalid slug. Additive — the rendered getDoc() is unchanged.
+export function getDocRaw(slug: string): { title: string; raw: string } | null {
+  const raw = readRaw(slug);
+  if (raw == null) return null;
+  return { title: firstH1(raw) || prettify(slug), raw };
+}

@@ -1,13 +1,25 @@
 // Hermes · Support — knowledge-base retrieval for grounded drafts.
 //
-// Dependency-free lexical retrieval (no embeddings). We score curated KB
-// snippets against a ticket query by keyword overlap so the support agent can
-// cite REAL articles instead of inventing policy. Slugs match the live v2 KB
-// articles (app/v2/kb/[slug]/page.tsx) so a cited article resolves to a real
-// page at /v2/kb/<slug>.
+// retrieveKb() is the single entry point every department agent calls. It has
+// two backends with the SAME return shape:
 //
-// This module is server-safe but has no server-only dependency: it holds no
-// secrets and reads no filesystem, so it can be unit-tested in isolation.
+//   1. pgvector semantic retrieval (lib/hermes/kb-vector.ts) — real embeddings
+//      over content/kb/*.md + resolved tickets, indexed into hermes.kb_chunks.
+//      Active ONLY when HERMES_KB_PGVECTOR is on (kbPgvectorEnabled()).
+//   2. dependency-free LEXICAL retrieval (retrieveKbLexical, below) — the
+//      original curated-snippet keyword-overlap ranker. This is the DEFAULT and
+//      the FAIL-SAFE fallback: used whenever the sub-flag is off, or when the
+//      vector path is unavailable (no DB, no embeddings key, migration not
+//      applied, empty store). So the app is unchanged unless the flag is set.
+//
+// The lexical path holds no secrets and reads no filesystem, so it stays
+// unit-testable in isolation; the vector module is dynamically imported only
+// when the flag is on, keeping this module dependency-light for the default path.
+//
+// Slugs match the live v2 KB articles (app/v2/kb/[slug]/page.tsx) so a cited
+// article resolves to a real page at /v2/kb/<slug>.
+
+import { kbPgvectorEnabled } from './brain/flags';
 
 export type KbSnippet = { slug: string; title: string; body: string };
 
@@ -91,6 +103,31 @@ function significantWords(text: string): Set<string> {
 }
 
 /**
+ * Retrieve KB snippets relevant to a ticket query.
+ *
+ * When HERMES_KB_PGVECTOR is enabled, tries real pgvector semantic retrieval
+ * first; on any miss (feature off, no DB/key, migration not applied, empty
+ * store, or the query embeds but the vector search errors) it FALLS BACK to the
+ * lexical snippet retriever below. Return shape is identical either way, so all
+ * agent callers are unaffected. Never throws.
+ */
+export async function retrieveKb(query: string, limit = 3): Promise<KbSnippet[]> {
+  if (kbPgvectorEnabled()) {
+    try {
+      // Dynamic import keeps the DB/embeddings deps out of the default (lexical)
+      // path and out of the unit-test surface.
+      const { retrieveKbVector } = await import('./kb-vector');
+      const hit = await retrieveKbVector(query, limit);
+      if (hit && hit.length > 0) return hit;
+      // null (unavailable) or [] (empty store) → fall through to lexical.
+    } catch {
+      // Any unexpected failure → lexical fallback below.
+    }
+  }
+  return retrieveKbLexical(query, limit);
+}
+
+/**
  * Retrieve the KB snippets most relevant to a ticket query using dependency-free
  * lexical overlap. Score = (shared significant words in TITLE × 3) + (shared
  * significant words in BODY × 1); title matches are weighted higher because a
@@ -98,7 +135,7 @@ function significantWords(text: string): Set<string> {
  * score > 0, or [] when nothing overlaps (the caller then drafts without a KB
  * block rather than citing something irrelevant).
  */
-export async function retrieveKb(query: string, limit = 3): Promise<KbSnippet[]> {
+export async function retrieveKbLexical(query: string, limit = 3): Promise<KbSnippet[]> {
   const q = significantWords(query);
   if (q.size === 0) return [];
 
