@@ -70,6 +70,8 @@ export type Config = {
     incidents: string | undefined;
     approvals: string | undefined;
     tickets: string | undefined;
+    // The PA (Hermes Brain) conversation channel — messages here route to the PA.
+    pa: string | undefined;
   };
   sentinelBase: string;
   botToken: string;
@@ -98,6 +100,7 @@ export async function loadConfig(): Promise<Config> {
       incidents: process.env.DISCORD_INCIDENTS_CHANNEL_ID,
       approvals: process.env.DISCORD_APPROVALS_CHANNEL_ID,
       tickets: process.env.DISCORD_TICKETS_CHANNEL_ID,
+      pa: process.env.DISCORD_PA_CHANNEL_ID,
     },
     sentinelBase: required('SENTINEL_API_BASE', process.env.SENTINEL_API_BASE).replace(/\/+$/, ''),
     botToken: required('OPS_BOT_TOKEN', botToken),
