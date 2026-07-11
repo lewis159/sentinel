@@ -1,12 +1,13 @@
 // broadcastStatus — the PA's delivery-watchdog voice. Posts a short status line
 // to the #pa-status channel.
 //
-// Sentinel's Discord integration is PULL-based today: the bot polls /api/bot/*
-// (see lib/bot-http.ts) and Sentinel does not hold a Discord gateway connection.
-// So there is no existing outbound push path to reuse. For P0 we post via a
-// Discord webhook URL if one is configured (DISCORD_PA_STATUS_WEBHOOK), else we
-// log with a TODO so the wiring is a drop-in later (repoint at the bot's HTTP
-// inbox when the bot exposes one — a follow-up).
+// OUTBOUND PATH (investigated): Sentinel's Discord integration is PULL-based — the
+// discord-bot process polls /api/bot/* (see discord-bot/src/poller.ts) and Sentinel
+// itself holds NO Discord gateway connection. The gateway lives in the bot, which
+// Sentinel cannot reach inbound. So the real server-side push to Discord is a
+// Discord webhook: DISCORD_PA_STATUS_WEBHOOK, the channel's incoming-webhook URL.
+// That IS the wired path (not a placeholder). When it is unset we degrade to a log
+// line so a mis-provisioned deploy fails soft instead of erroring the graph.
 import 'server-only';
 import { z } from 'zod';
 import type { BrainTool } from './types';
@@ -42,9 +43,9 @@ export const broadcastStatusTool: BrainTool<z.infer<typeof schema>> = {
       if (!res.ok) return { ok: false, summary: `Failed to broadcast: ${res.error}`, error: res.error };
       return { ok: true, summary: `Broadcast to #pa-status: ${text}`, data: { text, via: 'webhook' } };
     }
-    // TODO: repoint at the Discord bot's HTTP inbox once it exposes an outbound
-    // post endpoint (follow-up — Discord bot repoint). For now, log + no-op so the
-    // graph continues and callers can still see what WOULD be posted.
+    // No webhook configured → log + no-op so the graph continues and callers can
+    // still see what WOULD be posted. (Set DISCORD_PA_STATUS_WEBHOOK to go live —
+    // that is the real outbound path; there is no bot HTTP inbox to repoint at.)
     // eslint-disable-next-line no-console
     console.log(`[pa-status] (no DISCORD_PA_STATUS_WEBHOOK configured) would broadcast: ${text}`);
     return {
