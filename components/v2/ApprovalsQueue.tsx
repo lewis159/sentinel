@@ -1,10 +1,20 @@
 'use client';
 
-// Live approval queue for the v2 Hermes oversight page. Replaces the old static
-// mock: it reads REAL persisted proposals awaiting review from the sibling-built
-// proposals API and lets the operator approve-and-send or dismiss each one.
-//   - GET  /api/hermes/proposals?status=pending → { proposals, live }
-//   - POST /api/hermes/proposals/[id] { action }  → { ok, error? }
+// Live approval queue for the v2 Hermes oversight page — the visible HUMAN GATE.
+// Reads REAL persisted proposals and lets the operator approve/deny each one.
+//
+// Two kinds of proposal share this queue:
+//   • ACTION  — a gated tool call the Brain paused on (proposal.action present).
+//               Approve RESUMES the graph and EXECUTES the tool for real. The card
+//               shows exactly WHAT will run: the tool + its args ("what will
+//               execute"), expandable so the reviewer can audit before approving.
+//   • DRAFT   — a copilot-drafted customer reply. Approve posts the draft as a
+//               reply (legacy behaviour). Shows a preview + confidence.
+//
+// Endpoints:
+//   - GET  /api/hermes/proposals                    → { proposals, live } (queue feed)
+//   - POST /api/hermes/proposals/[id]/approve       → { ok, error? }
+//   - POST /api/hermes/proposals/[id]/deny          → { ok, error? }
 // Polling is inherited from the ancestor <SWRConfig> (RefreshProvider) — no
 // interval is set here. Namespaced v2-apq-* so nothing leaks; colour comes from
 // shell tokens only.
@@ -42,7 +52,41 @@ function preview(draft: string | undefined, max = 160): string {
   return clean.length > max ? `${clean.slice(0, max - 1)}…` : clean;
 }
 
-type RowState = { busy: 'approve' | 'dismiss' | null; error: string | null };
+// Map an agent/department id to a badge tint class (falls back to neutral).
+const DEP_CLASSES = new Set([
+  'support',
+  'access',
+  'billing',
+  'security',
+  'escalations',
+]);
+function depClass(agent: string): string {
+  const a = agent.toLowerCase();
+  return DEP_CLASSES.has(a) ? ` ${a}` : '';
+}
+
+// Status pill wording + tint class, derived from the record status and whether
+// the gated tool actually executed.
+function pillFor(p: HermesProposalRecord): { label: string; cls: string } {
+  const isAction = Boolean(p.proposal.action?.tool);
+  if (p.status === 'pending') return { label: 'Pending review', cls: 'pending' };
+  if (p.status === 'dismissed') return { label: 'Denied', cls: 'denied' };
+  // status === 'sent'
+  if (isAction) return { label: 'Executed', cls: 'exec' };
+  return { label: 'Sent', cls: 'sent' };
+}
+
+// Pretty-print tool args for the "what will execute" panel.
+function prettyArgs(args: Record<string, unknown> | undefined): string {
+  if (!args || Object.keys(args).length === 0) return '(no arguments)';
+  try {
+    return JSON.stringify(args, null, 2);
+  } catch {
+    return String(args);
+  }
+}
+
+type RowState = { busy: 'approve' | 'deny' | null; error: string | null };
 
 function LockIcon() {
   return (
@@ -55,9 +99,10 @@ function LockIcon() {
 
 export default function ApprovalsQueue() {
   // Global refreshInterval comes from the ancestor <SWRConfig> (RefreshProvider),
-  // so polling is automatic — do not set an interval here.
+  // so polling is automatic — do not set an interval here. No `status` param → the
+  // queue feed: pending first, then recently-decided rows (shown read-only).
   const { data, error, mutate } = useSWR<ProposalsResp>(
-    '/api/hermes/proposals?status=pending',
+    '/api/hermes/proposals',
     fetcher,
   );
 
@@ -68,14 +113,16 @@ export default function ApprovalsQueue() {
     setRows((prev) => ({ ...prev, [id]: next }));
   }
 
-  async function act(id: string, action: 'approve' | 'dismiss') {
+  async function act(id: string, action: 'approve' | 'deny') {
     setRow(id, { busy: action, error: null });
     try {
-      const res = await fetch(`/api/hermes/proposals/${encodeURIComponent(id)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
-      });
+      const res = await fetch(
+        `/api/hermes/proposals/${encodeURIComponent(id)}/${action}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        },
+      );
       const body = (await res.json().catch(() => null)) as
         | { ok?: boolean; error?: string }
         | null;
@@ -88,9 +135,23 @@ export default function ApprovalsQueue() {
         return;
       }
 
-      // Success — clear row state and revalidate so the handled item drops out.
+      // Success — clear row state and optimistically flip the row's status so it
+      // becomes read-only immediately, then revalidate for the executed result.
       setRow(id, { busy: null, error: null });
-      await mutate();
+      const nextStatus: HermesProposalRecord['status'] =
+        action === 'approve' ? 'sent' : 'dismissed';
+      await mutate(
+        (cur) =>
+          cur
+            ? {
+                ...cur,
+                proposals: cur.proposals.map((x) =>
+                  x.id === id ? { ...x, status: nextStatus } : x,
+                ),
+              }
+            : cur,
+        { revalidate: true },
+      );
     } catch {
       setRow(id, { busy: null, error: 'Network error — please retry.' });
     }
@@ -135,23 +196,38 @@ export default function ApprovalsQueue() {
     <div className="v2-card v2-apq-card">
       {proposals.map((p) => {
         const st = rows[p.id] ?? { busy: null, error: null };
+        const action = p.proposal.action;
+        const isAction = Boolean(action?.tool);
+        const decided = p.status !== 'pending';
+        const persona = action?.persona || p.agent || 'hermes';
+        const pill = pillFor(p);
+        const label = p.proposal.classification || p.summary || '';
         const conf = clampPct(p.proposal.confidence);
-        const label = p.proposal.classification || p.summary || p.title;
+        const showConf = !isAction && conf > 0;
         return (
           <div
             key={p.id}
-            className="v2-apq-row"
+            className={`v2-apq-row${decided ? ' is-decided' : ''}`}
             style={{ ['--tint' as string]: tintFor(p) } as React.CSSProperties}
           >
             <div className="v2-apq-body">
+              <div className="v2-apq-head">
+                <span className={`v2-apq-dep${depClass(persona)}`}>{persona}</span>
+                {isAction && action?.tool && (
+                  <code className="v2-apq-tool">{action.tool}</code>
+                )}
+                <span className={`v2-apq-pill ${pill.cls}`}>{pill.label}</span>
+              </div>
+
               <div className="v2-apq-title">{p.title}</div>
+
               <div className="v2-apq-meta">
-                <span className="v2-apq-dep">
-                  {p.agent} · {p.kind}
-                </span>
-                <Link href={`/v2/support/${p.ref}`} className="v2-apq-target">
-                  {p.ref}
-                </Link>
+                <span className="v2-apq-kind">{p.kind}</span>
+                {p.ref && (
+                  <Link href={`/v2/support/${p.ref}`} className="v2-apq-target">
+                    {p.ref}
+                  </Link>
+                )}
                 {label && (
                   <>
                     <span className="v2-apq-dot">·</span>
@@ -159,34 +235,80 @@ export default function ApprovalsQueue() {
                   </>
                 )}
               </div>
-              {p.proposal.draft && (
+
+              {/* ACTION → show exactly WHAT will execute (tool + args). */}
+              {isAction && action && (
+                <details className="v2-apq-exec">
+                  <summary>
+                    <span className="v2-apq-exec-lbl">
+                      <LockIcon /> What will execute
+                    </span>
+                    <span className="v2-apq-exec-tool">{action.tool}</span>
+                  </summary>
+                  <div className="v2-apq-exec-body">
+                    <div className="v2-apq-exec-cap">Tool</div>
+                    <code className="v2-apq-exec-name">{action.tool}</code>
+                    <div className="v2-apq-exec-cap">Arguments</div>
+                    <pre className="v2-apq-args">{prettyArgs(action.args)}</pre>
+                    {action.executedAt && (
+                      <div className="v2-apq-exec-result">
+                        <span className="v2-apq-exec-cap">Result</span>
+                        <div className="v2-apq-exec-res">
+                          {action.result || 'executed'}
+                        </div>
+                        <div className="v2-apq-exec-when">
+                          Ran {new Date(action.executedAt).toLocaleString()}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </details>
+              )}
+
+              {/* DRAFT → show the drafted reply preview (legacy copilot flow). */}
+              {!isAction && p.proposal.draft && (
                 <div className="v2-apq-draft">{preview(p.proposal.draft)}</div>
               )}
+
               {st.error && <div className="v2-apq-rowerr">{st.error}</div>}
             </div>
 
             <div className="v2-apq-right">
-              <div className="v2-apq-conf">
-                {conf}%<small>confidence</small>
-              </div>
-              <button
-                type="button"
-                className="v2-btn v2-apq-approve"
-                onClick={() => act(p.id, 'approve')}
-                disabled={st.busy !== null}
-              >
-                {st.busy === 'approve' ? 'Sending…' : 'Approve & send'}
-              </button>
-              <button
-                type="button"
-                className="v2-apq-deny"
-                aria-label="Dismiss"
-                onClick={() => act(p.id, 'dismiss')}
-                disabled={st.busy !== null}
-                title="Dismiss"
-              >
-                {st.busy === 'dismiss' ? '…' : '×'}
-              </button>
+              {showConf && (
+                <div className="v2-apq-conf">
+                  {conf}%<small>confidence</small>
+                </div>
+              )}
+
+              {decided ? (
+                // Read-only — already actioned. The pill above carries the outcome.
+                <span className="v2-apq-done">{pill.label}</span>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className="v2-btn v2-apq-approve"
+                    onClick={() => act(p.id, 'approve')}
+                    disabled={st.busy !== null}
+                  >
+                    {st.busy === 'approve'
+                      ? 'Working…'
+                      : isAction
+                        ? 'Approve & run'
+                        : 'Approve & send'}
+                  </button>
+                  <button
+                    type="button"
+                    className="v2-apq-deny"
+                    aria-label="Deny"
+                    onClick={() => act(p.id, 'deny')}
+                    disabled={st.busy !== null}
+                    title="Deny"
+                  >
+                    {st.busy === 'deny' ? '…' : '×'}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         );

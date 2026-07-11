@@ -23,3 +23,15 @@ export function kbPgvectorEnabled(): boolean {
   const v = (process.env.HERMES_KB_PGVECTOR ?? '').trim().toLowerCase();
   return v === '1' || v === 'true' || v === 'yes' || v === 'on';
 }
+
+// Sub-flag: the P2 CUSTOMER INTAKE surfaces (public support-chat widget + email-
+// to-ticket). Independent of brainEnabled() because these are draft-only copilot
+// surfaces (they never execute a tool). When OFF (the default), the intake routes
+// short-circuit to a disabled response and NOTHING new is reachable — so the
+// shipped app is completely unaffected until this is explicitly turned on.
+//
+//   HERMES_INTAKE_ENABLED=1|true|yes|on → /api/public/support/* + /api/ingest/email live.
+export function intakeEnabled(): boolean {
+  const v = (process.env.HERMES_INTAKE_ENABLED ?? '').trim().toLowerCase();
+  return v === '1' || v === 'true' || v === 'yes' || v === 'on';
+}

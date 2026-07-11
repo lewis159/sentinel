@@ -16,6 +16,8 @@ import { NextResponse } from 'next/server';
 //   - /api/ingest/update      : agent/system ticket-update append (token/HMAC in-route)
 //   - /api/ingest/roadmap     : agent/CI roadmap-item upsert (token/HMAC in-route)
 //   - /api/ingest/changelog   : agent/CI changelog-entry append (token/HMAC in-route)
+//   - /api/ingest/email       : inbound-email → ticket (OPS_EMAIL_TOKEN token/HMAC in-route)
+//   - /api/public/support/(.*): customer support-chat widget + L0 KB search (OPS_SUPPORT_TOKEN in-route)
 //   - /api/bot/(.*)           : Discord bot surface (OPS_BOT_TOKEN token/HMAC in-route)
 const isPublicRoute = createRouteMatcher([
   '/sign-in(.*)',
@@ -26,6 +28,8 @@ const isPublicRoute = createRouteMatcher([
   '/api/ingest/update',
   '/api/ingest/roadmap',
   '/api/ingest/changelog',
+  '/api/ingest/email',
+  '/api/public/support/(.*)',
   '/api/bot/(.*)',
 ]);
 

@@ -113,6 +113,33 @@ export function verifyPrivilegedIngest(req: Request, raw: string): IngestAuthRes
 }
 
 /**
+ * SUPPORT-INTAKE tier — least privilege, browser-facing. Accepts the dedicated
+ * `OPS_SUPPORT_TOKEN` (the token that ships in the public support-chat widget,
+ * so it must grant the minimum: "open/continue a support conversation") OR the
+ * privileged `OPS_INGEST_SECRET` for server-side callers. For the P2 customer
+ * chat surface at /api/public/support/* ONLY.
+ */
+export function verifySupportIntake(req: Request, raw: string): IngestAuthResult {
+  return verifyIngest(req, raw, [
+    process.env.OPS_SUPPORT_TOKEN,
+    process.env.OPS_INGEST_SECRET,
+  ]);
+}
+
+/**
+ * EMAIL-INTAKE tier — server-to-server. Accepts the dedicated `OPS_EMAIL_TOKEN`
+ * (presented by the Cloudflare Email Routing worker / provider webhook) OR the
+ * privileged `OPS_INGEST_SECRET`, via token OR HMAC. For /api/ingest/email ONLY.
+ * This token is never placed in a browser, so it stays a server secret.
+ */
+export function verifyEmailIngest(req: Request, raw: string): IngestAuthResult {
+  return verifyIngest(req, raw, [
+    process.env.OPS_EMAIL_TOKEN,
+    process.env.OPS_INGEST_SECRET,
+  ]);
+}
+
+/**
  * BOT tier. Accepts ONLY `OPS_BOT_TOKEN` (token OR HMAC). For the `/api/bot/*`
  * surface consumed by the Discord bot — a parallel, single-token surface kept
  * separate from `OPS_INGEST_SECRET` so a compromised bot host can be cut off by
