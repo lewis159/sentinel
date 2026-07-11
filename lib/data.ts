@@ -986,6 +986,62 @@ export async function addTicketComment(
   return row ? mapComment(row) : null;
 }
 
+// ---------- Email-to-ticket threading (attrs.email_message_ids) ----------
+// Inbound support emails are threaded by RFC-5322 Message-ID: each message id we
+// have seen for a ticket is stored in attrs.email_message_ids (a jsonb array of
+// strings). No new column / DDL — this is purely additive over the existing attrs
+// jsonb, so it never touches ops.tickets' schema or createTicket's signature.
+
+// Find the ticket whose attrs.email_message_ids array contains ANY of `ids`
+// (the inbound message's In-Reply-To + References header ids). Returns the most
+// recently opened match, or null. Used to thread replies onto the same ticket.
+export async function findTicketByEmailMessageIds(ids: string[]): Promise<ServiceTicket | null> {
+  if (!hasDb) return null;
+  const clean = ids.map((s) => (typeof s === 'string' ? s.trim() : '')).filter(Boolean);
+  if (clean.length === 0) return null;
+  try {
+    // `?|` = jsonb array/object contains ANY of the given text keys/elements.
+    const data = await q1<any>(
+      `select ${TICKET_COLS} from ops.tickets
+        where attrs->'email_message_ids' ?| $1::text[]
+        order by opened_at desc nulls last
+        limit 1`,
+      [clean]
+    );
+    return data ? mapServiceTicket(data) : null;
+  } catch {
+    return null;
+  }
+}
+
+// Append a Message-ID to a ticket's attrs.email_message_ids array (dedup-safe),
+// so a later reply that references it threads back onto this ticket. No-op if the
+// id is already present. Best-effort; never throws to the caller path.
+export async function appendEmailMessageId(ref: string, messageId: string): Promise<void> {
+  if (!hasDb) return;
+  const id = (messageId ?? '').trim();
+  if (!id) return;
+  try {
+    await q(
+      `update ops.tickets
+          set attrs = jsonb_set(
+                coalesce(attrs, '{}'::jsonb),
+                '{email_message_ids}',
+                case
+                  when coalesce(attrs->'email_message_ids', '[]'::jsonb) @> to_jsonb($2::text)
+                    then coalesce(attrs->'email_message_ids', '[]'::jsonb)
+                  else coalesce(attrs->'email_message_ids', '[]'::jsonb) || to_jsonb($2::text)
+                end
+              ),
+              updated_at = now()
+        where ref = $1`,
+      [ref, id]
+    );
+  } catch {
+    /* threading metadata is best-effort */
+  }
+}
+
 // ---------- Roadmap (ops.roadmap_items) ----------
 function mapRoadmap(r: any): RoadmapItem {
   return {
