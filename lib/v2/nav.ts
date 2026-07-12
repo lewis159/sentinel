@@ -62,6 +62,7 @@ export const NAV: V2NavGroup[] = [
     items: [
       { label: 'Floor', href: '/v2/hermes/floor', icon: 'floor' },
       { label: 'Feature Requests', href: '/v2/hermes/feature-requests', icon: 'requests' },
+      { label: 'Incident Commander', href: '/v2/hermes/incident-commander', icon: 'incidents' },
       { label: 'Approvals', href: '/v2/hermes/approvals', icon: 'approvals' },
       { label: 'Observability', href: '/v2/hermes/observability', icon: 'activity' },
       { label: 'Churn Save', href: '/v2/hermes/churn-save', icon: 'customers' },
@@ -75,6 +76,9 @@ export const NAV: V2NavGroup[] = [
       { label: 'Board Update', href: '/v2/hermes/board-update', icon: 'reports' },
       { label: 'Agents', href: '/v2/hermes/agents', icon: 'agents' },
       { label: 'KB Authoring', href: '/v2/hermes/kb-authoring', icon: 'kb' },
+      { label: 'Forecasting', href: '/v2/hermes/forecasting', icon: 'forecasting' },
+      { label: 'Market & Content', href: '/v2/hermes/market', icon: 'reports' },
+      { label: 'Agent Builder', href: '/v2/hermes/agent-builder', icon: 'agents' },
       { label: 'Testing', href: '/v2/hermes/testing', icon: 'testing' },
     ],
   },
