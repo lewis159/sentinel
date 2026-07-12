@@ -2,9 +2,9 @@
 // server. Adding a function here (and it will be synced on the next register/PUT)
 // is the only wiring needed — the serve route imports this array.
 import { dunning } from '@/lib/inngest/functions/dunning';
-import { scheduledBriefs } from '@/lib/inngest/functions/scheduled-briefs';
+import { scheduledBriefs, scheduledDailyDigest } from '@/lib/inngest/functions/scheduled-briefs';
 import { watchers } from '@/lib/inngest/functions/watchers';
 
-export const functions = [dunning, scheduledBriefs, watchers];
+export const functions = [dunning, scheduledBriefs, scheduledDailyDigest, watchers];
 
-export { dunning, scheduledBriefs, watchers };
+export { dunning, scheduledBriefs, scheduledDailyDigest, watchers };

@@ -14,6 +14,7 @@
 import { NextResponse } from 'next/server';
 import { requireSectionApi } from '@/lib/auth';
 import { getTickets } from '@/lib/data';
+import { computeSla, slaBadgeClass, slaBadgeLabel } from '@/lib/support/sla';
 import type { SupportData, SupportTicketRow } from '@/lib/v2/api-types';
 
 export const dynamic = 'force-dynamic';
@@ -33,9 +34,6 @@ const CUSTOMERS = [
   { customer: 'Delta Learning', plan: 'Business' },
   { customer: 'Rosa Media Co', plan: 'Pro' },
 ];
-const SLA_TEXT = ['3h 12m left', '48m left', 'breached 20m', '6h left', '1h 05m left'];
-const SLA_STATE: Array<SupportTicketRow['slaState']> = ['ok', 'warn', 'breach'];
-
 function priorityPill(priority: string): string {
   const p = priority.toLowerCase();
   if (p === 'critical') return 'crit';
@@ -56,7 +54,10 @@ export async function GET() {
     tickets = res.rows.map((t): SupportTicketRow => {
       const h = hash(t.ref);
       const cust = CUSTOMERS[h % CUSTOMERS.length];
-      const slaState = SLA_STATE[h % SLA_STATE.length];
+      // Real SLA — computed from the ticket's own priority/status/age (mock-safe:
+      // getTickets returns the same Ticket shape live or mock). Replaces the old
+      // ref-hash placeholder so the badge reflects the actual deadline.
+      const sla = computeSla({ priority: t.priority, status: t.status, age: t.age });
       const owner = t.assignee && t.assignee !== '—' ? t.assignee : 'Unassigned';
       const row: SupportTicketRow = {
         ref: t.ref,
@@ -66,8 +67,8 @@ export async function GET() {
         priority: t.priority,
         priorityPill: priorityPill(t.priority),
         status: t.status,
-        sla: SLA_TEXT[h % SLA_TEXT.length],
-        slaState,
+        sla: slaBadgeLabel(sla),
+        slaState: slaBadgeClass(sla.state),
         owner,
       };
       // Decorated cross-link hint for tickets sourced from a finding.

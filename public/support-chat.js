@@ -54,6 +54,7 @@
 
   var CHAT_URL = API_BASE + '/api/public/support/chat';
   var KB_URL = API_BASE + '/api/public/support/kb';
+  var STATUS_URL = API_BASE + '/api/public/support/status';
 
   // ---- Runtime state ----
   var conversationId = null; // set from the first chat reply; threads the ticket
@@ -69,6 +70,7 @@
     '.shc-hd{display:flex;align-items:center;gap:8px}' +
     '.shc-dot{width:8px;height:8px;border-radius:50%;background:#5fd49b;box-shadow:0 0 0 3px rgba(95,212,155,.18)}' +
     '.shc-dot.warn{background:#ffcf5f;box-shadow:0 0 0 3px rgba(255,207,95,.18)}' +
+    '.shc-dot.down{background:#ff6b6b;box-shadow:0 0 0 3px rgba(255,107,107,.18)}' +
     '.shc-x{background:none;border:none;color:#8A93A6;font-size:22px;cursor:pointer;line-height:1}' +
     '.shc-body{flex:1;overflow-y:auto;padding:14px 16px}' +
     '.shc-foot{border-top:1px solid #272D3A;padding:10px 12px;background:#0F1218}' +
@@ -128,7 +130,25 @@
 
   function setStatus(status) {
     if (!statusDot) return;
-    statusDot.className = 'shc-dot' + (status && status !== 'operational' ? ' warn' : '');
+    // Map the real service status to the dot colour + a human label. Unknown
+    // values fall through to the safe 'operational' (green) default so the dot
+    // never gets stuck in a scary state on a bad payload.
+    var cls = 'shc-dot', label = 'All systems operational';
+    if (status === 'down') { cls += ' down'; label = 'Service outage'; }
+    else if (status && status !== 'operational') { cls += ' warn'; label = 'Degraded service'; }
+    statusDot.className = cls;
+    statusDot.setAttribute('title', 'Service status: ' + label);
+  }
+
+  // Fetch the real service status when the panel opens. Resilient: on ANY
+  // failure (network, non-2xx, bad JSON) we leave the dot at its static
+  // 'operational' default so the widget never breaks.
+  function refreshStatus() {
+    if (!STATUS_URL) return;
+    fetch(STATUS_URL, { method: 'GET', headers: headers() })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { if (d && d.status) setStatus(d.status); })
+      .catch(function () { /* keep the static operational default */ });
   }
 
   function clearBody() { if (bodyEl) bodyEl.innerHTML = ''; }
@@ -299,6 +319,7 @@
     if (fab) fab.style.display = 'none';
     buildPanel();
     renderHome();
+    refreshStatus();
   }
   function closePanel() {
     if (panel && panel.parentNode) panel.parentNode.removeChild(panel);

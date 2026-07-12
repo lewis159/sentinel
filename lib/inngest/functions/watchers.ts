@@ -1,6 +1,6 @@
 // Watchers — a durable cron that checks estate health signals (failing deploys,
-// budget breaches; churn-spike hook left extensible) and, on a trip, broadcasts a
-// headline and opens a DRAFT proposal for a human.
+// budget breaches, and a churn spike) and, on a trip, broadcasts a headline and
+// opens a DRAFT proposal for a human.
 //
 // Trigger: every 30 minutes.
 //
@@ -13,18 +13,25 @@
 // reimplement):
 //   • getDeployStatusTool  — latest GitHub Actions run per estate repo (failing?).
 //   • checkBudget          — is a Hermes spend cap already breached?
-//   (churn-spike is scaffolded: add a real metric read here when the signal lands.)
+//   • churnSignal          — failed-payment proxy for a churn spike (see
+//                            lib/inngest/signals/churn.ts for the source + the
+//                            real-source TODO).
 //
-// IDEMPOTENCY: within one run, each signal read + the broadcast + the proposal are
-// separate named steps, so a retry/replay re-uses memoized results (exactly-once
-// per run). NOTE: de-duping across SEPARATE cron invocations (so an ongoing
-// failure doesn't open a fresh proposal every 30 min) needs a persistent
-// "last-seen" marker — deliberately out of scope here; see the forward note.
+// IDEMPOTENCY (two layers):
+//   1. Within one run: each signal read + the broadcast + the proposal are separate
+//      named steps, so a retry/replay re-uses memoized results (exactly-once/run).
+//   2. ACROSS runs: a persistent "last-seen" marker (ops.hermes_watcher_state via
+//      claimWatcherAlert) de-dups an ONGOING condition so we don't re-broadcast +
+//      re-file every 30 min. We alert only when the condition's coarse fingerprint
+//      changes OR a cooldown elapses. This closes the gap the earlier scaffold
+//      flagged as out-of-scope.
 import { inngest, type StepLike } from '@/lib/inngest/client';
 import { saveProposal } from '@/lib/hermes/proposals';
 import { getDeployStatusTool } from '@/lib/hermes/brain/tools/deploy';
 import { broadcastStatusTool } from '@/lib/hermes/brain/tools/broadcast';
 import { checkBudget } from '@/lib/hermes/budget';
+import { churnSignal } from '@/lib/inngest/signals/churn';
+import { claimWatcherAlert } from '@/lib/inngest/signals/watcher-state';
 import type { ToolContext } from '@/lib/hermes/brain/tools/types';
 
 const CTX: ToolContext = {
@@ -33,13 +40,18 @@ const CTX: ToolContext = {
   actor: 'inngest:watchers',
 };
 
-type Trip = { signal: string; detail: string };
+const WATCHER_SIGNAL_KEY = 'estate-watchers';
+
+// A trip carries a human `detail` line plus a COARSE `fp` fragment. The fp is what
+// feeds the cross-run de-dup fingerprint — it must be low-resolution so small
+// fluctuations (an extra stale PR, a churn count wobble) don't re-fire the alert.
+type Trip = { signal: string; detail: string; fp: string };
 
 export async function watchersHandler({
   step,
 }: {
   step: Pick<StepLike, 'run'>;
-}): Promise<{ trips: Trip[]; proposalId?: string | null }> {
+}): Promise<{ trips: Trip[]; proposalId?: string | null; deduped?: boolean }> {
   const trips: Trip[] = [];
 
   // --- Signal 1: failing deploys ------------------------------------------
@@ -49,10 +61,20 @@ export async function watchersHandler({
     const failing = rows
       .filter((r) => r?.latestRun && (r.latestRun.conclusion === 'failure' || r.latestRun.conclusion === 'timed_out'))
       .map((r) => `${r.repo}: ${r.latestRun.name} on ${r.latestRun.branch}`);
-    return { ok: res.ok, failing, summary: res.summary };
+    // Coarse fp = the sorted set of failing repos (not the run names/branches), so
+    // the same repos staying red keeps one stable fingerprint.
+    const repos = rows
+      .filter((r) => r?.latestRun && (r.latestRun.conclusion === 'failure' || r.latestRun.conclusion === 'timed_out'))
+      .map((r) => r.repo)
+      .sort();
+    return { ok: res.ok, failing, repos, summary: res.summary };
   });
   if (deploy.failing.length > 0) {
-    trips.push({ signal: 'deploy', detail: `Failing build(s): ${deploy.failing.join('; ')}` });
+    trips.push({
+      signal: 'deploy',
+      detail: `Failing build(s): ${deploy.failing.join('; ')}`,
+      fp: `deploy:${deploy.repos.join(',')}`,
+    });
   }
 
   // --- Signal 2: budget breach --------------------------------------------
@@ -71,14 +93,44 @@ export async function watchersHandler({
     trips.push({
       signal: 'budget',
       detail: `Budget cap breached (spent ${budget.spentMinor} / cap ${budget.capMinor}).`,
+      fp: 'budget:breached',
     });
   }
 
-  // --- (Signal 3: churn spike) — scaffolded. Wire a real churn metric read here
-  // and push a Trip when it exceeds threshold. Left inert so nothing false-fires.
+  // --- Signal 3: churn spike ----------------------------------------------
+  // Failed-payment proxy (see lib/inngest/signals/churn.ts). Trips when distinct
+  // failed invoices in the window exceed the threshold. The fp carries only the
+  // coarse severity bucket so count jitter doesn't re-spam the alert.
+  const churn = await step.run('check-churn', async () => churnSignal());
+  if (churn.tripped) {
+    trips.push({
+      signal: 'churn',
+      detail: churn.detail,
+      fp: `churn:${churn.severity}`,
+    });
+  }
 
   if (trips.length === 0) {
     return { trips };
+  }
+
+  // --- Cross-run de-dup gate ----------------------------------------------
+  // Build a coarse fingerprint over the tripped signals. If the SAME condition
+  // persists (identical fingerprint) within the cooldown, claimWatcherAlert refuses
+  // and we return WITHOUT broadcasting or filing — so an ongoing red build or
+  // sustained churn doesn't open a fresh proposal every tick.
+  const fingerprint = trips
+    .map((t) => t.fp)
+    .sort()
+    .join('|');
+  const fresh = await step.run('dedup-claim', async () =>
+    claimWatcherAlert(WATCHER_SIGNAL_KEY, fingerprint, undefined, {
+      signals: trips.map((t) => t.signal),
+    }),
+  );
+  if (!fresh) {
+    // Already alerted for this exact condition inside the cooldown window.
+    return { trips, deduped: true };
   }
 
   const headline = `Sentinel watcher: ${trips.map((t) => t.signal).join(', ')} tripped — ${

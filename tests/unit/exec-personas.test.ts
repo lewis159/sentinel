@@ -1,12 +1,15 @@
 import { describe, it, expect, vi } from 'vitest';
 
-// Verifies the two remaining EXEC personas that complete the roster —
-// CEO / Chief-of-Staff and Risk / Red-team:
-//   • both register in the Brain persona registry and resolve via getPersona,
+// Verifies the EXEC personas that complete the roster — CEO / Chief-of-Staff,
+// CTO / Engineering and Risk / Red-team:
+//   • all register in the Brain persona registry and resolve via getPersona,
 //   • CEO carries only read-only estate tools (no side-effect lever),
+//   • CTO carries the GitHub deploy/commit path — the reads auto, the two WRITES
+//     (triggerWorkflow / commitFile) GATED — and the `incident` copilot no longer
+//     carries any GitHub tool (they MOVED to the CTO),
 //   • Risk is ADVISORY-ONLY: its tool set can NEVER produce a side effect
 //     (no gated tool, and a strict subset of the read-only tools), and
-//   • both appear in the client-safe EXEC_ROSTER metadata with valid RBAC
+//   • all appear in the client-safe EXEC_ROSTER metadata with valid RBAC
 //     sections.
 //
 // The Brain tool registry imports 'server-only' + '@/lib/data'; stub them so we
@@ -21,7 +24,10 @@ vi.mock('@/lib/data', () => ({
 
 import { getPersona, autonomyFor } from '@/lib/hermes/brain/personas';
 import { getTool, ALL_TOOLS } from '@/lib/hermes/brain/tools';
-import { EXEC_ROSTER } from '@/lib/hermes/agent-meta';
+import { EXEC_ROSTER, isExecPersonaId } from '@/lib/hermes/agent-meta';
+
+// The GitHub deploy/commit path that moved from the incident copilot to the CTO.
+const GITHUB_TOOLS = ['listWorkflowRuns', 'getFileContents', 'triggerWorkflow', 'commitFile'];
 
 // The only tools that can change the world: updateTicket (gated, mutates a ticket)
 // and broadcastStatus (auto, but posts to a channel — a side effect). Everything
@@ -82,6 +88,58 @@ describe('exec roster personas (CEO + Risk)', () => {
     });
   });
 
+  describe('CTO / Engineering', () => {
+    it('registers and resolves', () => {
+      const cto = getPersona('cto');
+      expect(cto).toBeDefined();
+      expect(cto!.id).toBe('cto');
+      expect(cto!.systemPrompt).toMatch(/CTO/);
+    });
+
+    it('carries the GitHub deploy/commit path plus read-only estate tools', () => {
+      const cto = getPersona('cto')!;
+      expect(cto.allowedTools).not.toBe('*');
+      const tools = cto.allowedTools as string[];
+      // Holds every GitHub tool.
+      for (const name of GITHUB_TOOLS) expect(tools).toContain(name);
+      // And the read-only estate lookups.
+      for (const name of ['getTicket', 'listTickets', 'getDeployStatus']) {
+        expect(tools).toContain(name);
+      }
+      // Every tool it holds is a real registry tool.
+      for (const name of tools) expect(getTool(name)).toBeDefined();
+    });
+
+    it('gates the two GitHub WRITES and leaves the reads auto', () => {
+      const cto = getPersona('cto')!;
+      // Writes resolve to 'gated' (interrupt for human approval).
+      for (const name of ['triggerWorkflow', 'commitFile']) {
+        const tool = getTool(name)!;
+        expect(autonomyFor(cto, name, tool.autonomy)).toBe('gated');
+      }
+      // Reads resolve to 'auto'.
+      for (const name of ['listWorkflowRuns', 'getFileContents', 'getTicket', 'listTickets', 'getDeployStatus']) {
+        const tool = getTool(name)!;
+        expect(autonomyFor(cto, name, tool.autonomy)).toBe('auto');
+      }
+    });
+  });
+
+  describe('incident copilot no longer carries the GitHub tools', () => {
+    it('has none of the GitHub deploy/commit tools (they moved to the CTO)', () => {
+      const incident = getPersona('incident')!;
+      expect(incident.allowedTools).not.toBe('*');
+      const tools = incident.allowedTools as string[];
+      for (const name of GITHUB_TOOLS) expect(tools).not.toContain(name);
+      // It keeps its safe estate reads.
+      for (const name of ['getTicket', 'listTickets', 'getDeployStatus']) {
+        expect(tools).toContain(name);
+      }
+      // And no gated override survives on it (no github autonomy).
+      expect(incident.autonomyByTool ?? {}).toEqual({});
+    });
+  });
+
   describe('Risk / Red-team (advisory-only)', () => {
     it('registers and resolves and is flagged advisory', () => {
       const risk = getPersona('risk');
@@ -116,7 +174,7 @@ describe('exec roster personas (CEO + Risk)', () => {
   describe('EXEC_ROSTER metadata', () => {
     const VALID_SECTIONS = new Set(['support', 'operations', 'security']);
 
-    for (const id of ['ceo', 'risk'] as const) {
+    for (const id of ['ceo', 'cto', 'risk'] as const) {
       it(`${id} has valid roster metadata mapped to an existing RBAC section`, () => {
         const meta = EXEC_ROSTER[id];
         expect(meta).toBeDefined();
@@ -127,10 +185,25 @@ describe('exec roster personas (CEO + Risk)', () => {
       });
     }
 
-    it('maps CEO→operations and Risk→security (advisory)', () => {
+    it('maps CEO→operations, CTO→operations and Risk→security (advisory)', () => {
       expect(EXEC_ROSTER.ceo.section).toBe('operations');
+      expect(EXEC_ROSTER.cto.section).toBe('operations');
       expect(EXEC_ROSTER.risk.section).toBe('security');
       expect(EXEC_ROSTER.risk.advisory).toBe(true);
+      // CTO is NOT advisory — it carries executable (gated) levers.
+      expect(EXEC_ROSTER.cto.advisory).toBeUndefined();
+    });
+  });
+
+  describe('isExecPersonaId guard (used by the exec invoke route)', () => {
+    it('accepts the three exec personas', () => {
+      for (const id of ['ceo', 'cto', 'risk']) expect(isExecPersonaId(id)).toBe(true);
+    });
+
+    it('rejects copilot ids and garbage (non-exec personas)', () => {
+      for (const id of ['support', 'incident', 'escalation', 'billing', 'security', 'pa', '', 'CTO', null, undefined, 42]) {
+        expect(isExecPersonaId(id)).toBe(false);
+      }
     });
   });
 });

@@ -1,4 +1,4 @@
-// GitHub action tools for the Brain — the CTO copilot's deploy / repo path.
+// GitHub action tools for the Brain — the CTO exec persona's deploy / repo path.
 //
 //   listWorkflowRuns (auto)  — read recent GitHub Actions runs for a repo.
 //   getFileContents  (auto)  — read a file from a repo (safe lookup).

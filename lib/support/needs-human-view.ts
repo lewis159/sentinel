@@ -17,6 +17,7 @@ import { getServiceTicket } from '@/lib/data';
 import { serviceTickets as mockServiceTickets, type ServiceTicket } from '@/lib/mock';
 import { getTicketsNeedingHuman } from './data';
 import { toEscalationLevel } from './roles';
+import { computeSla, slaBadgeClass, slaBadgeLabel } from './sla';
 import {
   type NeedsHumanRow,
   ageToSeconds,
@@ -28,17 +29,40 @@ import {
 
 export type { NeedsHumanRow } from './needs-human-sort';
 
-// Does this ITIL record belong in the queue? (Same predicate the DB filter uses.)
+// Is this open ticket past its SLA resolution deadline? A breach is a reason to
+// pull a human in even when intake/ladder didn't flag it.
+function slaBreached(t: ServiceTicket): boolean {
+  return computeSla({
+    priority: t.priority, kind: t.kind, status: t.status, slaDue: t.slaDue, age: t.age,
+  }).breachedOpen;
+}
+
+// Does this ITIL record belong in the queue? (Same predicate the DB filter uses,
+// PLUS a breached SLA on an open ticket — a breach demands human attention.)
 function needsHuman(t: ServiceTicket): boolean {
   const a = t.attrs ?? {};
-  return a.needs_human === true || String(a.needs_human) === 'true' || a.escalation_level === 'human';
+  return (
+    a.needs_human === true ||
+    String(a.needs_human) === 'true' ||
+    a.escalation_level === 'human' ||
+    slaBreached(t)
+  );
 }
 
 // ServiceTicket → queue row.
 function toRow(t: ServiceTicket): NeedsHumanRow {
   const attrs = t.attrs ?? {};
   const level = toEscalationLevel(attrs.escalation_level ?? 'human');
-  const { reason, flaggedByIntake } = reasonForNeedsHuman(attrs, level);
+  const sla = computeSla({
+    priority: t.priority, kind: t.kind, status: t.status, slaDue: t.slaDue, age: t.age,
+  });
+  // A breach becomes the row's reason when nothing else flagged it, so the
+  // operator sees WHY it surfaced.
+  const base = reasonForNeedsHuman(attrs, level);
+  const flaggedByOther =
+    attrs.needs_human === true || String(attrs.needs_human) === 'true' || level === 'human';
+  const reason = sla.breachedOpen && !flaggedByOther ? 'SLA breached — past resolution deadline' : base.reason;
+  const flaggedByIntake = base.flaggedByIntake;
   const ageSeconds = ageToSeconds(t.age);
   const customer = t.customerName || t.customerEmail || t.tenantRef || '—';
   const customerHref = t.tenantRef
@@ -63,6 +87,9 @@ function toRow(t: ServiceTicket): NeedsHumanRow {
     ageSeconds,
     assigneeId,
     urgency: urgencyScore(t.priority, ageSeconds),
+    slaClass: slaBadgeClass(sla.state),
+    slaLabel: slaBadgeLabel(sla),
+    slaBreached: sla.breachedOpen,
   };
 }
 

@@ -14,6 +14,7 @@
 import { verifySupportIntake } from '@/lib/ingest-auth';
 import { intakeEnabled } from '@/lib/hermes/brain/flags';
 import { retrieveKb } from '@/lib/hermes/kb-context';
+import { getSupportStatus } from '@/lib/support-status';
 import {
   clientIp, corsHeaders, readCappedText, isJsonContentType,
   kbBodySchema, CAPS, RATE,
@@ -43,18 +44,32 @@ function rateLimited(req: Request): Response | null {
 // at /v2/kb/<slug>). Override per-estate with SUPPORT_KB_PUBLIC_BASE.
 const KB_BASE = (process.env.SUPPORT_KB_PUBLIC_BASE ?? '').replace(/\/$/, '');
 
+// Coarse service status surfaced alongside deflection results. Resolved from the
+// estate monitoring via lib/support-status (Alertmanager → Uptime-Kuma → default),
+// cached and non-throwing, so it degrades to 'operational' rather than failing the
+// search. Shared with GET /api/public/support/status.
+async function coarseStatus(): Promise<string> {
+  try {
+    return (await getSupportStatus()).status;
+  } catch {
+    return 'operational';
+  }
+}
+
 async function handle(req: Request, query: string, limit: number) {
   try {
-    const results = (await retrieveKb(query, limit)).map((a) => ({
-      slug: a.slug,
-      title: a.title,
-      body: a.body,
-      url: KB_BASE ? `${KB_BASE}/v2/kb/${a.slug}` : `/v2/kb/${a.slug}`,
-    }));
-    // Coarse status surfaced alongside deflection results. There is no live status
-    // source wired to this public surface yet, so we report a static 'operational';
-    // when a status source lands, resolve it here without changing the contract.
-    return json(req, { results, status: 'operational' });
+    const [results, status] = await Promise.all([
+      retrieveKb(query, limit).then((rows) =>
+        rows.map((a) => ({
+          slug: a.slug,
+          title: a.title,
+          body: a.body,
+          url: KB_BASE ? `${KB_BASE}/v2/kb/${a.slug}` : `/v2/kb/${a.slug}`,
+        })),
+      ),
+      coarseStatus(),
+    ]);
+    return json(req, { results, status });
   } catch (e: any) {
     console.error('[support/kb] search failed:', e?.message ?? e);
     return json(req, { error: 'kb search failed' }, 500);
@@ -71,7 +86,7 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const q = (url.searchParams.get('q') ?? '').trim().slice(0, CAPS.query);
-  if (!q) return json(req, { results: [], status: 'operational' });
+  if (!q) return json(req, { results: [], status: await coarseStatus() });
   const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 3, 1), 8);
   return handle(req, q, limit);
 }
@@ -93,7 +108,7 @@ export async function POST(req: Request) {
   if (!parsed.success) return json(req, { error: 'invalid request' }, 400);
 
   const q = (parsed.data.q ?? '').trim();
-  if (!q) return json(req, { results: [], status: 'operational' });
+  if (!q) return json(req, { results: [], status: await coarseStatus() });
   const limit = Math.min(Math.max(parsed.data.limit ?? 3, 1), 8);
   return handle(req, q, limit);
 }

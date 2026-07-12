@@ -94,6 +94,11 @@ export type NeedsHumanRow = {
   ageSeconds: number;
   assigneeId: string; // raw clerk id ('' = unassigned)
   urgency: number; // sort key
+  // SLA badge (computed via lib/support/sla.computeSla). `slaClass` is the
+  // existing badge CSS variant (ok|warn|breach); `slaLabel` the short text.
+  slaClass: 'ok' | 'warn' | 'breach';
+  slaLabel: string;
+  slaBreached: boolean; // true = past its resolution deadline while open
 };
 
 // Most-urgent first: urgency desc, then ref for a stable order.

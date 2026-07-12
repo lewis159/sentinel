@@ -10,6 +10,7 @@ import { getSupabase } from './connectors';
 import { getContainers } from './docker';
 import * as mock from './mock';
 import { KIND_STATUSES } from './mock';
+import { slaTargetFor } from './support/sla';
 import type {
   Finding, Ticket, AbuseUser, Severity,
   ServiceTicket, TicketKind, RoadmapItem, ChangelogEntry,
@@ -1025,6 +1026,14 @@ export async function createTicket(input: CreateTicketInput): Promise<{ ref: str
   if (customerEmail != null) attrs.customer_email = customerEmail;
   if (customerName != null) attrs.customer_name = customerName;
 
+  // SLA — default the resolution deadline from policy (created now + the
+  // priority×kind resolution target) when the caller didn't set one. Additive:
+  // an explicit input.slaDue still wins; this only fills the previously-null case
+  // so a new ticket always carries a meaningful sla_due for the desk badge.
+  const slaDue =
+    input.slaDue ??
+    new Date(Date.now() + slaTargetFor(priority, kind).resolutionMs).toISOString();
+
   const inserted = await q1<{ ref: string }>(
     `insert into ops.tickets
        (ref, kind, type, title, description, status, priority, impact, urgency, app, source, sla_due,
@@ -1043,7 +1052,7 @@ export async function createTicket(input: CreateTicketInput): Promise<{ ref: str
       input.urgency ?? null,
       input.app ?? 'Estate',
       input.source ?? 'manual',
-      input.slaDue ?? null,
+      slaDue,
       tenantRef,
       customerEmail,
       customerName,

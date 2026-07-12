@@ -31,8 +31,8 @@ export type RbacSection = 'support' | 'operations' | 'security';
 // The five entries in AGENT_META above are the DRAFT-ONLY department copilots
 // (keyed by AgentKey) that the HermesPanel UI + copilot routes drive. The full
 // Hermes exec bench also includes agentic personas that are NOT copilot draft
-// surfaces — the PA (the above-the-line profile) and, added here, the two
-// remaining execs that complete the "Full 7": CEO / Chief-of-Staff and Risk /
+// surfaces — the PA (the above-the-line profile) and, added here, the execs that
+// complete the "Full 7": CEO / Chief-of-Staff, CTO / Engineering and Risk /
 // Red-team. They register as Brain personas (see brain/personas/execs.ts); this
 // is their lightweight roster metadata (id, label, section, description).
 //
@@ -47,13 +47,25 @@ export type ExecRosterEntry = {
   advisory?: boolean;   // true → advisory-only (produces analysis/proposals, never acts)
 };
 
-export const EXEC_ROSTER: Record<'ceo' | 'risk', ExecRosterEntry> = {
+// The exec personas invokable on-demand (POST /api/hermes/exec/chat). Distinct
+// from AgentKey (the five copilots) — the exec route switches on THIS union so it
+// can never be handed a copilot id.
+export type ExecPersonaId = 'ceo' | 'cto' | 'risk';
+
+export const EXEC_ROSTER: Record<ExecPersonaId, ExecRosterEntry> = {
   ceo: {
     id: 'ceo',
     label: 'CEO / Chief-of-Staff',
     section: 'operations', // closest existing RBAC section for cross-exec prioritisation
     description:
       'Turns intent into prioritised work, resolves competing exec demands, and runs the weekly review. Recommends direction (read-only); its gate is Ben approving the scope.',
+  },
+  cto: {
+    id: 'cto',
+    label: 'CTO / Engineering',
+    section: 'operations', // deploy/CI/roadmap health sits in the operations section
+    description:
+      'Owns roadmap triage, CI/deploy health, and the standing of security findings. Reads repos/runs freely; proposes deploys/commits (GATED) that only run on human approval.',
   },
   risk: {
     id: 'risk',
@@ -64,3 +76,9 @@ export const EXEC_ROSTER: Record<'ceo' | 'risk', ExecRosterEntry> = {
     advisory: true,
   },
 };
+
+// Runtime guard: is `v` one of the invokable exec personas? Used by the exec
+// invoke route to reject a copilot id (or garbage) before touching the Brain.
+export function isExecPersonaId(v: unknown): v is ExecPersonaId {
+  return v === 'ceo' || v === 'cto' || v === 'risk';
+}
