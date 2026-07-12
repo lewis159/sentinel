@@ -1,0 +1,9 @@
+{
+  "//": "Typecheck-only config for the Playwright E2E specs. The base tsconfig.json EXCLUDES `tests` (so the Next build never picks them up); this config re-includes tests/e2e + playwright.config.ts so `tsc -p tsconfig.e2e.json --noEmit` verifies the specs compile. Additive: nothing else reads this file (Next only uses tsconfig.json).",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["tests/e2e/**/*.ts", "playwright.config.ts"],
+  "exclude": ["node_modules"]
+}

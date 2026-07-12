@@ -23,7 +23,7 @@ npm-debug.log*
 .vercel
 *.tsbuildinfo
 
-# design/build docs + generated PDFs — never committed
+# design/build docs + generated PDFs ï¿½ never committed
 /documents/
 
 # local tooling (preview server config)
@@ -32,4 +32,6 @@ npm-debug.log*
 # tests / e2e artifacts
 /test-results/
 /playwright-report/
+/blob-report/
+/playwright/.cache/
 **/node_modules/
