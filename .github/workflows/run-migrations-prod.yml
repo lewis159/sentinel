@@ -1,0 +1,44 @@
+name: run-migrations-prod
+# Applies pending Sentinel migrations to the PRODUCTION `ops` schema. MANUAL ONLY
+# — never auto-triggered. Run this BEFORE deploying a Sentinel image that depends
+# on the new schema (otherwise the app degrades until the schema catches up).
+#
+# Mechanism (mirrors bentech-infra/run-migrations-prod.yml): runs the migrator
+# image (ghcr.io/lewis159/sentinel-migrator:latest) as a one-shot Swarm job on the
+# host via the Portainer Docker API, on the ytdb_ytdb network, reading the
+# `sentinel_migrator_db_uri` Docker secret. Waits for completion and fails loudly
+# on any non-complete state.
+#
+# Prereqs (one-time, see docs/sentinel-autodeploy.md):
+#   - GH secrets PORTAINER_URL + PORTAINER_TOKEN on lewis159/sentinel.
+#   - Docker secret `sentinel_migrator_db_uri` on the box, whose role is
+#     PRIVILEGED enough for Sentinel's DDL (CREATE SCHEMA ops, CREATE EXTENSION
+#     vector, etc.) — the postgres superuser or a dedicated migrator/owner role.
+#   - The migrator image built + pushed (build-migrator.yml).
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "apply-prod" to confirm applying migrations to PRODUCTION'
+        required: true
+        type: string
+
+jobs:
+  migrate-prod:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Guard
+        run: |
+          [ "${{ github.event.inputs.confirm }}" = "apply-prod" ] || {
+            echo "::error::confirm input must be exactly 'apply-prod'"; exit 1; }
+      - name: Apply migrations to PROD
+        env:
+          PORTAINER_URL: ${{ secrets.PORTAINER_URL }}
+          PORTAINER_TOKEN: ${{ secrets.PORTAINER_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PORTAINER_URL:-}" ] || [ -z "${PORTAINER_TOKEN:-}" ]; then
+            echo "::error::PORTAINER_URL / PORTAINER_TOKEN secrets not set"; exit 1
+          fi
+          bash scripts/run-sentinel-migrations.sh
