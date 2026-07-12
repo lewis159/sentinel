@@ -64,6 +64,7 @@ export const NAV: V2NavGroup[] = [
       { label: 'Incident Commander', href: '/v2/hermes/incident-commander', icon: 'incidents' },
       { label: 'Approvals', href: '/v2/hermes/approvals', icon: 'approvals' },
       { label: 'Agents', href: '/v2/hermes/agents', icon: 'agents' },
+      { label: 'Forecasting', href: '/v2/hermes/forecasting', icon: 'forecasting' },
       { label: 'Testing', href: '/v2/hermes/testing', icon: 'testing' },
     ],
   },

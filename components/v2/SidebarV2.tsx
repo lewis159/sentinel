@@ -225,6 +225,14 @@ function icon(key: string) {
           <path d="M7 9h.01M7 13h.01M14 13h.01M14 17h.01" />
         </svg>
       );
+    case 'forecasting':
+      return (
+        <svg {...common}>
+          <path d="M3 3v18h18" />
+          <path d="m19 9-5 5-4-4-3 3" />
+          <path d="M19 9h-4M19 9v4" />
+        </svg>
+      );
     default:
       return (
         <svg {...common}>
