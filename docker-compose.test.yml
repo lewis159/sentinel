@@ -1,0 +1,32 @@
+# Local Postgres for the DB-backed integration suite (npm run test:integration).
+#
+# pgvector image so db/init/13_hermes_kb.sql's `create extension vector` + the
+# vector(1536) column load cleanly (the same migrations CI loads). The db/init
+# scripts are mounted into the container's first-boot init dir, so 01..17 run in
+# order automatically on the FIRST `up` (including 17, which enables tenant RLS —
+# the integration suite handles that).
+#
+# Port 5433 on the host to avoid colliding with a local dev Postgres on 5432.
+#
+# Usage:
+#   docker compose -f docker-compose.test.yml up -d
+#   DATABASE_URL=postgres://sentinel:sentinel@localhost:5433/sentinel_test \
+#     PGSSL=disable HERMES_RLS_ENABLED=1 npm run test:integration
+#   docker compose -f docker-compose.test.yml down -v   # tear down + wipe volume
+services:
+  sentinel-test-db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: sentinel
+      POSTGRES_PASSWORD: sentinel
+      POSTGRES_DB: sentinel_test
+    ports:
+      - '5433:5432'
+    volumes:
+      # First-boot init: Postgres runs every *.sql here in lexical order.
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U sentinel -d sentinel_test']
+      interval: 5s
+      timeout: 5s
+      retries: 20
