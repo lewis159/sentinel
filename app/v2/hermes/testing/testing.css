@@ -1,0 +1,121 @@
+/* Hermes · Admin Testing hub. Namespaced v2-smk-* so nothing leaks. Colours come
+   from the v2 shell tokens (var(--...)) only, so it themes light + dark for free. */
+
+.v2-smk {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.v2-smk-card .v2-card-h {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+/* Summary strip after a smoke run */
+.v2-smk-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0 4px;
+}
+.v2-smk-sub {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* Rows (shared by smoke checks + CI runs) */
+.v2-smk-rows {
+  display: flex;
+  flex-direction: column;
+  margin-top: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.v2-smk-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--line-soft);
+}
+.v2-smk-row:first-child {
+  border-top: none;
+}
+
+.v2-smk-pill {
+  flex: 0 0 auto;
+  min-width: 52px;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 10px;
+}
+
+.v2-smk-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.v2-smk-name {
+  color: var(--text-strong);
+  font-weight: 600;
+  font-size: 13px;
+}
+.v2-smk-detail {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 2px;
+  word-break: break-word;
+}
+.v2-smk-detail code,
+.v2-smk-card .st code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.92em;
+  color: var(--text);
+}
+
+.v2-smk-ms {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.v2-smk-link {
+  flex: 0 0 auto;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.v2-smk-link:hover {
+  text-decoration: underline;
+}
+
+.v2-smk-empty {
+  padding: 16px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.v2-smk-err,
+.v2-smk-note {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+.v2-smk-err {
+  color: var(--crit);
+  background: var(--crit-bg);
+  border: 1px solid var(--crit-bg);
+}
+.v2-smk-note {
+  color: var(--muted);
+  background: var(--surface2);
+  border: 1px solid var(--line);
+}

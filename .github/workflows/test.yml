@@ -1,0 +1,140 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Sentinel · Tests (on-demand + PR gate)
+# ─────────────────────────────────────────────────────────────────────────────
+# Runs the Sentinel/Hermes test pyramid. Triggerable manually from the Actions
+# tab (workflow_dispatch) and automatically on every pull_request. The
+# typecheck / unit / integration jobs are hard gates (continue-on-error: false),
+# so a red one fails the PR check. The e2e job is TOLERANT until the Playwright
+# harness lands (see the note on that job).
+#
+# House style follows build-push.yml / security-scans.yml: actions/checkout@v4,
+# actions/setup-node@v4 (node 20) with npm cache, `npm ci` for installs.
+name: Tests
+
+on:
+  workflow_dispatch: {}
+  pull_request: {}
+
+# Cancel superseded runs on the same ref (a new push to a PR branch).
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ───────────────────────────────────────────────────────────────────────────
+  # typecheck — tsc --noEmit (gate)
+  # ───────────────────────────────────────────────────────────────────────────
+  typecheck:
+    name: Typecheck (tsc --noEmit)
+    runs-on: ubuntu-latest
+    continue-on-error: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npx tsc --noEmit
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # unit — the pure-logic vitest suite (gate)
+  # ───────────────────────────────────────────────────────────────────────────
+  unit:
+    name: Unit tests (vitest)
+    runs-on: ubuntu-latest
+    continue-on-error: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:unit
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # integration — DB-backed suite against a real Postgres service (gate)
+  # ───────────────────────────────────────────────────────────────────────────
+  # pgvector/pgvector:pg16 so db/init/13_hermes_kb.sql's `create extension vector`
+  # + vector(1536) column load exactly as in prod. We load db/init/*.sql in order
+  # via psql, then run the suite with DATABASE_URL pointing at the service.
+  integration:
+    name: Integration tests (Postgres)
+    runs-on: ubuntu-latest
+    continue-on-error: false
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: sentinel
+          POSTGRES_PASSWORD: sentinel
+          POSTGRES_DB: sentinel_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sentinel -d sentinel_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgres://sentinel:sentinel@localhost:5432/sentinel_test
+      PGSSL: disable
+      # Lets the RLS suite exercise the real policy; other suites ignore it.
+      HERMES_RLS_ENABLED: '1'
+      PGPASSWORD: sentinel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+
+      # Load the schema in numeric order. ON_ERROR_STOP so a bad migration fails
+      # the job loudly rather than running tests against a half-built schema.
+      - name: Load db/init/*.sql into Postgres
+        run: |
+          set -euo pipefail
+          for f in db/init/*.sql; do
+            echo "psql <- $f"
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$f"
+          done
+
+      - name: Run integration suite
+        run: npm run test:integration
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # e2e — Playwright (TOLERANT, not yet a gate)
+  # ───────────────────────────────────────────────────────────────────────────
+  # DEPENDENCY: the `test:e2e` script's Playwright specs/harness are provided by
+  # the SEPARATE branch `feat/hermes-test-e2e`. Until that branch merges, this job
+  # is best-effort:
+  #   * `--if-present` no-ops if the test:e2e script is ever absent, and
+  #   * continue-on-error: true means a failure never blocks the PR.
+  # Once feat/hermes-test-e2e is merged, flip continue-on-error to false to make
+  # e2e a hard gate too.
+  e2e:
+    name: E2E tests (Playwright)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      # E2E_TEST_MODE=1 activates the app's test-only auth shim, so no real Clerk
+      # call is ever made. Clerk's provider still needs a format-valid key to
+      # initialise, so we supply throwaway DUMMY test-format keys (not tied to any
+      # real instance — non-secret placeholders). Mirrors playwright.config.ts's
+      # webServer.env; kept here as belt-and-suspenders for the e2e job.
+      E2E_TEST_MODE: '1'
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: 'pk_test_Y2xlcmsuZXhhbXBsZS5jb20k'
+      CLERK_SECRET_KEY: 'sk_test_dummydummydummydummydummydummydummydummy'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      - name: Run e2e (best-effort until feat/hermes-test-e2e merges)
+        run: npm run test:e2e --if-present
