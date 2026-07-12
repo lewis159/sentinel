@@ -1,7 +1,10 @@
 import Link from 'next/link';
 import { tickets, type Severity, type Ticket } from '@/lib/mock';
-import { requireSectionPage } from '@/lib/auth';
+import { requireSectionPage, getSessionAccess } from '@/lib/auth';
 import { TicketComposer, TicketStatusControl } from '@/components/v2/ticket-actions';
+import { AssignControl, EscalateControl } from '@/components/v2/support-assign';
+import { getSupportStaff } from '@/lib/support/data';
+import { authorize } from '@/lib/support/roles';
 import HermesPanel from '@/components/v2/HermesPanel';
 import './ticket.css';
 
@@ -337,6 +340,13 @@ export default async function Page({ params }: { params: Promise<{ ref: string }
   const pill = priorityPill(ticket.priority);
   const status = statusPill(ticket.status);
 
+  // P3 — resolve the caller's support-action authority + the staff roster so the
+  // assign dropdown + escalate button render only for permitted roles.
+  const { role } = await getSessionAccess();
+  const canAssign = authorize(role, 'assign') === 'allow';
+  const canEscalate = authorize(role, 'escalate') === 'allow';
+  const staff = canAssign ? await getSupportStaff() : [];
+
   // Surface the Hermes · Billing (CFO) agent only when the ticket is clearly
   // money-related. We match against the ticket title/type and the decorated
   // description (the richer, human context) since the mock ticket itself has
@@ -366,6 +376,14 @@ export default async function Page({ params }: { params: Promise<{ ref: string }
           </div>
           <div className="v2-td-head-actions">
             <TicketStatusControl refId={ticket.ref} kind="request" status={ticket.status || 'open'} />
+            {canAssign && (
+              <AssignControl
+                refId={ticket.ref}
+                staff={staff.map((s) => ({ clerkUserId: s.clerkUserId, displayName: s.displayName, tier: s.tier }))}
+                current={ticket.assignee && ticket.assignee !== '—' ? ticket.assignee : ''}
+              />
+            )}
+            {canEscalate && <EscalateControl refId={ticket.ref} />}
           </div>
         </div>
       </div>
