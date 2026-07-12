@@ -49,6 +49,21 @@ export const DEFAULT_TOOL_MODES: AutonomyToolRow[] = [
   ...(['incident', 'escalation', 'billing', 'security'] as const).map(
     (p): AutonomyToolRow => ({ persona: p, tool: 'updateTicket', mode: 'draft_only' }),
   ),
+  // ---- P3 action tools (Stripe / Resend / GitHub) --------------------------
+  // Reads are auto (safe lookups); every money/email/deploy WRITE is gated so the
+  // graph interrupts for human approval before run() performs the side-effect.
+  // Support: send the drafted reply (gated).
+  { persona: 'support', tool: 'sendEmail', mode: 'gated' },
+  // Billing (CFO): read a charge (auto); refund / credit / email (all gated).
+  { persona: 'billing', tool: 'getCharge', mode: 'auto' },
+  { persona: 'billing', tool: 'refundCharge', mode: 'gated' },
+  { persona: 'billing', tool: 'issueCredit', mode: 'gated' },
+  { persona: 'billing', tool: 'sendEmail', mode: 'gated' },
+  // Incident (ops / CTO-adjacent): GitHub reads (auto); deploy / commit (gated).
+  { persona: 'incident', tool: 'listWorkflowRuns', mode: 'auto' },
+  { persona: 'incident', tool: 'getFileContents', mode: 'auto' },
+  { persona: 'incident', tool: 'triggerWorkflow', mode: 'gated' },
+  { persona: 'incident', tool: 'commitFile', mode: 'gated' },
 ];
 
 export const DEFAULT_THRESHOLDS: AutonomyThresholdRow[] = [

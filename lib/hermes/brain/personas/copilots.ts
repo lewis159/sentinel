@@ -187,14 +187,39 @@ const COPILOT_READ_TOOLS = ['getTicket', 'listTickets', 'getDeployStatus'];
 // Support additionally carries the GATED updateTicket action: when run agentically
 // it interrupts → raises an action proposal → executes only on human Approve, i.e.
 // the exact spine the PA uses. The other four copilots stay read-only (auto).
-const SUPPORT_TOOLS = [...COPILOT_READ_TOOLS, 'updateTicket'];
+// Support also carries sendEmail (GATED) so it can send the drafted customer reply
+// through the SAME approval spine.
+const SUPPORT_TOOLS = [...COPILOT_READ_TOOLS, 'updateTicket', 'sendEmail'];
+
+// Billing (CFO) carries the real money path: getCharge (auto read) plus the GATED
+// money actions refundCharge / issueCredit, and sendEmail (GATED) to reply. Every
+// money/email action interrupts → approval → executes once (the PA's spine).
+const BILLING_TOOLS = [
+  ...COPILOT_READ_TOOLS,
+  'getCharge',
+  'refundCharge',
+  'issueCredit',
+  'sendEmail',
+];
+
+// Incident response is the ops/deploy-facing copilot on this Brain (the CTO-adjacent
+// role — there is no standalone CTO copilot persona in this registry yet, so the
+// GitHub deploy tools live here). It carries the GitHub read tools (auto) plus the
+// GATED writes triggerWorkflow (kick a deploy) and commitFile (repo change).
+const INCIDENT_TOOLS = [
+  ...COPILOT_READ_TOOLS,
+  'listWorkflowRuns',
+  'getFileContents',
+  'triggerWorkflow',
+  'commitFile',
+];
 
 export const COPILOT_PERSONAS: CopilotPersonaDef[] = [
   {
     id: 'support',
     systemPrompt: SUPPORT_SYSTEM_PROMPT,
     allowedTools: SUPPORT_TOOLS,
-    autonomyByTool: { updateTicket: 'gated' },
+    autonomyByTool: { updateTicket: 'gated', sendEmail: 'gated' },
     copilot: {
       userLead: 'Draft a customer reply for the following support ticket.',
       kbHeader: STD_KB_HEADER,
@@ -219,7 +244,11 @@ export const COPILOT_PERSONAS: CopilotPersonaDef[] = [
   {
     id: 'billing',
     systemPrompt: BILLING_SYSTEM_PROMPT,
-    allowedTools: COPILOT_READ_TOOLS,
+    allowedTools: BILLING_TOOLS,
+    // refundCharge / issueCredit MOVE MONEY and sendEmail sends real mail — all
+    // GATED so they interrupt for human approval before running. getCharge stays
+    // auto (safe read) via its own default.
+    autonomyByTool: { refundCharge: 'gated', issueCredit: 'gated', sendEmail: 'gated' },
     copilot: {
       userLead:
         'Review the following billing/refund/subscription request and produce a recommendation for a human to approve.',
@@ -232,7 +261,11 @@ export const COPILOT_PERSONAS: CopilotPersonaDef[] = [
   {
     id: 'incident',
     systemPrompt: INCIDENT_SYSTEM_PROMPT,
-    allowedTools: COPILOT_READ_TOOLS,
+    allowedTools: INCIDENT_TOOLS,
+    // triggerWorkflow (deploy) and commitFile (repo write) can ship code / change
+    // infra — GATED so they interrupt for human approval. The GitHub read tools
+    // (listWorkflowRuns / getFileContents) stay auto via their own default.
+    autonomyByTool: { triggerWorkflow: 'gated', commitFile: 'gated' },
     copilot: {
       userLead: 'Assess the following incident. Do not take action — assess and recommend.',
       kbHeader: 'Relevant runbook / knowledge-base articles (cite the ones you use by title):',

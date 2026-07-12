@@ -7,14 +7,33 @@ import type { BrainTool } from './types';
 import { getTicketTool, listTicketsTool, updateTicketTool } from './tickets';
 import { broadcastStatusTool } from './broadcast';
 import { getDeployStatusTool } from './deploy';
+import { getChargeTool, refundChargeTool, issueCreditTool } from './stripe';
+import { sendEmailTool } from './email';
+import {
+  listWorkflowRunsTool,
+  getFileContentsTool,
+  triggerWorkflowTool,
+  commitFileTool,
+} from './github';
 
-// The P0 tool set. Order is not significant.
+// The tool set. Order is not significant. The graph resolves each tool's autonomy
+// (auto → run; gated → interrupt for human approval) per (persona, tool) at call
+// time, so the money/email/deploy action tools below only ever run post-approval.
 export const ALL_TOOLS: BrainTool[] = [
   getTicketTool,
   listTicketsTool,
   updateTicketTool,
   broadcastStatusTool,
   getDeployStatusTool,
+  // P3 action tools (Stripe / Resend / GitHub). Reads are auto; writes are gated.
+  getChargeTool,
+  refundChargeTool,
+  issueCreditTool,
+  sendEmailTool,
+  listWorkflowRunsTool,
+  getFileContentsTool,
+  triggerWorkflowTool,
+  commitFileTool,
 ];
 
 const BY_NAME = new Map<string, BrainTool>(ALL_TOOLS.map((t) => [t.name, t]));
