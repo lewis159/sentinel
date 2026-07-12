@@ -36,6 +36,9 @@ const COPILOT_PERSONA_LIST: Persona[] = COPILOT_PERSONAS.map((c) => ({
   id: c.id,
   systemPrompt: c.systemPrompt,
   allowedTools: c.allowedTools,
+  // Carry each copilot's per-tool autonomy overrides (e.g. Support → updateTicket
+  // gated) so the graph gates the same way it does for the PA.
+  autonomyByTool: c.autonomyByTool,
   copilot: c.copilot,
   model: process.env[`HERMES_${c.id.toUpperCase()}_MODEL`] || undefined,
 }));

@@ -50,17 +50,24 @@ insert into hermes.autonomy_config (persona, tool, mode) values
   ('pa', 'getDeployStatus',  'auto'),
   ('pa', 'broadcastStatus',  'auto'),
   ('pa', 'updateTicket',     'gated'),
-  -- The five department copilots are draft-only: they propose, never execute.
-  ('support',    'getTicket', 'draft_only'), ('support',    'listTickets', 'draft_only'),
-  ('support',    'updateTicket', 'draft_only'), ('support',    'getDeployStatus', 'draft_only'),
-  ('incident',   'getTicket', 'draft_only'), ('incident',   'listTickets', 'draft_only'),
-  ('incident',   'updateTicket', 'draft_only'), ('incident',   'getDeployStatus', 'draft_only'),
-  ('escalation', 'getTicket', 'draft_only'), ('escalation', 'listTickets', 'draft_only'),
-  ('escalation', 'updateTicket', 'draft_only'), ('escalation', 'getDeployStatus', 'draft_only'),
-  ('billing',    'getTicket', 'draft_only'), ('billing',    'listTickets', 'draft_only'),
-  ('billing',    'updateTicket', 'draft_only'), ('billing',    'getDeployStatus', 'draft_only'),
-  ('security',   'getTicket', 'draft_only'), ('security',   'listTickets', 'draft_only'),
-  ('security',   'updateTicket', 'draft_only'), ('security',   'getDeployStatus', 'draft_only')
+  -- The five department copilots: safe reads AUTO so an agentic copilot turn can
+  -- look things up on its own. Support additionally carries updateTicket as a
+  -- GATED action — it interrupts, raises an approval-queue proposal, and executes
+  -- only on human Approve (the same spine as the PA). The other four keep
+  -- updateTicket draft_only defensively (it is not in their allowed tools).
+  -- NOTE: ON CONFLICT DO NOTHING means an already-seeded environment keeps its
+  -- existing (previously draft_only) rows; flip the Support · updateTicket dial to
+  -- 'gated' on the Hermes governance page there. Fresh installs seed correctly.
+  ('support',    'getTicket', 'auto'), ('support',    'listTickets', 'auto'),
+  ('support',    'updateTicket', 'gated'), ('support',    'getDeployStatus', 'auto'),
+  ('incident',   'getTicket', 'auto'), ('incident',   'listTickets', 'auto'),
+  ('incident',   'updateTicket', 'draft_only'), ('incident',   'getDeployStatus', 'auto'),
+  ('escalation', 'getTicket', 'auto'), ('escalation', 'listTickets', 'auto'),
+  ('escalation', 'updateTicket', 'draft_only'), ('escalation', 'getDeployStatus', 'auto'),
+  ('billing',    'getTicket', 'auto'), ('billing',    'listTickets', 'auto'),
+  ('billing',    'updateTicket', 'draft_only'), ('billing',    'getDeployStatus', 'auto'),
+  ('security',   'getTicket', 'auto'), ('security',   'listTickets', 'auto'),
+  ('security',   'updateTicket', 'draft_only'), ('security',   'getDeployStatus', 'auto')
 on conflict (persona, tool) do nothing;
 
 insert into hermes.autonomy_thresholds (key, label, value, sort) values

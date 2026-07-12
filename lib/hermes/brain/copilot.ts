@@ -16,6 +16,7 @@
 import 'server-only';
 import { callModel, type ChatMsg } from './model';
 import { getPersona } from './personas';
+import { runPaTurn, type PaTurnResult } from './graph';
 import { retrieveKb } from '@/lib/hermes/kb-context';
 import type { HermesProposal } from '@/lib/hermes/types';
 
@@ -130,4 +131,38 @@ export async function runCopilotProposal(opts: {
     reasoning: typeof parsed.reasoning === 'string' ? parsed.reasoning : undefined,
     model: result.model,
   };
+}
+
+/**
+ * Run a department copilot as an AGENTIC turn on the SHARED Brain graph — the same
+ * spine the PA uses (lib/hermes/brain/graph.ts). The model may call the persona's
+ * allowed tools; a tool whose effective autonomy is:
+ *   - auto       → executes inline (safe reads),
+ *   - gated      → INTERRUPTS the graph → returns { status:'pending_approval' } so
+ *                  the caller raises an action proposal in the Approvals queue;
+ *                  Approve resumes the graph and runs the tool EXACTLY once,
+ *   - draft_only → never executes (recorded as a proposed call only).
+ * Autonomy is resolved through resolveAutonomy(persona, tool) — the P1 dials — so
+ * the governance page still governs every copilot action.
+ *
+ * This is the opt-in agentic surface, gated behind HERMES_BRAIN_ENABLED (runPaTurn
+ * returns { status:'disabled' } when off). The existing DRAFT surface
+ * (runCopilotProposal, above) is untouched and keeps working with the flag off.
+ */
+export async function runCopilotAction(opts: {
+  persona: CopilotPersonaId;
+  threadId: string;
+  message: string;
+  actor?: string;
+}): Promise<PaTurnResult> {
+  const persona = getPersona(opts.persona);
+  if (!persona || !persona.copilot) {
+    return { status: 'error', error: `unknown copilot persona: ${opts.persona}` };
+  }
+  return runPaTurn({
+    threadId: opts.threadId,
+    message: opts.message,
+    persona: opts.persona,
+    actor: opts.actor ?? opts.persona,
+  });
 }

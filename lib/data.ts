@@ -613,11 +613,25 @@ export async function getTicketsByKind(
   opts?: { tenantRef?: string | null },
 ): Promise<Sourced<ServiceTicket>> {
   const tenantRef = opts?.tenantRef ?? null;
+  const scoped = Boolean(tenantRef);
+
+  // Mock fallback is a NO-DB / can't-run-the-query developer convenience for the
+  // UNSCOPED operator view only. A tenant-scoped call must NEVER surface
+  // fabricated rows — if it can't reach the real table it returns empty, so a
+  // tenant with no tickets (or a DB error) can never be shown another/fake
+  // tenant's data. This is the tenant-isolation invariant.
   const fallback = () =>
     mock.serviceTickets.filter(
       (t) => t.kind === kind && (!tenantRef || t.tenantRef === tenantRef),
     );
-  if (!hasDb) return { rows: fallback(), live: false, note: 'no DB' };
+
+  // No database configured: unscoped falls back to mock (prototype renders);
+  // scoped returns real-empty, never mock.
+  if (!hasDb) {
+    return scoped
+      ? { rows: [], live: false, note: 'no DB (scoped)' }
+      : { rows: fallback(), live: false, note: 'no DB' };
+  }
   try {
     const params: any[] = [kind];
     let where = 'kind=$1';
@@ -629,10 +643,18 @@ export async function getTicketsByKind(
       `select ${TICKET_COLS} from ops.tickets where ${where} order by opened_at desc nulls last`,
       params
     );
-    if (data.length === 0) return { rows: fallback(), live: false, note: 'empty' };
+    // The query RAN. Zero rows is a legitimately-empty real result, NOT a
+    // "no data source" signal — return [] with live:true. (Previously this fell
+    // back to mock on data.length===0, which conflated "DB present, zero rows"
+    // with "no DB" and leaked fabricated rows into a tenant-scoped view for a
+    // tenant that genuinely has no tickets.)
     return { rows: data.map(mapServiceTicket), live: true };
   } catch (e: any) {
-    return { rows: fallback(), live: false, note: e?.message ?? 'error' };
+    // Query could not run (connection/SQL error). Unscoped falls back to mock;
+    // scoped returns real-empty, never mock.
+    return scoped
+      ? { rows: [], live: false, note: e?.message ?? 'error' }
+      : { rows: fallback(), live: false, note: e?.message ?? 'error' };
   }
 }
 

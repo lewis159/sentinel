@@ -27,6 +27,11 @@ export type CopilotPersonaDef = {
   id: string;
   systemPrompt: string;
   allowedTools: string[];
+  // Optional per-persona autonomy overrides, keyed by tool name (mirrors the PA).
+  // Lets a copilot carry a GATED action tool (e.g. Support → updateTicket) so its
+  // action flows through the SAME approval spine the PA uses. Absent → the tool's
+  // own default autonomy applies.
+  autonomyByTool?: Record<string, 'auto' | 'gated'>;
   copilot: CopilotMeta;
 };
 
@@ -174,15 +179,22 @@ Respond with STRICT JSON ONLY — no markdown, no code fences, no prose before o
   "reasoning": string                  // one paragraph on how you assessed this and any escalation / human-check flags
 }`;
 
-// Read tools are harmless for a draft-only copilot to have available; they are
-// governed by the same dials (seeded draft_only) so nothing executes regardless.
+// Read tools every copilot may execute autonomously (auto) once run agentically
+// on the shared Brain graph — they are safe lookups. The legacy DRAFT surface
+// (runCopilotProposal) offers NO tools, so it is unaffected by this scoping.
 const COPILOT_READ_TOOLS = ['getTicket', 'listTickets', 'getDeployStatus'];
+
+// Support additionally carries the GATED updateTicket action: when run agentically
+// it interrupts → raises an action proposal → executes only on human Approve, i.e.
+// the exact spine the PA uses. The other four copilots stay read-only (auto).
+const SUPPORT_TOOLS = [...COPILOT_READ_TOOLS, 'updateTicket'];
 
 export const COPILOT_PERSONAS: CopilotPersonaDef[] = [
   {
     id: 'support',
     systemPrompt: SUPPORT_SYSTEM_PROMPT,
-    allowedTools: COPILOT_READ_TOOLS,
+    allowedTools: SUPPORT_TOOLS,
+    autonomyByTool: { updateTicket: 'gated' },
     copilot: {
       userLead: 'Draft a customer reply for the following support ticket.',
       kbHeader: STD_KB_HEADER,
