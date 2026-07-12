@@ -35,3 +35,15 @@ export function intakeEnabled(): boolean {
   const v = (process.env.HERMES_INTAKE_ENABLED ?? '').trim().toLowerCase();
   return v === '1' || v === 'true' || v === 'yes' || v === 'on';
 }
+
+// Sub-flag: the SALES / LEAD-QUALIFICATION intake surface (public lead form →
+// POST /api/public/leads). Independent of the support intake + Brain flags so
+// the lead pipeline can be turned on/off on its own. When OFF (the default) the
+// public leads route short-circuits to a disabled response and NOTHING new is
+// reachable — the shipped app is completely unaffected until it is enabled.
+//
+//   HERMES_LEADS_ENABLED=1|true|yes|on → /api/public/leads is live.
+export function leadsEnabled(): boolean {
+  const v = (process.env.HERMES_LEADS_ENABLED ?? '').trim().toLowerCase();
+  return v === '1' || v === 'true' || v === 'yes' || v === 'on';
+}
