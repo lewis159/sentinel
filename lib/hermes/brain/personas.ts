@@ -5,6 +5,7 @@
 import type { ToolAutonomy } from './tools/types';
 import { PA_SOUL } from './personas/pa';
 import { COPILOT_PERSONAS, type CopilotMeta } from './personas/copilots';
+import { EXEC_PERSONAS } from './personas/execs';
 
 export type Persona = {
   id: string;
@@ -15,6 +16,11 @@ export type Persona = {
   autonomyByTool?: Record<string, ToolAutonomy>;
   // Optional OpenRouter model override; falls back to the configured global model.
   model?: string;
+  // Marks an ADVISORY-ONLY persona (e.g. Risk / Red-team) that must never carry a
+  // side-effecting tool. This is documentation of intent — the actual guarantee is
+  // that `allowedTools` contains no gated/side-effecting tool, so the graph never
+  // offers one to the model. Kept in sync with that invariant by the persona tests.
+  advisory?: boolean;
   // Present on the five DRAFT-ONLY department copilots (support/incident/
   // escalation/billing/security). Carries how their user turn + KB block are
   // phrased so the runner (brain/copilot.ts) reproduces each draft verbatim.
@@ -46,6 +52,9 @@ const COPILOT_PERSONA_LIST: Persona[] = COPILOT_PERSONAS.map((c) => ({
 const PERSONAS = new Map<string, Persona>([
   [PA_PERSONA.id, PA_PERSONA],
   ...COPILOT_PERSONA_LIST.map((p): [string, Persona] => [p.id, p]),
+  // CEO / Chief-of-Staff + Risk / Red-team — the two remaining execs that
+  // complete the roster. Agentic personas (like the PA), read-only tool sets.
+  ...EXEC_PERSONAS.map((p): [string, Persona] => [p.id, p]),
 ]);
 
 export function getPersona(id: string): Persona | undefined {
