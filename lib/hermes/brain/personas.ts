@@ -6,6 +6,7 @@ import type { ToolAutonomy } from './tools/types';
 import { PA_SOUL } from './personas/pa';
 import { COPILOT_PERSONAS, type CopilotMeta } from './personas/copilots';
 import { EXEC_PERSONAS } from './personas/execs';
+import { KNOWLEDGE_SYSTEM_PROMPT } from './personas/knowledge';
 
 export type Persona = {
   id: string;
@@ -49,8 +50,21 @@ const COPILOT_PERSONA_LIST: Persona[] = COPILOT_PERSONAS.map((c) => ({
   model: process.env[`HERMES_${c.id.toUpperCase()}_MODEL`] || undefined,
 }));
 
+// Internal Knowledge Q&A — a READ-ONLY, ADVISORY persona. Empty tool set means the
+// Brain graph never offers it a side-effecting tool; it only answers questions,
+// grounded strictly in the estate context the runner hands it. See
+// lib/hermes/brain/knowledge.ts (answerKnowledgeQuestion) for the grounded runner.
+export const KNOWLEDGE_PERSONA: Persona = {
+  id: 'knowledge',
+  systemPrompt: KNOWLEDGE_SYSTEM_PROMPT,
+  allowedTools: [],
+  advisory: true,
+  model: process.env.HERMES_KNOWLEDGE_MODEL || undefined,
+};
+
 const PERSONAS = new Map<string, Persona>([
   [PA_PERSONA.id, PA_PERSONA],
+  [KNOWLEDGE_PERSONA.id, KNOWLEDGE_PERSONA],
   ...COPILOT_PERSONA_LIST.map((p): [string, Persona] => [p.id, p]),
   // CEO / Chief-of-Staff + Risk / Red-team — the two remaining execs that
   // complete the roster. Agentic personas (like the PA), read-only tool sets.
