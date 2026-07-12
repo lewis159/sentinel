@@ -1,0 +1,66 @@
+/* ============================================================================
+   Sentinel v2 — "Needs human" support queue. Section-specific classes only,
+   namespaced `v2-nh-` and scoped under `.v2-shell`. Layout/table/pill tokens are
+   reused from support.css + v2.css; this file only adds the queue's extras.
+   ========================================================================== */
+
+/* Reason cell — a small dot + label explaining why the ticket is in the queue. */
+.v2-shell .v2-nh-reason {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+}
+.v2-shell .v2-nh-reason::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: currentColor;
+}
+/* Intake (AI) flag reads amber; a ladder escalation reads accent-blue. */
+.v2-shell .v2-nh-reason.intake { color: var(--high); }
+.v2-shell .v2-nh-reason.ladder { color: var(--accent); }
+
+/* Age cell — muted, tabular so columns line up. */
+.v2-shell .v2-nh-age {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Actions cell — keep the assign/escalate islands on one line, right-aligned. */
+.v2-shell .v2-nh-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* Empty state — a calm, centred "all clear" card. */
+.v2-shell .v2-nh-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 48px 20px;
+  text-align: center;
+}
+.v2-shell .v2-nh-empty .ic {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--ok);
+  background: var(--ok-bg);
+  margin-bottom: 4px;
+}
+.v2-shell .v2-nh-empty h3 { font-size: 15px; font-weight: 700; color: var(--text); margin: 0; }
+.v2-shell .v2-nh-empty p { font-size: 13px; color: var(--muted); margin: 0; max-width: 32ch; }

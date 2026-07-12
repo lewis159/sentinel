@@ -10,6 +10,8 @@ import 'server-only';
 import { hasDb, q, q1 } from '@/lib/db';
 import { addTicketComment } from '@/lib/data';
 import type { HermesProposal } from '@/lib/hermes/types';
+import { claimExecution, recordResult, getExecution } from '@/lib/hermes/exec-ledger';
+import { appendAudit } from '@/lib/hermes/audit';
 
 export type HermesProposalRecord = {
   id: string;
@@ -92,6 +94,16 @@ export async function saveProposal(p: {
         JSON.stringify(p.proposal),
       ],
     );
+    // P3 audit: record the birth of the proposal so the immutable chain covers the
+    // full lifecycle (created → approved/executed/dismissed). Mock-safe no-op w/o DB.
+    await appendAudit({
+      actor: p.agent,
+      action: 'proposal.created',
+      proposalId: row?.id ?? null,
+      tool: p.proposal.action?.tool ?? null,
+      summary: `Proposal created (${p.kind}) by ${p.agent}`,
+      detail: { kind: p.kind, ref: p.ref, title: p.title },
+    });
     return row?.id ?? null;
   } catch {
     return null;
@@ -250,15 +262,40 @@ export async function actOnProposal(
 
     if (action === 'approve') {
       if (isAction) {
-        // Resume the paused graph and execute the gated tool for real.
+        // --- P3 exactly-once gate ------------------------------------------
+        // A double-approve / retried request must run the money/account tool AT
+        // MOST ONCE. The idempotency key is stable per approval: the proposal id
+        // plus the interrupted tool_call id (falling back to the tool name when a
+        // callId wasn't captured). claimExecution INSERTs that key under a UNIQUE
+        // constraint — exactly one caller wins; the loser stands down and returns
+        // the prior recorded outcome WITHOUT re-running the tool.
+        const idemKey = `${id}:${proposal.action!.callId ?? proposal.action!.tool}`;
+        const claim = await claimExecution(idemKey, id, proposal.action!.tool);
+        if (!claim.won) {
+          // Already claimed → do NOT execute again. Surface the prior result.
+          const prior = await getExecution(idemKey);
+          if (prior && prior.status === 'failed') {
+            return { ok: false, error: 'this proposal was already executed (prior attempt failed)' };
+          }
+          return { ok: true };
+        }
+
+        // We won the claim → resume the paused graph and execute for real.
         const { resumeThread } = await import('@/lib/hermes/brain/graph');
         const res = await resumeThread({
           threadId: proposal.action!.threadId,
           decision: { approved: true, by },
         });
-        if (res.status === 'error') return { ok: false, error: res.error };
-        if (res.status === 'disabled')
+        if (res.status === 'error') {
+          await recordResult(idemKey, 'failed', { error: res.error });
+          return { ok: false, error: res.error };
+        }
+        if (res.status === 'disabled') {
+          await recordResult(idemKey, 'failed', { error: 'brain disabled' });
           return { ok: false, error: 'Hermes Brain is disabled (HERMES_BRAIN_ENABLED)' };
+        }
+        await recordResult(idemKey, 'succeeded', { toolResult: res.toolResult });
+
         // Persist the execution result back onto the proposal for audit/history.
         const executed: HermesProposal = {
           ...proposal,
@@ -270,6 +307,14 @@ export async function actOnProposal(
             where id = $1`,
           [id, by, JSON.stringify(executed)],
         );
+        await appendAudit({
+          actor: by,
+          action: 'proposal.executed',
+          proposalId: id,
+          tool: proposal.action!.tool,
+          summary: `Approved & executed ${proposal.action!.tool} by ${by}`,
+          detail: { action, result: res.toolResult ?? null },
+        });
         return { ok: true };
       }
 
@@ -282,6 +327,14 @@ export async function actOnProposal(
           where id = $1`,
         [id, by],
       );
+      await appendAudit({
+        actor: by,
+        action: 'proposal.approved',
+        proposalId: id,
+        tool: proposal.action?.tool ?? null,
+        summary: `Approved ${proposal.action?.tool ?? 'proposal'} by ${by}`,
+        detail: { action },
+      });
       return { ok: true };
     }
 
@@ -292,6 +345,14 @@ export async function actOnProposal(
           where id = $1`,
         [id, by],
       );
+      await appendAudit({
+        actor: by,
+        action: 'proposal.approved',
+        proposalId: id,
+        tool: proposal.action?.tool ?? null,
+        summary: `Marked sent (no post) by ${by}`,
+        detail: { action },
+      });
       return { ok: true };
     }
 
@@ -314,6 +375,14 @@ export async function actOnProposal(
         where id = $1`,
       [id, by],
     );
+    await appendAudit({
+      actor: by,
+      action: 'proposal.dismissed',
+      proposalId: id,
+      tool: proposal.action?.tool ?? null,
+      summary: `Dismissed ${proposal.action?.tool ?? 'proposal'} by ${by}`,
+      detail: { action },
+    });
     return { ok: true };
   } catch (e: any) {
     return { ok: false, error: e?.message ?? 'failed to act on proposal' };

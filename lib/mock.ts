@@ -153,6 +153,9 @@ export type ServiceTicket = {
   status: string; priority: Severity; impact: string; urgency: string;
   app: EstateApp | string; assignee: string; source: string;
   slaDue: string | null; age: string;
+  // P3 — when the assignee was set (first-class ops.tickets.assigned_at). Optional
+  // so existing rows/mocks that predate assignment stay valid.
+  assignedAt?: string | null;
   // P2 multi-tenancy — the tenant (Clerk org id) + customer contact this ticket
   // belongs to. Null on internal/estate tickets. Read-through from attrs when a
   // column is unset (see lib/data.ts mapServiceTicket).
@@ -162,11 +165,11 @@ export type ServiceTicket = {
 
 // Mock ITIL records — a handful per kind so sections render without a DB.
 export const serviceTickets: ServiceTicket[] = [
-  { ref: 'INC-0001', kind: 'incident', title: 'Transcription queue backed up — jobs stalled', description: 'Worker pool stopped draining the queue; users see "processing" indefinitely.', status: 'in_progress', priority: 'critical', impact: 'high', urgency: 'high', app: 'YT', assignee: 'ben', source: 'alert', slaDue: new Date(Date.now() + 3 * 3600 * 1000).toISOString(), age: '2h', tenantRef: null, customerEmail: null, customerName: null, attrs:{} },
+  { ref: 'INC-0001', kind: 'incident', title: 'Transcription queue backed up — jobs stalled', description: 'Worker pool stopped draining the queue; users see "processing" indefinitely.', status: 'in_progress', priority: 'critical', impact: 'high', urgency: 'high', app: 'YT', assignee: 'ben', source: 'alert', slaDue: new Date(Date.now() + 3 * 3600 * 1000).toISOString(), age: '2h', tenantRef: 'acme', customerEmail: 'ops@acme.co', customerName: 'Acme Co', attrs:{ needs_human: true, escalated_via: 'customer' } },
   { ref: 'INC-0002', kind: 'incident', title: 'Sentinel infra page failing to load container stats', description: 'docker-socket-proxy returned 502 for ~10 minutes.', status: 'resolved', priority: 'medium', impact: 'medium', urgency: 'low', app: 'Sentinel', assignee: 'ben', source: 'manual', slaDue: null, age: '1d', tenantRef: null, customerEmail: null, customerName: null, attrs:{} },
-  { ref: 'INC-0003', kind: 'incident', title: 'Memory pressure on app replica', description: 'app replica sustained >85% mem for 20m.', status: 'open', priority: 'medium', impact: 'medium', urgency: 'medium', app: 'YT', assignee: '—', source: 'alert', slaDue: new Date(Date.now() + 20 * 3600 * 1000).toISOString(), age: '1h', tenantRef: null, customerEmail: null, customerName: null, attrs:{} },
+  { ref: 'INC-0003', kind: 'incident', title: 'Memory pressure on app replica', description: 'app replica sustained >85% mem for 20m.', status: 'open', priority: 'medium', impact: 'medium', urgency: 'medium', app: 'YT', assignee: '—', source: 'alert', slaDue: new Date(Date.now() + 20 * 3600 * 1000).toISOString(), age: '1h', tenantRef: 'northwind', customerEmail: 'ops@northwind.io', customerName: 'Northwind Labs', attrs:{ needs_human: true, escalated_via: 'low_confidence' } },
 
-  { ref: 'REQ-0001', kind: 'request', title: 'Provision Studio tier for new org', description: 'Onboarding request for a Studio-tier workspace.', status: 'open', priority: 'low', impact: 'low', urgency: 'low', app: 'YT', assignee: '—', source: 'manual', slaDue: null, age: '4h', tenantRef: null, customerEmail: null, customerName: null, attrs:{} },
+  { ref: 'REQ-0001', kind: 'request', title: 'Provision Studio tier for new org', description: 'Onboarding request for a Studio-tier workspace.', status: 'open', priority: 'low', impact: 'low', urgency: 'low', app: 'YT', assignee: '—', source: 'manual', slaDue: null, age: '4h', tenantRef: 'globex', customerEmail: 'it@globex.com', customerName: 'Globex Media', attrs:{ escalation_level: 'human' } },
   { ref: 'REQ-0002', kind: 'request', title: 'Add team member to Sentinel global-admin', description: 'Access request — approval pending.', status: 'in_progress', priority: 'medium', impact: 'low', urgency: 'medium', app: 'Sentinel', assignee: 'ben', source: 'manual', slaDue: null, age: '2d', tenantRef: null, customerEmail: null, customerName: null, attrs:{} },
 
   { ref: 'CHG-0001', kind: 'change', title: 'Roll out CSP + HSTS at nginx origin', description: 'Normal change — add security headers across all estate apps.', status: 'awaiting_cab', priority: 'medium', impact: 'medium', urgency: 'low', app: 'Estate', assignee: 'ben', source: 'finding', slaDue: null, age: '3d', tenantRef: null, customerEmail: null, customerName: null, attrs:{ risk: 'medium', cab_status: 'pending', window: '2026-06-22 02:00 UTC', backout: 'Revert nginx config block; reload.', change_type: 'normal' } },

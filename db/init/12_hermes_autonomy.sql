@@ -67,7 +67,22 @@ insert into hermes.autonomy_config (persona, tool, mode) values
   ('billing',    'getTicket', 'auto'), ('billing',    'listTickets', 'auto'),
   ('billing',    'updateTicket', 'draft_only'), ('billing',    'getDeployStatus', 'auto'),
   ('security',   'getTicket', 'auto'), ('security',   'listTickets', 'auto'),
-  ('security',   'updateTicket', 'draft_only'), ('security',   'getDeployStatus', 'auto')
+  ('security',   'updateTicket', 'draft_only'), ('security',   'getDeployStatus', 'auto'),
+  -- ---- P3 action tools (Stripe / Resend / GitHub) --------------------------
+  -- Reads are auto (safe lookups); every money/email/deploy WRITE is gated so the
+  -- graph interrupts and a human approves it before it runs. ON CONFLICT DO NOTHING
+  -- (same "won't clobber existing operator edits" guarantee as the rows above) — an
+  -- already-seeded environment keeps its current rows; flip these dials on the
+  -- Hermes governance page there. Fresh installs seed correctly.
+  ('support',    'sendEmail',       'gated'),
+  ('billing',    'getCharge',       'auto'),
+  ('billing',    'refundCharge',    'gated'),
+  ('billing',    'issueCredit',     'gated'),
+  ('billing',    'sendEmail',       'gated'),
+  ('incident',   'listWorkflowRuns','auto'),
+  ('incident',   'getFileContents', 'auto'),
+  ('incident',   'triggerWorkflow', 'gated'),
+  ('incident',   'commitFile',      'gated')
 on conflict (persona, tool) do nothing;
 
 insert into hermes.autonomy_thresholds (key, label, value, sort) values

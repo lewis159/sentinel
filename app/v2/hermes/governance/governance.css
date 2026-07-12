@@ -1,0 +1,59 @@
+/* Governance console — layout on top of the shared v2 + settings styles. Only
+   the governance-specific bits live here; cards, tables, inputs, pills and the
+   save-footer all reuse the existing v2 classes. */
+
+.v2-gov-persona {
+  margin-bottom: 18px;
+}
+.v2-gov-persona-h {
+  text-transform: capitalize;
+  margin-bottom: 6px;
+}
+
+.v2-gov-matrix td.v2-gov-tool,
+.v2-gov-budgets td.v2-gov-tool {
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+/* Escalation ladder rungs */
+.v2-gov-ladder {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.v2-gov-rung {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.v2-gov-arr {
+  opacity: 0.55;
+}
+.v2-gov-gate {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+/* Budget add-cap form */
+.v2-gov-addcap {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line, rgba(255, 255, 255, 0.08));
+}
+.v2-gov-addrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.v2-gov-empty {
+  opacity: 0.75;
+  font-size: 13px;
+  padding: 6px 0;
+}

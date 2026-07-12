@@ -19,6 +19,7 @@ import { NextResponse } from 'next/server';
 //   - /api/ingest/email       : inbound-email → ticket (OPS_EMAIL_TOKEN token/HMAC in-route)
 //   - /api/public/support/(.*): customer support-chat widget + L0 KB search (OPS_SUPPORT_TOKEN in-route)
 //   - /api/bot/(.*)           : Discord bot surface (OPS_BOT_TOKEN token/HMAC in-route)
+//   - /api/inngest(.*)        : self-hosted Inngest server↔app sync/invoke (Inngest request-signature verified in-handler)
 const isPublicRoute = createRouteMatcher([
   '/sign-in(.*)',
   '/api/ping',
@@ -31,6 +32,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/ingest/email',
   '/api/public/support/(.*)',
   '/api/bot/(.*)',
+  '/api/inngest(.*)',
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

@@ -11,6 +11,7 @@ import {
   saveAutonomyConfig,
   isAutonomyMode,
 } from '@/lib/hermes/brain/autonomy';
+import { getAutonomyMatrix, GOVERNANCE_PERSONAS } from '@/lib/hermes/governance';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,11 +21,21 @@ export async function GET() {
   if (denied) return denied;
 
   try {
-    const [tools, thresholds] = await Promise.all([
+    // `tools`/`thresholds` keep the P1 shape (HermesAutonomyDials consumes them);
+    // `matrix`/`personas` are ADDITIVE — the governance console's richer matrix
+    // (every cell tagged code-default vs DB-override) + the persona roster.
+    const [tools, thresholds, matrix] = await Promise.all([
       getAutonomyTools(),
       getAutonomyThresholds(),
+      getAutonomyMatrix(),
     ]);
-    return NextResponse.json({ tools, thresholds, modes: ['auto', 'gated', 'draft_only'] });
+    return NextResponse.json({
+      tools,
+      thresholds,
+      modes: ['auto', 'gated', 'draft_only'],
+      matrix,
+      personas: GOVERNANCE_PERSONAS,
+    });
   } catch (e: any) {
     return NextResponse.json(
       { error: e?.message ?? 'Failed to read autonomy config' },
