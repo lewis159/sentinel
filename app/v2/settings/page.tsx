@@ -19,8 +19,8 @@ const GROUPS: NavGroup[] = [
   {
     group: 'People & access',
     items: [
-      { label: 'Roles & permissions' },
-      { label: 'Team & invites' },
+      { label: 'Roles & permissions', href: '/v2/access/orgs' },
+      { label: 'App access', href: '/v2/access/apps' },
       { label: 'SSO · Clerk' },
     ],
   },
@@ -28,25 +28,28 @@ const GROUPS: NavGroup[] = [
     group: 'Hermes',
     items: [
       { label: 'Governance', href: '/v2/settings/hermes' },
-      { label: 'Departments & agents' },
-      { label: 'Escalation routing' },
+      { label: 'Departments & agents', href: '/v2/hermes/agents' },
+      { label: 'Approvals queue', href: '/v2/hermes/approvals' },
+      { label: 'Escalation routing', href: '/v2/support/needs-human' },
+      { label: 'Testing', href: '/v2/hermes/testing' },
     ],
   },
   {
     group: 'Platform',
     items: [
-      { label: 'Integrations' },
-      { label: 'Monitoring sources' },
-      { label: 'Security & scans' },
-      { label: 'Deploy gates' },
+      { label: 'Integrations', href: '/v2/hermes/integrations' },
+      { label: 'Observability', href: '/v2/hermes/observability' },
+      { label: 'Monitoring & ops', href: '/v2/operations' },
+      { label: 'Security & scans', href: '/v2/security' },
       { label: 'SLA policies' },
     ],
   },
   {
     group: 'Data & billing',
     items: [
+      { label: 'Activity & audit', href: '/v2/activity' },
+      { label: 'Roadmap', href: '/v2/roadmap' },
       { label: 'Notifications' },
-      { label: 'Audit log' },
       { label: 'Data & retention' },
       { label: 'Billing & plans' },
     ],
