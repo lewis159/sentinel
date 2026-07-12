@@ -108,7 +108,13 @@ export function sectionForPath(pathname: string): Section {
   if (path === '/v2') path = '/';
   else if (path.startsWith('/v2/')) path = path.slice(3); // keep leading slash
 
-  const seg = path.replace(/^\/+/, '').split('/')[0] ?? '';
+  const segs = path.replace(/^\/+/, '').split('/');
+  const seg = segs[0] ?? '';
+
+  // Admin-gated pages that live under another top-level segment for URL grouping.
+  // The Integrations page sits under /hermes/ for nav placement but is gated by
+  // the 'admin' section (it manages estate secrets + flags), so map it explicitly.
+  if (seg === 'hermes' && segs[1] === 'integrations') return 'admin';
 
   switch (seg) {
     case '':

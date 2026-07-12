@@ -1,0 +1,201 @@
+/* Hermes · Market & Content — scoped styles (v2-mkt-*). Colours come from the
+   shell tokens only, so it inherits light/dark automatically. */
+
+.v2-mkt {
+  margin-top: 14px;
+}
+
+.v2-mkt-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.v2-mkt-tab {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.v2-mkt-tab:hover {
+  color: var(--text);
+}
+.v2-mkt-tab.active {
+  background: var(--accent-bg);
+  border-color: var(--accent-brd);
+  color: var(--text-strong);
+}
+.v2-mkt-count {
+  font-size: 11px;
+  background: var(--surface2);
+  border-radius: 999px;
+  padding: 1px 7px;
+  color: var(--muted);
+}
+.v2-mkt-src {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* Competitor cards */
+.v2-mkt-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 14px;
+}
+.v2-mkt-card {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.v2-mkt-chead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.v2-mkt-cname {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+.v2-mkt-curl {
+  font-size: 12px;
+  color: var(--accent);
+  text-decoration: none;
+}
+.v2-mkt-curl:hover {
+  text-decoration: underline;
+}
+.v2-mkt-note {
+  font-size: 12.5px;
+  color: var(--text);
+  line-height: 1.5;
+}
+.v2-mkt-label {
+  display: inline-block;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--muted);
+  font-weight: 700;
+  margin-right: 6px;
+}
+.v2-mkt-meta {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+/* Brief / preview blocks */
+.v2-mkt-brief,
+.v2-mkt-preview {
+  margin-top: 8px;
+  border-top: 1px solid var(--line-soft);
+  padding-top: 10px;
+}
+.v2-mkt-briefhead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.v2-mkt-queued {
+  font-size: 11.5px;
+  color: var(--ok);
+  font-weight: 600;
+}
+.v2-mkt-queued.muted {
+  color: var(--muted);
+  font-weight: 500;
+}
+.v2-mkt-disclaimer {
+  font-size: 11px;
+  color: var(--muted);
+  font-style: italic;
+  margin-top: 8px;
+}
+.v2-mkt-pre {
+  margin-top: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 360px;
+  overflow: auto;
+  color: var(--text);
+}
+
+/* Content form */
+.v2-mkt-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.v2-mkt-form {
+  padding: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+}
+.v2-mkt-form .v2-set-field {
+  min-width: 240px;
+  flex: 1;
+}
+.v2-mkt-actions {
+  display: flex;
+  gap: 8px;
+}
+.v2-mkt-hint {
+  flex-basis: 100%;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.v2-mkt-preview {
+  padding: 16px;
+  border-top: none;
+  margin-top: 0;
+}
+.v2-mkt-ptitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-strong);
+  margin: 6px 0 10px;
+}
+.v2-mkt-outline {
+  margin: 4px 0 0 18px;
+  padding: 0;
+  font-size: 12.5px;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.v2-mkt-err {
+  background: var(--crit-bg);
+  border: 1px solid var(--crit);
+  color: var(--crit);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12.5px;
+  margin-bottom: 12px;
+}
+.v2-mkt-empty {
+  color: var(--muted);
+  font-size: 12.5px;
+  padding: 20px 0;
+}

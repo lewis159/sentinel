@@ -24,7 +24,7 @@
 // to (EXEC_ROSTER[persona].section).
 import { NextResponse } from 'next/server';
 import { requireSectionApi, getSessionAccess } from '@/lib/auth';
-import { brainEnabled } from '@/lib/hermes/brain/flags';
+import { getRuntimeFlag } from '@/lib/hermes/runtime-flags';
 import { runPaTurn } from '@/lib/hermes/brain/graph';
 import { getPersona } from '@/lib/hermes/brain/personas';
 import { saveActionProposal } from '@/lib/hermes/proposals';
@@ -58,7 +58,7 @@ export async function POST(req: Request) {
   const denied = await requireSectionApi(EXEC_ROSTER[persona].section);
   if (denied) return denied;
 
-  if (!brainEnabled()) {
+  if (!(await getRuntimeFlag('HERMES_BRAIN_ENABLED'))) {
     return NextResponse.json({
       status: 'disabled',
       error: 'Hermes Brain is disabled — set HERMES_BRAIN_ENABLED=1 to enable.',

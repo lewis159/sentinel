@@ -22,7 +22,15 @@ export type AuditAction =
   | 'proposal.created'
   | 'proposal.approved'
   | 'proposal.dismissed'
-  | 'proposal.executed';
+  | 'proposal.executed'
+  | 'integration.key.set'
+  | 'integration.flag.set'
+  | 'integration.test'
+  // Agent Builder (lib/agent-builder/*) — a NEW persona draft was created, or an
+  // existing draft was approved. Approval is NOT activation: an approved draft is
+  // still never loaded into the live persona registry (that step is manual code).
+  | 'persona.drafted'
+  | 'persona.approved';
 
 export type AuditEntry = {
   actor?: string | null;

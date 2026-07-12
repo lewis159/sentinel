@@ -82,6 +82,14 @@ function icon(key: string) {
           <path d="M12 8V4M9 13h.01M15 13h.01" />
         </svg>
       );
+    case 'plug':
+      return (
+        <svg {...common}>
+          <path d="M9 2v6M15 2v6" />
+          <path d="M7 8h10v3a5 5 0 0 1-10 0z" />
+          <path d="M12 16v6" />
+        </svg>
+      );
     case 'kb':
       return (
         <svg {...common}>
@@ -223,6 +231,14 @@ function icon(key: string) {
         <svg {...common}>
           <path d="M4 21V7l7-3v17M11 21V9l7 3v9" />
           <path d="M7 9h.01M7 13h.01M14 13h.01M14 17h.01" />
+        </svg>
+      );
+    case 'forecasting':
+      return (
+        <svg {...common}>
+          <path d="M3 3v18h18" />
+          <path d="m19 9-5 5-4-4-3 3" />
+          <path d="M19 9h-4M19 9v4" />
         </svg>
       );
     default:

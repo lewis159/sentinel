@@ -1,0 +1,211 @@
+/* Hermes · Incident Commander. Namespaced v2-ic-* so nothing leaks; all colours
+   come from the v2 shell tokens (var(--...)) so it themes light + dark for free. */
+
+.v2-ic {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.v2-ic-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.v2-ic-sub {
+  color: var(--muted);
+  font-size: 12px;
+  flex: 1 1 auto;
+}
+
+.v2-ic-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.v2-ic-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.v2-ic-title {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+.v2-ic-name {
+  color: var(--text-strong);
+  font-weight: 700;
+  font-size: 14px;
+}
+.v2-ic-ref {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--accent);
+  font-size: 12.5px;
+}
+.v2-ic-ref.cand {
+  color: var(--muted);
+}
+.v2-ic-meta {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 3px;
+}
+.v2-ic-actions {
+  display: flex;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+/* Context grid */
+.v2-ic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+.v2-ic-panel {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface2);
+  padding: 12px;
+}
+.v2-ic-ph {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-strong);
+  font-weight: 700;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+.v2-ic-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--text);
+  padding: 3px 0;
+  min-width: 0;
+}
+.v2-ic-line > span:not(.v2-pill):not(.v2-ic-tag) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.v2-ic-strong {
+  color: var(--text-strong);
+  font-weight: 600;
+}
+.v2-ic-dim {
+  color: var(--muted);
+  font-size: 12px;
+  padding: 2px 0;
+}
+.v2-ic-tag {
+  flex: 0 0 auto;
+  font-size: 10.5px;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 1px 6px;
+}
+
+/* Timeline */
+.v2-ic-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.v2-ic-tl {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+  color: var(--text);
+  padding: 3px 0;
+}
+.v2-ic-tl-at {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  min-width: 120px;
+}
+.v2-ic-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.v2-ic-dot.alert { background: var(--crit); }
+.v2-ic-dot.deploy { background: var(--accent); }
+.v2-ic-dot.ticket { background: var(--high); }
+.v2-ic-dot.note { background: var(--muted); }
+
+/* Status draft */
+.v2-ic-draft {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface2);
+  padding: 12px;
+}
+.v2-ic-pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 4px 0 10px;
+  overflow-x: auto;
+}
+.v2-ic-draft-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.v2-ic-draft-foot code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.92em;
+}
+
+/* Notices */
+.v2-ic-ok,
+.v2-ic-err {
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+.v2-ic-ok {
+  color: var(--ok);
+  background: var(--ok-bg);
+  border: 1px solid var(--ok-bg);
+}
+.v2-ic-err {
+  color: var(--crit);
+  background: var(--crit-bg);
+  border: 1px solid var(--crit-bg);
+}
+.v2-ic-empty,
+.v2-ic-none {
+  color: var(--muted);
+  font-size: 13px;
+  padding: 8px 0;
+}

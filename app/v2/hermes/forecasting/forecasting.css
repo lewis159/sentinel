@@ -1,0 +1,70 @@
+/* Financial forecasting — scoped styles. Reuses v2 tokens (--surface, --line,
+   --accent, --ok/--crit/--high, --r) so it inherits light/dark automatically. */
+
+.fc-wrap { display: flex; flex-direction: column; gap: 16px; }
+
+/* Presets */
+.fc-presets { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.fc-preset {
+  font-size: 12px; font-weight: 600; padding: 7px 12px; cursor: pointer;
+  color: var(--text); background: var(--surface); border: 1px solid var(--line);
+  border-radius: 20px; transition: border-color .12s, background .12s;
+}
+.fc-preset:hover { border-color: var(--accent-brd); }
+.fc-preset.active { color: #fff; background: var(--accent); border-color: var(--accent); }
+.fc-preset.ghost { color: var(--muted); background: transparent; }
+.fc-preset-spacer { flex: 1; }
+
+/* Layout */
+.fc-grid { display: grid; grid-template-columns: 320px 1fr; gap: 16px; align-items: start; }
+@media (max-width: 900px) { .fc-grid { grid-template-columns: 1fr; } }
+
+/* Controls */
+.fc-controls-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 14px; }
+.fc-ctl { display: flex; flex-direction: column; gap: 6px; }
+.fc-ctl-l { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: var(--muted); font-weight: 600; }
+.fc-ctl-l b { color: var(--text-strong); font-variant-numeric: tabular-nums; }
+.fc-ctl input[type="range"] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+.fc-num {
+  background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-sm, 8px);
+  color: var(--text); font-size: 13px; padding: 7px 9px; width: 100%; font-variant-numeric: tabular-nums;
+}
+.fc-num.sm { width: 72px; padding: 5px 7px; font-size: 12px; }
+.fc-num:focus { outline: none; border-color: var(--accent-brd); }
+
+/* Tier mix */
+.fc-tiers { border-top: 1px solid var(--line-soft); padding-top: 12px; display: flex; flex-direction: column; gap: 7px; }
+.fc-tiers-h { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--faint); font-weight: 700; }
+.fc-tier { display: grid; grid-template-columns: 1fr auto 72px; align-items: center; gap: 8px; }
+.fc-tier-nm { font-size: 12.5px; color: var(--text); font-weight: 600; }
+.fc-tier-pr { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Summary tiles */
+.fc-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+@media (max-width: 720px) { .fc-tiles { grid-template-columns: repeat(2, 1fr); } }
+.fc-tiles .v2-tile .v { font-size: 26px; }
+
+/* Chart */
+.fc-chart { display: flex; align-items: flex-end; gap: 4px; height: 200px; padding: 16px; }
+.fc-bar-slot { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; height: 100%; justify-content: flex-end; }
+.fc-bars { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 2px; }
+.fc-bar { width: 100%; max-width: 22px; border-radius: 3px 3px 0 0; background: var(--accent); transition: height .18s ease; }
+.fc-bar.ok { background: var(--accent); }
+.fc-bar.burn { background: var(--high); }
+.fc-bar.cmp { background: var(--line); max-width: 12px; opacity: .9; }
+.fc-bar-x { font-size: 9.5px; color: var(--faint); font-variant-numeric: tabular-nums; }
+
+/* Compare */
+.fc-compare-body { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+.fc-compare-col { padding: 14px 16px; }
+.fc-compare-col.accent { background: var(--accent-bg); border-left: 1px solid var(--line-soft); }
+.fc-compare-nm { font-size: 12px; font-weight: 700; color: var(--text-strong); margin-bottom: 8px; }
+.fc-compare-row { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; color: var(--muted); }
+.fc-compare-row b { color: var(--text-strong); font-variant-numeric: tabular-nums; }
+
+/* Narrative */
+.fc-narrative { padding: 14px 16px; }
+.fc-muted { font-size: 12.5px; color: var(--muted); line-height: 1.55; }
+.fc-muted code, .fc-narrative code { font-size: 11.5px; background: var(--surface2, rgba(127,127,127,.15)); padding: 1px 5px; border-radius: 4px; }
+.fc-prose { font-size: 13px; color: var(--text); line-height: 1.6; }
+.fc-err { font-size: 12.5px; color: var(--crit); line-height: 1.5; }

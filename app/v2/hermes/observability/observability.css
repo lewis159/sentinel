@@ -1,0 +1,105 @@
+/* Hermes · Observability — page-scoped primitives (namespaced v2-obs-). Shell
+   tokens/classes come from ../../v2.css; this only adds the KPI strip, the
+   two-column grid, and the small bits the shared classes don't cover. */
+
+/* KPI strip */
+.v2-obs-strip {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  margin: 18px 0 22px;
+}
+@media (max-width: 1180px) { .v2-obs-strip { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 640px)  { .v2-obs-strip { grid-template-columns: repeat(2, 1fr); } }
+
+.v2-obs-stat {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 14px 16px;
+}
+.v2-obs-stat .lab {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--muted);
+}
+.v2-obs-stat .val {
+  margin-top: 6px;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.v2-obs-stat .sub { margin-top: 3px; font-size: 11px; color: var(--faint); }
+.v2-obs-stat .val.ok   { color: var(--ok); }
+.v2-obs-stat .val.crit { color: var(--crit); }
+.v2-obs-stat .val.high { color: var(--high); }
+
+/* Two-column content grid */
+.v2-obs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 4px;
+}
+@media (max-width: 980px) { .v2-obs-grid { grid-template-columns: 1fr; } }
+
+.v2-obs-sec {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--muted);
+  margin: 22px 0 10px;
+}
+
+/* Live/mock badge next to the title */
+.v2-obs-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--muted);
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+.v2-obs-badge .dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--faint);
+}
+.v2-obs-badge.live { color: var(--ok); }
+.v2-obs-badge.live .dot { background: var(--ok); }
+
+/* Budget bar — utilisation fill tinted by pressure */
+.v2-obs-bar .lab { width: 120px; }
+.v2-obs-bar .meta { width: auto; color: var(--faint); font-size: 11px; }
+
+.v2-obs-empty {
+  padding: 26px 16px;
+  text-align: center;
+  color: var(--faint);
+  font-size: 12.5px;
+}
+
+/* Feed action tag */
+.v2-obs-act {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--surface2);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.v2-obs-num { font-variant-numeric: tabular-nums; }
+.v2-obs-fail { color: var(--crit); font-weight: 700; }
+.v2-obs-title-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }

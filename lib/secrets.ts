@@ -159,3 +159,47 @@ export async function setSecret(
 export function invalidateSecret(name: string): void {
   secretCache.delete(name);
 }
+
+// --- Metadata read (presence + updatedAt, NEVER the value) -----------------
+
+export type SecretMeta = { exists: boolean; updatedAt?: string };
+
+/**
+ * Read a secret's METADATA — whether it exists and when it was last updated —
+ * WITHOUT returning (or caching) the secret value. Used by the integrations
+ * admin page so it can show "configured / last-updated" without ever exposing a
+ * key. Returns { exists:false } when Infisical is not configured, the secret is
+ * missing (404), or on any error. Never throws; never logs the value.
+ */
+export async function getSecretMeta(name: string): Promise<SecretMeta> {
+  if (!hasInfisical()) return { exists: false };
+
+  try {
+    const token = await getAccessToken();
+    if (!token) return { exists: false };
+
+    const url =
+      `${SITE_URL}/api/v3/secrets/raw/${encodeURIComponent(name)}` +
+      `?workspaceId=${encodeURIComponent(PROJECT_ID as string)}` +
+      `&environment=${encodeURIComponent(ENVIRONMENT)}` +
+      `&secretPath=%2F`;
+
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (res.status === 404) return { exists: false };
+    if (!res.ok) return { exists: false };
+
+    const json = (await res.json()) as {
+      secret?: { secretValue?: string; updatedAt?: string; secretKey?: string };
+    };
+    const s = json.secret;
+    // A present-but-empty value counts as "not configured" (matches the
+    // clearKey convention that blanks a secret to fall back to env).
+    const exists = Boolean(s && typeof s.secretValue === 'string' && s.secretValue !== '');
+    return { exists, updatedAt: s?.updatedAt };
+  } catch {
+    return { exists: false };
+  }
+}
