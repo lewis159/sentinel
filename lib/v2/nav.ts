@@ -61,6 +61,7 @@ export const NAV: V2NavGroup[] = [
     collapsible: true,
     items: [
       { label: 'Floor', href: '/v2/hermes/floor', icon: 'floor' },
+      { label: 'Feature Requests', href: '/v2/hermes/feature-requests', icon: 'requests' },
       { label: 'Approvals', href: '/v2/hermes/approvals', icon: 'approvals' },
       { label: 'Observability', href: '/v2/hermes/observability', icon: 'activity' },
       { label: 'Agents', href: '/v2/hermes/agents', icon: 'agents' },
