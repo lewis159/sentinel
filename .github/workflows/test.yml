@@ -117,6 +117,12 @@ jobs:
   e2e:
     name: E2E tests (Playwright)
     runs-on: ubuntu-latest
+    # Dispatch-only: Playwright is flaky under the CI runner's network sandbox
+    # (Chromium loopback), and it's non-gating anyway, so it does NOT run on PRs
+    # (stops a red informational check on every PR). Run it manually via the
+    # Actions tab (workflow_dispatch) when needed. The proxy:'direct://' fix in
+    # playwright.config.ts is kept for those manual runs.
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     continue-on-error: true
     env:
       # E2E_TEST_MODE=1 activates the app's test-only auth shim, so no real Clerk

@@ -47,11 +47,12 @@ export default defineConfig({
   reporter: 'list',
   use: {
     baseURL: BASE_URL,
-    // Never route loopback through a proxy (CI runners may set http(s)_proxy,
-    // which turns a same-host request into a remote DNS lookup of 'localhost').
-    launchOptions: {
-      args: ['--no-proxy-server', '--proxy-bypass-list=<-loopback>'],
-    },
+    // Force a DIRECT connection (no proxy) — CI runners can set http(s)_proxy,
+    // and Chromium then tries to proxy even a 127.0.0.1 request, failing with
+    // ERR_NAME_NOT_RESOLVED. Playwright's proxy:'direct://' is the reliable
+    // override (the earlier --proxy-bypass-list=<-loopback> was backwards: it
+    // UN-bypassed loopback, forcing it through the proxy).
+    proxy: { server: 'direct://' },
     trace: 'on-first-retry',
     // Follow redirects and behave like a real browser navigation.
     ignoreHTTPSErrors: true,
