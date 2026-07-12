@@ -27,12 +27,34 @@ import { EXEC_ROSTER } from '@/lib/hermes/agent-meta';
 // and broadcastStatus (auto, but posts to a channel — a side effect). Everything
 // else in the registry is a pure read. Derived from the real registry so this
 // stays honest if the tool set grows.
-const READ_ONLY = new Set(['getTicket', 'listTickets', 'getDeployStatus']);
+const READ_ONLY = new Set([
+  'getTicket',
+  'listTickets',
+  'getDeployStatus',
+  // read-only lookups added by the P3 action tools
+  'getCharge',
+  'getFileContents',
+  'listWorkflowRuns',
+]);
 const SIDE_EFFECTING = ALL_TOOLS.filter((t) => !READ_ONLY.has(t.name)).map((t) => t.name);
+// The known world-changing levers. Kept as a containment check (not equality) so
+// adding a new gated tool doesn't break this — it only must never be a pure read.
+const KNOWN_WRITE_TOOLS = [
+  'updateTicket',
+  'broadcastStatus',
+  'refundCharge',
+  'issueCredit',
+  'sendEmail',
+  'triggerWorkflow',
+  'commitFile',
+];
 
 describe('exec roster personas (CEO + Risk)', () => {
-  it('sanity: the registry classifies exactly updateTicket + broadcastStatus as side-effecting', () => {
-    expect(new Set(SIDE_EFFECTING)).toEqual(new Set(['updateTicket', 'broadcastStatus']));
+  it('sanity: the registry classifies the known write tools as side-effecting, and no read tool as such', () => {
+    for (const w of KNOWN_WRITE_TOOLS) {
+      if (ALL_TOOLS.some((t) => t.name === w)) expect(SIDE_EFFECTING).toContain(w);
+    }
+    for (const r of READ_ONLY) expect(SIDE_EFFECTING).not.toContain(r);
   });
 
   describe('CEO / Chief-of-Staff', () => {

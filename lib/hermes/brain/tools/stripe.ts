@@ -136,6 +136,10 @@ export const refundChargeTool: BrainTool<RefundChargeArgs> = {
     const amt = a.amount ? `${(a.amount / 100).toFixed(2)} (minor ${a.amount})` : 'full amount';
     return `Refund ${amt} on ${target}${a.reason ? ` — reason ${a.reason}` : ''}`;
   },
+  // Partial refunds are budget-checked against the amount. A full refund (amount
+  // omitted) can't be sized without a lookup → 0 here; the human gate is the
+  // primary control for those.
+  estimateMinor: (a) => a.amount ?? 0,
   run: async ({ chargeId, paymentIntentId, amount, reason }) => {
     const key = await stripeKey();
     if (!key) return { ok: false, summary: NOT_CONFIGURED, error: 'not_configured' };
@@ -179,6 +183,7 @@ export const issueCreditTool: BrainTool<IssueCreditArgs> = {
   autonomy: 'gated',
   describeCall: (a) =>
     `Credit ${(a.amount / 100).toFixed(2)} ${a.currency.toUpperCase()} to customer ${a.customerId}${a.description ? ` — "${a.description.slice(0, 60)}"` : ''}`,
+  estimateMinor: (a) => Math.abs(a.amount),
   run: async ({ customerId, amount, currency, description }) => {
     const key = await stripeKey();
     if (!key) return { ok: false, summary: NOT_CONFIGURED, error: 'not_configured' };

@@ -34,5 +34,9 @@ export type BrainTool<A = any> = {
   autonomy: ToolAutonomy;
   // A one-line human summary of a proposed call, shown in the Approvals queue.
   describeCall?: (args: A) => string;
+  // Optional pre-execution cost estimate in minor units (pence). When >0 the
+  // graph runs a budget check (checkBudget) before executing and records the
+  // spend after. Omit / return 0 for zero-cost tools (reads, ticket updates).
+  estimateMinor?: (args: A) => number;
   run: (args: A, ctx: ToolContext) => Promise<ToolResult>;
 };
