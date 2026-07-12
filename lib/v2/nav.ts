@@ -17,6 +17,7 @@ export const NAV: V2NavGroup[] = [
     group: 'Support',
     items: [
       { label: 'Desk', href: '/v2/support', icon: 'support' },
+      { label: 'Needs human', href: '/v2/support/needs-human', icon: 'approvals' },
       { label: 'Customers', href: '/v2/support/customers', icon: 'customers' },
     ],
   },
