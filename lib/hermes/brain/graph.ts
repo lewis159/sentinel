@@ -33,10 +33,11 @@ import {
 import { callModel, type ChatMsg, type ToolCall } from './model';
 import { getPersona, autonomyFor, type Persona } from './personas';
 import { getTool, toolsFor, toOpenAiTools } from './tools';
-import type { ToolContext } from './tools/types';
+import type { ToolContext, BrainTool, ToolResult } from './tools/types';
 import { getCheckpointer } from './checkpointer';
 import { brainEnabled } from './flags';
 import { resolveAutonomy, type AutonomyMode } from './autonomy';
+import { checkBudget, recordSpend } from '@/lib/hermes/budget';
 
 // ---------- decision carried across an interrupt on resume ----------
 export type ApprovalDecision = { approved: boolean; by: string; reason?: string };
@@ -95,6 +96,47 @@ function routeAfterAgent(state: BrainStateT): 'tools' | typeof END {
     return 'tools';
   }
   return END;
+}
+
+// ---------- budget guard around a real tool execution ----------
+// P3 safety substrate wiring: gate a SPENDING tool on the persona's budget cap
+// BEFORE it runs, and record the spend AFTER it succeeds. A tool declares its
+// estimated cost via an optional `estimateMinor(args)` (minor currency units).
+// Zero-cost read tools (no estimate, or estimate 0) skip budgeting entirely — the
+// check is a no-op for them. With no DB, checkBudget is uncapped and recordSpend a
+// no-op, so the dev/copilot path is never blocked.
+export type BudgetedExec =
+  | { denied: true; message: string }
+  | { denied: false; result: ToolResult };
+
+export async function execWithBudget(
+  tool: BrainTool,
+  name: string,
+  args: Record<string, unknown>,
+  ctx: ToolContext,
+  persona_id: string,
+): Promise<BudgetedExec> {
+  const estimateMinor = (tool as { estimateMinor?: (a: any) => number }).estimateMinor;
+  const est =
+    typeof estimateMinor === 'function' ? Math.max(0, Math.trunc(estimateMinor(args) || 0)) : 0;
+
+  if (est > 0) {
+    const b = await checkBudget(persona_id, name, est);
+    if (!b.allowed) {
+      return {
+        denied: true,
+        message: `NOT executed — ${persona_id} budget cap reached (${b.reason ?? 'cap exceeded'}). Escalate to a human.`,
+      };
+    }
+  }
+
+  const result = await tool.run(args, ctx);
+
+  // Only spend against a cap when the tool actually succeeded.
+  if (result.ok && est > 0) {
+    await recordSpend(persona_id, name, est, { note: name });
+  }
+  return { denied: false, result };
 }
 
 // ---------- tools node ----------
@@ -178,7 +220,14 @@ async function toolsNode(state: BrainStateT): Promise<Partial<BrainStateT>> {
         continue;
       }
       const ctx: ToolContext = { threadId: threadId || 'resume', persona: persona_id, actor: d.by };
-      const result = await c.tool.run(c.args, ctx);
+      const exec = await execWithBudget(c.tool, c.name, c.args, ctx, persona_id);
+      if (exec.denied) {
+        // Over budget → the approved gated tool does NOT execute; the proposal
+        // cannot complete and the model is told to escalate to a human.
+        out.push({ role: 'tool', tool_call_id: c.id, content: exec.message });
+        continue;
+      }
+      const result = exec.result;
       out.push({
         role: 'tool',
         tool_call_id: c.id,
@@ -186,7 +235,12 @@ async function toolsNode(state: BrainStateT): Promise<Partial<BrainStateT>> {
       });
     } else {
       const ctx: ToolContext = { threadId: threadId || 'auto', persona: persona_id, actor };
-      const result = await c.tool.run(c.args, ctx);
+      const exec = await execWithBudget(c.tool, c.name, c.args, ctx, persona_id);
+      if (exec.denied) {
+        out.push({ role: 'tool', tool_call_id: c.id, content: exec.message });
+        continue;
+      }
+      const result = exec.result;
       const body = result.data ? `${result.summary}\n\n${JSON.stringify(result.data)}` : result.summary;
       out.push({
         role: 'tool',
