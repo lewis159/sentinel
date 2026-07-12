@@ -1,0 +1,135 @@
+/* ============================================================================
+   Sentinel v2 — Third-party integrations admin. Classes namespaced `v2-int-`.
+   Tokens come from app/v2/v2.css (scoped under `.v2-shell`). Colors are tokens
+   only so light/dark both work.
+   ========================================================================== */
+
+.v2-int { display: flex; flex-direction: column; gap: 14px; }
+.v2-int-loading { padding: 24px; color: var(--muted); font-size: 13px; }
+
+.v2-int-banner {
+  border-radius: var(--r-sm);
+  padding: 12px 14px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  border: 1px solid var(--line);
+  color: var(--text);
+  background: var(--surface2);
+}
+.v2-int-banner.warn { border-color: var(--high); }
+.v2-int-banner code {
+  font-size: 11.5px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 1px 5px;
+}
+
+/* Row card */
+.v2-int-row { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+
+.v2-int-head { display: flex; flex-direction: column; gap: 4px; }
+.v2-int-title { display: flex; align-items: center; gap: 10px; }
+.v2-int-title h3 { font-size: 14px; font-weight: 700; color: var(--text-strong); margin: 0; }
+.v2-int-docs { font-size: 11px; color: var(--accent); text-decoration: none; }
+.v2-int-docs:hover { text-decoration: underline; }
+.v2-int-desc { font-size: 12px; color: var(--muted); }
+
+/* Status badge */
+.v2-int-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+}
+.v2-int-badge.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, transparent); background: color-mix(in srgb, var(--ok) 10%, transparent); }
+.v2-int-badge.off { color: var(--high); border-color: color-mix(in srgb, var(--high) 45%, transparent); background: color-mix(in srgb, var(--high) 10%, transparent); }
+.v2-int-badge.unknown { color: var(--muted); }
+
+/* Meta grid */
+.v2-int-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 28px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
+}
+.v2-int-metaitem { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.v2-int-metaitem .lab {
+  font-size: 10px; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--muted); font-weight: 700;
+}
+.v2-int-metaitem .val { font-size: 12px; color: var(--text); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.v2-int-metaitem .val code {
+  font-size: 11px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 1px 6px;
+  background: var(--surface2);
+}
+.v2-int-metaitem .val code.present { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+.v2-int-metaitem .val code.missing { color: var(--muted); }
+.v2-int-src {
+  font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--muted);
+}
+.v2-int-src.db { color: var(--accent); border-color: var(--accent-brd); }
+
+/* Actions row */
+.v2-int-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.v2-int-noflag { font-size: 11.5px; color: var(--faint); }
+
+/* Flag toggle */
+.v2-int-toggle { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+.v2-int-toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
+.v2-int-toggle .track {
+  width: 38px; height: 21px; border-radius: 999px;
+  background: var(--surface); border: 1px solid var(--line);
+  position: relative; transition: background .15s, border-color .15s;
+}
+.v2-int-toggle .track::after {
+  content: ''; position: absolute; top: 2px; left: 2px;
+  width: 15px; height: 15px; border-radius: 50%;
+  background: var(--muted); transition: transform .15s, background .15s;
+}
+.v2-int-toggle input:checked + .track { background: color-mix(in srgb, var(--ok) 30%, transparent); border-color: var(--ok); }
+.v2-int-toggle input:checked + .track::after { transform: translateX(17px); background: var(--ok); }
+.v2-int-toggle input:disabled + .track { opacity: .5; }
+.v2-int-toggle .lbl { font-size: 12px; font-weight: 600; color: var(--text); }
+
+/* Test result */
+.v2-int-test { font-size: 12px; font-weight: 500; }
+.v2-int-test.ok { color: var(--ok); }
+.v2-int-test.fail { color: var(--crit); }
+
+/* Key set/rotate */
+.v2-int-key { display: flex; flex-direction: column; gap: 6px; }
+.v2-int-keyrow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.v2-int-input {
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 9px 12px;
+  font-size: 12.5px;
+  color: var(--text-strong);
+  min-height: 38px;
+  min-width: 260px;
+  flex: 1;
+  font-family: inherit;
+}
+.v2-int-input::placeholder { color: var(--faint); }
+.v2-int-input:focus { outline: none; border-color: var(--accent-brd); }
+.v2-int-input:disabled { opacity: .55; }
+.v2-int-textbtn {
+  background: none; border: none; cursor: pointer;
+  font-size: 12px; font-weight: 600; color: var(--accent); padding: 4px 2px; font-family: inherit;
+}
+.v2-int-textbtn:hover { text-decoration: underline; }
+.v2-int-status { font-size: 12px; font-weight: 600; }
+.v2-int-status.ok { color: var(--ok); }
+.v2-int-status.err { color: var(--crit); }
+.v2-int-note { font-size: 11px; color: var(--faint); }

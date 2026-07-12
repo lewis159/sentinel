@@ -32,6 +32,9 @@ vi.mock('@/lib/auth', () => ({
   getSessionAccess: h.getSessionAccess,
 }));
 vi.mock('@/lib/hermes/brain/flags', () => ({ brainEnabled: () => true }));
+// The route resolves the brain flag through the runtime store now; mock it so the
+// route never pulls in server-only / the DB layer.
+vi.mock('@/lib/hermes/runtime-flags', () => ({ getRuntimeFlag: async () => true }));
 vi.mock('@/lib/hermes/brain/graph', () => ({ runPaTurn: h.runPaTurn }));
 vi.mock('@/lib/hermes/brain/personas', () => ({ getPersona: h.getPersona }));
 vi.mock('@/lib/hermes/proposals', () => ({ saveActionProposal: h.saveActionProposal }));
