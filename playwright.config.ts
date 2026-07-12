@@ -12,7 +12,11 @@ import { defineConfig, devices } from '@playwright/test';
  * (started yourself with E2E_TEST_MODE=1); the webServer block is then skipped.
  */
 
-const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:3100';
+// Use the literal loopback IP, not 'localhost'. On CI runners Chromium can do
+// remote DNS (via a proxy) and fail to resolve the 'localhost' hostname with
+// ERR_NAME_NOT_RESOLVED, even though the Node webServer probe resolves it fine.
+// A literal IP needs no DNS. (Override with E2E_BASE_URL for an external target.)
+const BASE_URL = process.env.E2E_BASE_URL || 'http://127.0.0.1:3100';
 const USE_LOCAL_SERVER = !process.env.E2E_BASE_URL;
 // Readiness is probed against the lightweight /api/ping route handler rather than
 // the app root '/'. The root pulls in the whole v1 shell + provider tree, so on a
@@ -43,6 +47,11 @@ export default defineConfig({
   reporter: 'list',
   use: {
     baseURL: BASE_URL,
+    // Never route loopback through a proxy (CI runners may set http(s)_proxy,
+    // which turns a same-host request into a remote DNS lookup of 'localhost').
+    launchOptions: {
+      args: ['--no-proxy-server', '--proxy-bypass-list=<-loopback>'],
+    },
     trace: 'on-first-retry',
     // Follow redirects and behave like a real browser navigation.
     ignoreHTTPSErrors: true,
@@ -59,7 +68,7 @@ export default defineConfig({
   // provided. reuseExistingServer:false guarantees the shim env is applied.
   webServer: USE_LOCAL_SERVER
     ? {
-        command: 'npm run dev -- -p 3100',
+        command: 'npm run dev -- -p 3100 -H 0.0.0.0',
         // Probe the lightweight /api/ping route (see READY_URL) so boot doesn't
         // hang on compiling the full app shell.
         url: READY_URL,
