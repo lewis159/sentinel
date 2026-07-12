@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest';
 
 // ---------------------------------------------------------------------------
 // P3 — flag-gated tenant RLS enablement (lib/data.ts withTenantRls +
@@ -22,25 +22,41 @@ const H = vi.hoisted(() => {
   delete globalThis._sentinelPool;
 
   const clientQueries: Array<{ text: string; params?: any[] }> = [];
-  const client = {
-    query: vi.fn(async (text: string, params?: any[]) => {
-      clientQueries.push({ text, params });
-      return { rows: [] as any[] };
-    }),
-    release: vi.fn(),
+  const baseClientQuery = async (text: string, params?: any[]) => {
+    clientQueries.push({ text, params });
+    return { rows: [] as any[] };
   };
-  const pool = {
-    connect: vi.fn(async () => client),
-    query: vi.fn(async (_text: string, _params?: any[]) => ({ rows: [] as any[] })),
+  // Text-aware variant: returns a ref row for ref-minting / RETURNING statements
+  // so write paths (createTicket) resolve cleanly instead of throwing on empty rows.
+  const refAwareClientQuery = async (text: string, params?: any[]) => {
+    clientQueries.push({ text, params });
+    if (/returning ref|next_ticket_ref/i.test(text)) return { rows: [{ ref: 'INC-0001' }] as any[] };
+    return { rows: [] as any[] };
   };
+  const client = { query: vi.fn(baseClientQuery), release: vi.fn() };
+  const basePoolQuery = async (_text: string, _params?: any[]) => ({ rows: [] as any[] });
+  const refAwarePoolQuery = async (text: string, _params?: any[]) => {
+    if (/returning ref|next_ticket_ref/i.test(text)) return { rows: [{ ref: 'INC-0001' }] as any[] };
+    return { rows: [] as any[] };
+  };
+  const pool = { connect: vi.fn(async () => client), query: vi.fn(basePoolQuery) };
   const sessionTenant = vi.fn(async () => ({ tenantRef: null as string | null, isOperator: true }));
-  return { clientQueries, client, pool, sessionTenant };
+  return {
+    clientQueries, client, pool, sessionTenant,
+    baseClientQuery, refAwareClientQuery, basePoolQuery, refAwarePoolQuery,
+  };
 });
 
 vi.mock('pg', () => ({ Pool: vi.fn(() => H.pool) }));
 vi.mock('@/lib/auth', () => ({ getSessionTenant: H.sessionTenant }));
 
-import { getTicketsByKind, getCustomer360, withTenantRls } from '@/lib/data';
+import {
+  getTicketsByKind,
+  getCustomer360,
+  getRecentTickets,
+  createTicket,
+  withTenantRls,
+} from '@/lib/data';
 
 // set_config statements the transaction issued, as [name, value] pairs.
 const setConfigParams = () =>
@@ -59,6 +75,12 @@ beforeEach(() => {
   H.sessionTenant.mockReset();
   H.sessionTenant.mockResolvedValue({ tenantRef: null, isOperator: true });
   delete process.env.HERMES_RLS_ENABLED;
+});
+
+afterEach(() => {
+  // Restore canonical mock implementations (write tests swap in ref-aware ones).
+  H.client.query.mockImplementation(H.baseClientQuery);
+  H.pool.query.mockImplementation(H.basePoolQuery);
 });
 
 afterAll(() => {
@@ -172,5 +194,69 @@ describe('withTenantRls flag OFF — unchanged behaviour', () => {
     const out = await withTenantRls(async () => 42);
     expect(out).toBe(42);
     expect(H.pool.connect).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Newly-wrapped operator ops.tickets paths. These are trusted server/service
+// surfaces that pass an explicit OPERATOR_IDENTITY, so they resolve to
+// app.is_operator='on' (ALL rows) and NEVER consult getSessionTenant — the
+// bot/service/no-Clerk paths would otherwise fail-closed to 0 rows under RLS.
+// ---------------------------------------------------------------------------
+describe('wrapped operator paths — read (getRecentTickets)', () => {
+  it('flag ON: sets app.is_operator=on, runs the query in a tx, no session lookup', async () => {
+    process.env.HERMES_RLS_ENABLED = '1';
+
+    await getRecentTickets(new Date().toISOString(), 10);
+
+    const cfg = setConfigParams();
+    expect(cfg).toContainEqual(['app.is_operator', 'on']);
+    // Operator override → never sets a tenant_ref, never consults getSessionTenant.
+    expect(cfg.some(([name]) => name === 'app.tenant_ref')).toBe(false);
+    expect(H.sessionTenant).not.toHaveBeenCalled();
+    // Ran inside the pinned transaction and the SELECT actually executed.
+    expect(H.pool.connect).toHaveBeenCalledTimes(1);
+    expect(texts()).toContain('begin');
+    expect(texts()).toContain('commit');
+    expect(texts().some((t) => /from ops\.tickets/.test(t))).toBe(true);
+  });
+
+  it('flag OFF: no GUCs, no transaction — unchanged behaviour', async () => {
+    await getRecentTickets(new Date().toISOString(), 10);
+
+    expect(setConfigParams()).toEqual([]);
+    expect(H.pool.connect).not.toHaveBeenCalled();
+    expect(H.pool.query).toHaveBeenCalled();
+    expect(H.sessionTenant).not.toHaveBeenCalled();
+  });
+});
+
+describe('wrapped operator paths — write (createTicket)', () => {
+  it('flag ON: sets app.is_operator=on and the INSERT runs inside the tx', async () => {
+    process.env.HERMES_RLS_ENABLED = '1';
+    H.client.query.mockImplementation(H.refAwareClientQuery);
+
+    const res = await createTicket({ kind: 'incident', title: 'RLS smoke' });
+    expect(res.ref).toBe('INC-0001');
+
+    const cfg = setConfigParams();
+    expect(cfg).toContainEqual(['app.is_operator', 'on']);
+    expect(H.sessionTenant).not.toHaveBeenCalled();
+    expect(H.pool.connect).toHaveBeenCalledTimes(1);
+    expect(texts()).toContain('begin');
+    expect(texts()).toContain('commit');
+    expect(texts().some((t) => /insert into ops\.tickets/.test(t))).toBe(true);
+  });
+
+  it('flag OFF: no GUCs, no transaction, INSERT still runs on the pool — unchanged', async () => {
+    H.pool.query.mockImplementation(H.refAwarePoolQuery);
+
+    const res = await createTicket({ kind: 'incident', title: 'RLS smoke' });
+    expect(res.ref).toBe('INC-0001');
+
+    expect(setConfigParams()).toEqual([]);
+    expect(H.pool.connect).not.toHaveBeenCalled();
+    expect(H.pool.query).toHaveBeenCalled();
+    expect(H.sessionTenant).not.toHaveBeenCalled();
   });
 });
