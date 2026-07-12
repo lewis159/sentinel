@@ -44,6 +44,15 @@ export type TicketEvent = {
 
 export type AgentKey = 'support' | 'incident' | 'escalation' | 'billing' | 'security';
 
+// Result of a PA chat turn (POST /api/bot/pa/chat).
+export type PaChatResult = {
+  status: 'answered' | 'pending_approval' | 'disabled' | 'error';
+  reply?: string;
+  proposalId?: string | null;
+  pending?: { tool: string; describe?: string };
+  error?: string;
+};
+
 export class SentinelClient {
   constructor(
     private readonly base: string,
@@ -116,5 +125,13 @@ export class SentinelClient {
   getEvents(since?: string): Promise<{ events: TicketEvent[]; cursor: string; live: boolean }> {
     const qs = since ? `?since=${encodeURIComponent(since)}` : '';
     return this.req('GET', `/api/bot/events${qs}`);
+  }
+
+  // Run one PA (Hermes Brain) turn for a Discord channel. The Brain threads by
+  // `discord:<channelId>` server-side, so each channel is its own conversation.
+  // Returns the reply, or a 'pending_approval' marker when the PA proposed a gated
+  // action (which Sentinel has queued to #approvals for a human to approve).
+  paChat(channelId: string, message: string, author: string): Promise<PaChatResult> {
+    return this.req('POST', '/api/bot/pa/chat', { channelId, message, author });
   }
 }

@@ -8,8 +8,7 @@
 // it can never throw into the ticket-create caller. Never logs secrets.
 import 'server-only';
 import { getHermesRuntimeConfig } from './config';
-import { draftSupportReply } from './support-agent';
-import { assessIncident } from './incident-agent';
+import { runCopilotProposal } from './brain/copilot';
 import { saveProposal } from './proposals';
 import { getServiceTicket, getOneTicket } from '@/lib/data';
 
@@ -63,13 +62,11 @@ export async function autoTriage(ref: string, kind?: string): Promise<void> {
       }
     }
 
-    // Pick the agent by kind. Incidents get the incident assessor; everything
-    // else (request/change/problem/release) gets the support drafter.
+    // Pick the persona by kind. Incidents get the incident assessor; everything
+    // else (request/change/problem/release) gets the support drafter. Both route
+    // through the shared Brain via runCopilotProposal.
     const agent = kind === 'incident' ? 'incident' : 'support';
-    const proposal =
-      agent === 'incident'
-        ? await assessIncident(ticket)
-        : await draftSupportReply(ticket);
+    const proposal = await runCopilotProposal({ persona: agent, input: ticket });
 
     if (!proposal.ok) return;
 

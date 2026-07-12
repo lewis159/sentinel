@@ -164,6 +164,42 @@ export async function getSessionAccess(): Promise<{
   };
 }
 
+// ---------------------------------------------------------------------------
+// P2 multi-tenancy — resolve the caller's TENANT for ticket scoping.
+//
+// A tenant is a Clerk Organization; its id is the `tenant_ref` stored on
+// ops.tickets (ops.orgs.id mirrors the same value). The rule:
+//   * global_admin  → OPERATOR: sees everything, so tenantRef is null (unscoped).
+//   * anyone else with an active Clerk org → scoped to that org's id.
+//   * no active org  → tenantRef null but isOperator false; a customer-facing
+//     surface should treat "no tenant + not operator" as "no records".
+//
+// This is the single place a page/route turns Clerk org context into the value
+// passed to getTicketsByKind({ tenantRef }). Kept additive: existing operator
+// reads that never call this stay unscoped.
+// ---------------------------------------------------------------------------
+export async function getSessionTenant(): Promise<{
+  tenantRef: string | null;
+  isOperator: boolean;
+}> {
+  // TEST-ONLY shim (double-gated): x-e2e-role + optional x-e2e-org header.
+  if (e2eBypass()) {
+    const h = await headers();
+    const role = h.get('x-e2e-role') || GLOBAL_ADMIN;
+    const org = h.get('x-e2e-org');
+    if (role === GLOBAL_ADMIN) return { tenantRef: null, isOperator: true };
+    return { tenantRef: org || null, isOperator: false };
+  }
+
+  const { userId, orgId } = await auth();
+  if (!userId) return { tenantRef: null, isOperator: false };
+
+  const { role } = await getSessionRole();
+  if (role === GLOBAL_ADMIN) return { tenantRef: null, isOperator: true };
+
+  return { tenantRef: orgId ?? null, isOperator: false };
+}
+
 /**
  * Call at the top of a v2 server component / page that must be gated by
  * section. Redirects:

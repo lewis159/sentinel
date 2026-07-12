@@ -584,6 +584,12 @@ function mapServiceTicket(r: any): ServiceTicket {
     source: r.source ?? 'manual',
     slaDue: r.sla_due ? (r.sla_due instanceof Date ? r.sla_due.toISOString() : r.sla_due) : null,
     age: rel(r.opened_at ?? r.created_at),
+    // P2 multi-tenancy — read the first-class column, falling back to the attrs
+    // value (the shared contract with the intake agent) so rows written by
+    // intake-only (before the column backfill) still resolve their tenant.
+    tenantRef: r.tenant_ref ?? attrs.tenant_ref ?? null,
+    customerEmail: r.customer_email ?? attrs.customer_email ?? null,
+    customerName: r.customer_name ?? attrs.customer_name ?? null,
     attrs,
   };
 }
@@ -593,16 +599,35 @@ function safeJson(s: string): any {
 }
 
 const TICKET_COLS =
-  'ref,kind,title,description,status,priority,impact,urgency,app,source,sla_due,opened_at,created_at,attrs';
+  'ref,kind,title,description,status,priority,impact,urgency,app,source,sla_due,opened_at,created_at,tenant_ref,customer_email,customer_name,attrs';
 
 // All ITIL records of a given kind (incident|request|change|problem|release).
-export async function getTicketsByKind(kind: TicketKind): Promise<Sourced<ServiceTicket>> {
-  const fallback = () => mock.serviceTickets.filter((t) => t.kind === kind);
+//
+// P2 tenant scoping: pass `opts.tenantRef` to restrict results to a single
+// tenant (a Clerk org id → ops.tickets.tenant_ref). This is ADDITIVE — operators
+// (global_admin) call it with no tenantRef and see every ticket unchanged; a
+// per-tenant / customer-facing surface passes the caller's resolved tenant so it
+// only sees its own records. An empty/undefined tenantRef means "unscoped".
+export async function getTicketsByKind(
+  kind: TicketKind,
+  opts?: { tenantRef?: string | null },
+): Promise<Sourced<ServiceTicket>> {
+  const tenantRef = opts?.tenantRef ?? null;
+  const fallback = () =>
+    mock.serviceTickets.filter(
+      (t) => t.kind === kind && (!tenantRef || t.tenantRef === tenantRef),
+    );
   if (!hasDb) return { rows: fallback(), live: false, note: 'no DB' };
   try {
+    const params: any[] = [kind];
+    let where = 'kind=$1';
+    if (tenantRef) {
+      params.push(tenantRef);
+      where += ` and tenant_ref=$${params.length}`;
+    }
     const data = await q<any>(
-      `select ${TICKET_COLS} from ops.tickets where kind=$1 order by opened_at desc nulls last`,
-      [kind]
+      `select ${TICKET_COLS} from ops.tickets where ${where} order by opened_at desc nulls last`,
+      params
     );
     if (data.length === 0) return { rows: fallback(), live: false, note: 'empty' };
     return { rows: data.map(mapServiceTicket), live: true };
@@ -648,6 +673,137 @@ export async function getServiceTicket(ref: string): Promise<{ row: ServiceTicke
   }
 }
 
+// ---------- Customer 360 (P2 multi-tenancy) ----------
+// A single tenant's support picture, assembled from the `ops` mirror tables:
+//   * org         → ops.orgs (Clerk org mirror)
+//   * members     → ops.org_members
+//   * entitlements→ ops.app_entitlements (read-through YT tier/quota) for members
+//   * tickets     → ops.tickets scoped by tenant_ref OR customer_email
+// The route `id` is the tenant key: a Clerk org id (matches ops.orgs.id /
+// tenant_ref) or a customer email. Everything degrades to a plausible mock so the
+// page renders without a DB.
+export type Customer360Member = { userId: string; role: string | null };
+export type Customer360Entitlement = {
+  userId: string; app: string; tier: string | null;
+  quotaUsed: number | null; quotaLimit: number | null; quotaPeriod: string | null;
+  syncedAt: string | null;
+};
+export type Customer360 = {
+  id: string;
+  name: string;
+  email: string | null;
+  org: { id: string; name: string | null } | null;
+  members: Customer360Member[];
+  entitlements: Customer360Entitlement[];
+  tickets: ServiceTicket[];
+  live: boolean;
+  note?: string;
+};
+
+// Derive a human display name from a raw tenant id ("northwind" → "northwind.io";
+// an id that already looks like a domain/email is passed through).
+function tenantDisplayName(id: string): string {
+  const clean = id.trim().toLowerCase();
+  if (clean.includes('@')) return clean.split('@')[1] ?? clean;
+  return clean.includes('.') ? clean : `${clean}.io`;
+}
+
+export async function getCustomer360(id: string): Promise<Customer360> {
+  const decoded = decodeURIComponent(id);
+  const name = tenantDisplayName(decoded);
+
+  // Offline fallback: name from the id + a slice of mock tickets so the screen
+  // is never blank in dev.
+  const fallback = (note: string): Customer360 => ({
+    id: decoded,
+    name,
+    email: decoded.includes('@') ? decoded : `ops@${name}`,
+    org: null,
+    members: [],
+    entitlements: [],
+    tickets: mock.serviceTickets.slice(0, 3),
+    live: false,
+    note,
+  });
+
+  if (!hasDb) return fallback('no DB');
+
+  try {
+    // 1. Tickets for this tenant — match on tenant_ref OR customer_email so both
+    //    org-scoped and contact-scoped intake rows resolve.
+    const ticketRows = await q<any>(
+      `select ${TICKET_COLS} from ops.tickets
+         where tenant_ref = $1 or customer_email = $1
+         order by opened_at desc nulls last`,
+      [decoded],
+    );
+    const tickets = ticketRows.map(mapServiceTicket);
+
+    // 2. Org mirror — the id may be a Clerk org id; also try the tenant_ref
+    //    carried by the tickets (when the route id is an email).
+    const orgIds = Array.from(
+      new Set([decoded, ...tickets.map((t) => t.tenantRef).filter(Boolean)]),
+    ) as string[];
+    const orgRow = orgIds.length
+      ? await q1<{ id: string; name: string | null }>(
+          'select id, name from ops.orgs where id = any($1) limit 1',
+          [orgIds],
+        )
+      : null;
+    const org = orgRow ? { id: orgRow.id, name: orgRow.name } : null;
+
+    // 3. Members of the resolved org.
+    let members: Customer360Member[] = [];
+    let entitlements: Customer360Entitlement[] = [];
+    if (org) {
+      const memberRows = await q<{ clerk_user_id: string; org_role: string | null }>(
+        'select clerk_user_id, org_role from ops.org_members where org_id = $1 order by created_at asc',
+        [org.id],
+      );
+      members = memberRows.map((m) => ({ userId: m.clerk_user_id, role: m.org_role }));
+
+      // 4. Read-through entitlements (YT tier/quota) for the org's members.
+      const memberIds = members.map((m) => m.userId);
+      if (memberIds.length) {
+        const entRows = await q<any>(
+          `select clerk_user_id, app, tier, quota_used, quota_limit, quota_period, synced_at
+             from ops.app_entitlements where clerk_user_id = any($1)`,
+          [memberIds],
+        );
+        entitlements = entRows.map((r) => ({
+          userId: r.clerk_user_id,
+          app: r.app,
+          tier: r.tier ?? null,
+          quotaUsed: r.quota_used == null ? null : Number(r.quota_used),
+          quotaLimit: r.quota_limit == null ? null : Number(r.quota_limit),
+          quotaPeriod: r.quota_period ?? null,
+          syncedAt: r.synced_at
+            ? (r.synced_at instanceof Date ? r.synced_at.toISOString() : r.synced_at)
+            : null,
+        }));
+      }
+    }
+
+    // Prefer a real customer name/email off the tickets when present.
+    const firstNamed = tickets.find((t) => t.customerName)?.customerName ?? null;
+    const firstEmail = tickets.find((t) => t.customerEmail)?.customerEmail
+      ?? (decoded.includes('@') ? decoded : null);
+
+    return {
+      id: decoded,
+      name: org?.name ?? firstNamed ?? name,
+      email: firstEmail,
+      org,
+      members,
+      entitlements,
+      tickets,
+      live: true,
+    };
+  } catch (e: any) {
+    return fallback(e?.message ?? 'error');
+  }
+}
+
 // ---------- Service management writes (server-only) ----------
 
 // Per-kind ref prefixes — must match ops.next_ticket_ref() in
@@ -678,6 +834,12 @@ export type CreateTicketInput = {
   status?: string;
   source?: string;
   slaDue?: string | null;
+  // P2 multi-tenancy — the tenant (Clerk org id) + customer contact this ticket
+  // is for. Persisted to BOTH the first-class columns AND attrs (the shared
+  // contract with the intake agent) so reads resolve from either side.
+  tenantRef?: string | null;
+  customerEmail?: string | null;
+  customerName?: string | null;
   attrs?: Record<string, any>;
 };
 
@@ -709,11 +871,22 @@ export async function createTicket(input: CreateTicketInput): Promise<{ ref: str
     ref = `${prefix}-${String(n).padStart(4, '0')}`;
   }
 
+  // Keep the shared contract: mirror the tenant fields into attrs too, so a
+  // reader coming from either side (column or attrs) resolves the same value.
+  const tenantRef = input.tenantRef ?? null;
+  const customerEmail = input.customerEmail ?? null;
+  const customerName = input.customerName ?? null;
+  const attrs: Record<string, any> = { ...(input.attrs ?? {}) };
+  if (tenantRef != null) attrs.tenant_ref = tenantRef;
+  if (customerEmail != null) attrs.customer_email = customerEmail;
+  if (customerName != null) attrs.customer_name = customerName;
+
   const inserted = await q1<{ ref: string }>(
     `insert into ops.tickets
-       (ref, kind, type, title, description, status, priority, impact, urgency, app, source, sla_due, attrs)
+       (ref, kind, type, title, description, status, priority, impact, urgency, app, source, sla_due,
+        tenant_ref, customer_email, customer_name, attrs)
      values
-       ($1, $2, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb)
+       ($1, $2, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb)
      returning ref`,
     [
       ref,
@@ -727,7 +900,10 @@ export async function createTicket(input: CreateTicketInput): Promise<{ ref: str
       input.app ?? 'Estate',
       input.source ?? 'manual',
       input.slaDue ?? null,
-      JSON.stringify(input.attrs ?? {}),
+      tenantRef,
+      customerEmail,
+      customerName,
+      JSON.stringify(attrs),
     ]
   );
   if (!inserted) throw new Error('insert failed');
@@ -984,6 +1160,62 @@ export async function addTicketComment(
     [t.id, body, kind, JSON.stringify({ author })]
   );
   return row ? mapComment(row) : null;
+}
+
+// ---------- Email-to-ticket threading (attrs.email_message_ids) ----------
+// Inbound support emails are threaded by RFC-5322 Message-ID: each message id we
+// have seen for a ticket is stored in attrs.email_message_ids (a jsonb array of
+// strings). No new column / DDL — this is purely additive over the existing attrs
+// jsonb, so it never touches ops.tickets' schema or createTicket's signature.
+
+// Find the ticket whose attrs.email_message_ids array contains ANY of `ids`
+// (the inbound message's In-Reply-To + References header ids). Returns the most
+// recently opened match, or null. Used to thread replies onto the same ticket.
+export async function findTicketByEmailMessageIds(ids: string[]): Promise<ServiceTicket | null> {
+  if (!hasDb) return null;
+  const clean = ids.map((s) => (typeof s === 'string' ? s.trim() : '')).filter(Boolean);
+  if (clean.length === 0) return null;
+  try {
+    // `?|` = jsonb array/object contains ANY of the given text keys/elements.
+    const data = await q1<any>(
+      `select ${TICKET_COLS} from ops.tickets
+        where attrs->'email_message_ids' ?| $1::text[]
+        order by opened_at desc nulls last
+        limit 1`,
+      [clean]
+    );
+    return data ? mapServiceTicket(data) : null;
+  } catch {
+    return null;
+  }
+}
+
+// Append a Message-ID to a ticket's attrs.email_message_ids array (dedup-safe),
+// so a later reply that references it threads back onto this ticket. No-op if the
+// id is already present. Best-effort; never throws to the caller path.
+export async function appendEmailMessageId(ref: string, messageId: string): Promise<void> {
+  if (!hasDb) return;
+  const id = (messageId ?? '').trim();
+  if (!id) return;
+  try {
+    await q(
+      `update ops.tickets
+          set attrs = jsonb_set(
+                coalesce(attrs, '{}'::jsonb),
+                '{email_message_ids}',
+                case
+                  when coalesce(attrs->'email_message_ids', '[]'::jsonb) @> to_jsonb($2::text)
+                    then coalesce(attrs->'email_message_ids', '[]'::jsonb)
+                  else coalesce(attrs->'email_message_ids', '[]'::jsonb) || to_jsonb($2::text)
+                end
+              ),
+              updated_at = now()
+        where ref = $1`,
+      [ref, id]
+    );
+  } catch {
+    /* threading metadata is best-effort */
+  }
 }
 
 // ---------- Roadmap (ops.roadmap_items) ----------
