@@ -118,6 +118,15 @@ jobs:
     name: E2E tests (Playwright)
     runs-on: ubuntu-latest
     continue-on-error: true
+    env:
+      # E2E_TEST_MODE=1 activates the app's test-only auth shim, so no real Clerk
+      # call is ever made. Clerk's provider still needs a format-valid key to
+      # initialise, so we supply throwaway DUMMY test-format keys (not tied to any
+      # real instance — non-secret placeholders). Mirrors playwright.config.ts's
+      # webServer.env; kept here as belt-and-suspenders for the e2e job.
+      E2E_TEST_MODE: '1'
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: 'pk_test_Y2xlcmsuZXhhbXBsZS5jb20k'
+      CLERK_SECRET_KEY: 'sk_test_dummydummydummydummydummydummydummydummy'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

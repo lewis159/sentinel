@@ -52,7 +52,18 @@ export default defineConfig({
         command: 'npm run dev -- -p 3100',
         url: 'http://localhost:3100',
         reuseExistingServer: false,
-        env: { E2E_TEST_MODE: '1' },
+        // E2E_TEST_MODE=1 activates the test-only auth shim (double-gated in the
+        // app), which short-circuits ALL auth logic so no real Clerk API call is
+        // ever made. Clerk's <ClerkProvider> still refuses to initialise without a
+        // FORMAT-VALID publishableKey, though, so we feed it throwaway DUMMY test
+        // keys purely to satisfy that init check. These are NON-secret, well-known
+        // Clerk test-format placeholders (not tied to any real instance) — safe to
+        // inline so this works identically locally and in CI.
+        env: {
+          E2E_TEST_MODE: '1',
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: 'pk_test_Y2xlcmsuZXhhbXBsZS5jb20k',
+          CLERK_SECRET_KEY: 'sk_test_dummydummydummydummydummydummydummydummy',
+        },
         // Next dev can be slow on a cold start; give it plenty of headroom.
         timeout: 120_000,
       }
