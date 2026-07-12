@@ -5,7 +5,7 @@
 // so the prototype always renders. Each returns { rows, live } — `live` true
 // means the data came from the real database.
 
-import { hasDb, q, q1 } from './db';
+import { hasDb, q, q1, withDbTransaction } from './db';
 import { getSupabase } from './connectors';
 import { getContainers } from './docker';
 import * as mock from './mock';
@@ -606,6 +606,83 @@ function safeJson(s: string): any {
 const TICKET_COLS =
   'ref,kind,title,description,status,priority,impact,urgency,app,source,sla_due,opened_at,created_at,tenant_ref,customer_email,customer_name,assignee,assigned_at,attrs';
 
+// ===========================================================================
+// P3 — Tenant RLS enablement (flag-gated, fail-safe)
+// ===========================================================================
+// The migration 15_hermes_p3_substrate.sql created a GUC-driven RLS policy on
+// ops.tickets (app.tenant_ref / app.is_operator) but left RLS DISABLED, because
+// the app did not yet set those GUCs per request — enabling naively would
+// deny-all the operator console. This wrapper is the missing half: it sets the
+// per-request GUCs so migration 17 can safely turn RLS on.
+//
+// FLAG: HERMES_RLS_ENABLED — default OFF. Accepts '1' / 'true' / 'on'.
+//   * OFF (today's behaviour): withTenantRls(fn) === fn(). No transaction, no
+//     GUCs, no identity resolution — a pure pass-through. Combined with RLS
+//     staying disabled at the DB, this path is byte-for-byte identical to today.
+//     Turning the flag on WITHOUT running migration 17 is also a no-op on
+//     results (GUCs are set but no policy consults them) — that's the safe
+//     "deploy app first, enable RLS later" ordering.
+//   * ON: resolve the caller's identity via getSessionTenant() and run `fn`
+//     inside a transaction (withDbTransaction) that first SET LOCALs:
+//       - operator/global_admin → app.is_operator = 'on'  (policy → ALL rows)
+//       - tenant surface        → app.is_operator = 'off'
+//                               + app.tenant_ref  = '<clerk_org_id>'
+//                                 (policy → ONLY that tenant's rows)
+//
+// FAIL-CLOSED: if identity can't be resolved (no request context, Clerk throws)
+// we set a NON-operator, EMPTY tenant_ref. Once RLS is on, an empty tenant_ref
+// matches no row → 0 rows returned, never a leak. A caller in a service context
+// (worker/bot) that legitimately needs the full-estate view must pass an
+// explicit { isOperator: true } identity — it is never assumed.
+function rlsEnabled(): boolean {
+  const v = (process.env.HERMES_RLS_ENABLED ?? '').toLowerCase();
+  return v === '1' || v === 'true' || v === 'on';
+}
+
+export type TenantIdentity = { tenantRef: string | null; isOperator: boolean };
+
+// Resolve the request identity, never throwing: any failure fails CLOSED
+// (non-operator, no tenant) so RLS returns 0 rows rather than leaking. Uses a
+// LAZY import of '@/lib/auth' so the flag-off path never pulls the Clerk /
+// next-request modules into non-request contexts (workers, unit tests).
+async function resolveIdentitySafe(): Promise<TenantIdentity> {
+  try {
+    const { getSessionTenant } = await import('./auth');
+    return await getSessionTenant();
+  } catch {
+    return { tenantRef: null, isOperator: false };
+  }
+}
+
+function gucSettings(id: TenantIdentity): Array<{ name: string; value: string }> {
+  if (id.isOperator) {
+    // Operator/global_admin: is_operator='on' short-circuits the policy to all
+    // rows. Deliberately do NOT set app.tenant_ref (unused when operator).
+    return [{ name: 'app.is_operator', value: 'on' }];
+  }
+  // Tenant surface: explicitly is_operator='off' (never inherit a stale value)
+  // and pin tenant_ref. A null/absent tenant becomes '' → matches no row.
+  return [
+    { name: 'app.is_operator', value: 'off' },
+    { name: 'app.tenant_ref', value: id.tenantRef ?? '' },
+  ];
+}
+
+// The opt-in mechanism: wrap a tenant-scoped read so the request's identity is
+// applied as request-local Postgres GUCs for the duration of `fn`. Additive —
+// existing query functions call this to route their DB work through the GUC
+// path when the flag is on, and are otherwise untouched. Pass `identity` to
+// override request resolution (service contexts / tests).
+export async function withTenantRls<T>(
+  fn: () => Promise<T>,
+  identity?: TenantIdentity,
+): Promise<T> {
+  // Flag off, or no DB to scope → identical to calling fn() directly.
+  if (!rlsEnabled() || !hasDb) return fn();
+  const id = identity ?? (await resolveIdentitySafe());
+  return withDbTransaction(gucSettings(id), fn);
+}
+
 // All ITIL records of a given kind (incident|request|change|problem|release).
 //
 // P2 tenant scoping: pass `opts.tenantRef` to restrict results to a single
@@ -617,6 +694,10 @@ export async function getTicketsByKind(
   kind: TicketKind,
   opts?: { tenantRef?: string | null },
 ): Promise<Sourced<ServiceTicket>> {
+  // P3: route the read through the request-local GUC path so the ops.tickets
+  // RLS policy (once migration 17 enables it) filters rows to the caller's
+  // scope. Flag OFF ⇒ withTenantRls is a pure pass-through — identical to before.
+  return withTenantRls(async () => {
   const tenantRef = opts?.tenantRef ?? null;
   const scoped = Boolean(tenantRef);
 
@@ -661,6 +742,7 @@ export async function getTicketsByKind(
       ? { rows: [], live: false, note: e?.message ?? 'error' }
       : { rows: fallback(), live: false, note: e?.message ?? 'error' };
   }
+  });
 }
 
 // Recent tickets created OR updated since an ISO cursor, newest first. Powers
@@ -736,6 +818,10 @@ function tenantDisplayName(id: string): string {
 }
 
 export async function getCustomer360(id: string): Promise<Customer360> {
+  // P3: run the whole assembly (the ops.tickets read + org/member/entitlement
+  // lookups) under the request's tenant/operator GUCs so the tickets query is
+  // RLS-filtered once migration 17 is live. Flag OFF ⇒ pure pass-through.
+  return withTenantRls(async () => {
   const decoded = decodeURIComponent(id);
   const name = tenantDisplayName(decoded);
 
@@ -829,6 +915,7 @@ export async function getCustomer360(id: string): Promise<Customer360> {
   } catch (e: any) {
     return fallback(e?.message ?? 'error');
   }
+  });
 }
 
 // ---------- Service management writes (server-only) ----------
