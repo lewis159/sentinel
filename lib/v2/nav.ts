@@ -63,6 +63,7 @@ export const NAV: V2NavGroup[] = [
       { label: 'Floor', href: '/v2/hermes/floor', icon: 'floor' },
       { label: 'Approvals', href: '/v2/hermes/approvals', icon: 'approvals' },
       { label: 'Agents', href: '/v2/hermes/agents', icon: 'agents' },
+      { label: 'Market & Content', href: '/v2/hermes/market', icon: 'reports' },
       { label: 'Testing', href: '/v2/hermes/testing', icon: 'testing' },
     ],
   },
