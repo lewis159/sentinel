@@ -5,6 +5,7 @@ import { TicketComposer, TicketStatusControl } from '@/components/v2/ticket-acti
 import { AssignControl, EscalateControl } from '@/components/v2/support-assign';
 import { getSupportStaff } from '@/lib/support/data';
 import { authorize } from '@/lib/support/roles';
+import { computeSla, slaBadgeClass, slaBadgeLabel } from '@/lib/support/sla';
 import HermesPanel from '@/components/v2/HermesPanel';
 import './ticket.css';
 
@@ -339,6 +340,9 @@ export default async function Page({ params }: { params: Promise<{ ref: string }
   const d = DECO[ticket.ref] ?? fallbackDeco(ticket);
   const pill = priorityPill(ticket.priority);
   const status = statusPill(ticket.status);
+  // Real SLA badge — computed from the ticket's priority/status/age (mock-safe).
+  // Supersedes the decorated d.sla placeholder in the header.
+  const sla = computeSla({ priority: ticket.priority, status: ticket.status, age: ticket.age });
 
   // P3 — resolve the caller's support-action authority + the staff roster so the
   // assign dropdown + escalate button render only for permitted roles.
@@ -372,7 +376,7 @@ export default async function Page({ params }: { params: Promise<{ ref: string }
           <div className="v2-td-pills">
             <span className={`v2-pill ${pill.cls}`}>{pill.label}</span>
             <span className={`v2-pill ${status.cls}`}>{status.label}</span>
-            <span className={`v2-td-sla ${d.sla.state}`}>{d.sla.text}</span>
+            <span className={`v2-td-sla ${slaBadgeClass(sla.state)}`} title={sla.dueAt ? `SLA due ${new Date(sla.dueAt).toLocaleString()}` : 'No SLA target'}>{slaBadgeLabel(sla)}</span>
           </div>
           <div className="v2-td-head-actions">
             <TicketStatusControl refId={ticket.ref} kind="request" status={ticket.status || 'open'} />
