@@ -17,7 +17,7 @@
 // on a tight interval never spams the channel while the same build stays red.
 //
 // Behind HERMES_BRAIN_ENABLED — returns { status:'disabled' } when off.
-import { brainEnabled } from '@/lib/hermes/brain/flags';
+import { getRuntimeFlag } from '@/lib/hermes/runtime-flags';
 import { getDeployStatusTool } from '@/lib/hermes/brain/tools/deploy';
 import { broadcastStatusTool } from '@/lib/hermes/brain/tools/broadcast';
 import type { ToolContext } from '@/lib/hermes/brain/tools/types';
@@ -72,7 +72,7 @@ export async function POST(req: Request) {
   const auth = await authBot(req);
   if (!auth.ok) return auth.res;
 
-  if (!brainEnabled()) {
+  if (!(await getRuntimeFlag('HERMES_BRAIN_ENABLED'))) {
     return botJson({
       status: 'disabled',
       error: 'Hermes Brain is disabled — set HERMES_BRAIN_ENABLED=1 to enable.',
