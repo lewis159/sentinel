@@ -1,0 +1,259 @@
+/* Customer-Health Digest — additive styling. Reuses the v2 design tokens
+   (--surface / --line / --ok / --high / --crit / --sky …) and the shared
+   .v2-card / .v2-tile / .v2-pill / .v2-table components. Only digest-specific
+   bits live here. */
+
+.v2-hd-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Header */
+.v2-hd-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.v2-hd-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.v2-hd-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--surface2);
+  border: 1px solid var(--line);
+}
+.v2-hd-badge .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.v2-hd-badge.live {
+  color: var(--ok);
+}
+.v2-hd-badge.live .dot {
+  background: var(--ok);
+}
+
+/* Portfolio band strip */
+.v2-hd-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+@media (max-width: 720px) {
+  .v2-hd-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* AI narrative */
+.v2-hd-narrative p {
+  padding: 0 16px 16px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text);
+}
+.v2-hd-ai-tag {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--purple);
+  background: var(--purple-bg);
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+.v2-hd-narrative-off {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 10px 14px;
+  border: 1px dashed var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+}
+
+/* Context row */
+.v2-hd-context {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 720px) {
+  .v2-hd-context {
+    grid-template-columns: 1fr;
+  }
+}
+.v2-hd-ctx-body {
+  padding: 0 16px 16px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.v2-hd-ctx-count {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--high);
+}
+.v2-hd-upsell-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.v2-hd-upsell-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.v2-hd-upsell-list .reason {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+/* Table */
+.v2-hd-table-wrap {
+  overflow-x: auto;
+}
+.v2-hd-table {
+  min-width: 720px;
+}
+.v2-hd-sortable {
+  cursor: pointer;
+  user-select: none;
+}
+.v2-hd-sortable:hover {
+  color: var(--text-strong);
+}
+.v2-hd-hint,
+.v2-hd-table-card .v2-hd-hint {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.v2-hd-cust {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.v2-hd-cust .nm {
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.v2-hd-cust .sub {
+  font-size: 11px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.v2-hd-upsell {
+  color: var(--ok);
+  font-weight: 700;
+  font-size: 10.5px;
+}
+
+/* Health cell: pill + score + bar */
+.v2-hd-health {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.v2-hd-score {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--text-strong);
+  min-width: 24px;
+}
+.v2-hd-bar {
+  position: relative;
+  display: inline-block;
+  width: 72px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface2);
+  overflow: hidden;
+}
+.v2-hd-bar i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+  background: var(--muted);
+}
+.v2-hd-bar.b-thriving i { background: var(--ok); }
+.v2-hd-bar.b-healthy i { background: var(--sky); }
+.v2-hd-bar.b-at-risk i { background: var(--high); }
+.v2-hd-bar.b-critical i { background: var(--crit); }
+
+/* Existing .v2-pill has no 'sky' variant — add it (additive, matches tile t-sky). */
+.v2-pill.sky {
+  color: var(--sky);
+  background: var(--sky-bg);
+}
+
+/* Trend */
+.v2-hd-trend {
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.v2-hd-trend.t-improving { color: var(--ok); }
+.v2-hd-trend.t-declining { color: var(--crit); }
+.v2-hd-trend.t-steady { color: var(--muted); }
+.v2-hd-trend.t-unknown { color: var(--muted); }
+
+/* Drivers */
+.v2-hd-drivers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  max-width: 320px;
+}
+.v2-hd-driver {
+  font-size: 10.5px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.v2-hd-driver.positive {
+  color: var(--ok);
+  border-color: var(--ok-bg);
+  background: var(--ok-bg);
+}
+.v2-hd-driver.negative {
+  color: var(--crit);
+  border-color: var(--crit-bg);
+  background: var(--crit-bg);
+}
+
+.v2-hd-issues {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.v2-hd-issues.on {
+  color: var(--high);
+  font-weight: 700;
+}
+
+.v2-hd-actions {
+  display: flex;
+  gap: 12px;
+  white-space: nowrap;
+}
+.v2-link.warn {
+  color: var(--high);
+}
