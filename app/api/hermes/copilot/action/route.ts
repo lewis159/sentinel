@@ -18,7 +18,7 @@
 // Gated per-persona by the section that persona belongs to (AGENT_META.section).
 import { NextResponse } from 'next/server';
 import { requireSectionApi, getSessionAccess } from '@/lib/auth';
-import { brainEnabled } from '@/lib/hermes/brain/flags';
+import { getRuntimeFlag } from '@/lib/hermes/runtime-flags';
 import { runCopilotAction } from '@/lib/hermes/brain/copilot';
 import { saveActionProposal } from '@/lib/hermes/proposals';
 import { AGENT_META, type AgentKey } from '@/lib/hermes/agent-meta';
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
   const denied = await requireSectionApi(AGENT_META[persona].section);
   if (denied) return denied;
 
-  if (!brainEnabled()) {
+  if (!(await getRuntimeFlag('HERMES_BRAIN_ENABLED'))) {
     return NextResponse.json({
       status: 'disabled',
       error: 'Hermes Brain is disabled — set HERMES_BRAIN_ENABLED=1 to enable.',

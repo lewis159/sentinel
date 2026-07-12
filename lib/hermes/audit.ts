@@ -22,7 +22,10 @@ export type AuditAction =
   | 'proposal.created'
   | 'proposal.approved'
   | 'proposal.dismissed'
-  | 'proposal.executed';
+  | 'proposal.executed'
+  | 'integration.key.set'
+  | 'integration.flag.set'
+  | 'integration.test';
 
 export type AuditEntry = {
   actor?: string | null;
