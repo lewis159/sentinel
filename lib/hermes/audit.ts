@@ -30,7 +30,11 @@ export type AuditAction =
   // existing draft was approved. Approval is NOT activation: an approved draft is
   // still never loaded into the live persona registry (that step is manual code).
   | 'persona.drafted'
-  | 'persona.approved';
+  | 'persona.approved'
+  // Console Settings hub (lib/settings/*) — an admin saved one or more
+  // console-level settings. detail records the section + the keys changed
+  // (never the values themselves).
+  | 'console.settings.updated';
 
 export type AuditEntry = {
   actor?: string | null;
