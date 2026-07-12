@@ -1,0 +1,262 @@
+/* ============================================================================
+   Hermes onboarding assistant — page styles. Namespaced `v2-onb-` and scoped
+   under the v2 shell so all colour comes from design tokens (var(--...)). No
+   hard-coded colours; works in both light + dark themes.
+   ========================================================================== */
+
+.v2-onb-green { color: var(--ok); font-weight: 600; }
+
+.v2-onb-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 16px 0 18px;
+}
+.v2-onb-brain { font-size: 11px; }
+.v2-onb-demo { color: var(--muted); font-size: 11.5px; }
+
+/* ---------- Grid of customer cards ---------- */
+.v2-onb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px;
+}
+.v2-onb-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+}
+.v2-onb-empty {
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+/* ---------- Card header ---------- */
+.v2-onb-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.v2-onb-name {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+.v2-onb-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.v2-onb-tier {
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-brd);
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-weight: 600;
+}
+.v2-onb-stage { font-size: 10.5px; white-space: nowrap; }
+
+/* ---------- Progress bar ---------- */
+.v2-onb-prog-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.v2-onb-prog-lbl {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  color: var(--muted);
+}
+.v2-onb-prog-pct {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+.v2-onb-bar {
+  height: 7px;
+  border-radius: 20px;
+  background: var(--line);
+  overflow: hidden;
+  margin: 6px 0 5px;
+}
+.v2-onb-bar-fill {
+  height: 100%;
+  border-radius: 20px;
+  transition: width .3s ease;
+  background: var(--accent);
+}
+.v2-onb-bar-fill.s-ok { background: var(--ok); }
+.v2-onb-bar-fill.s-high { background: var(--high); }
+.v2-onb-bar-fill.s-crit { background: var(--crit); }
+.v2-onb-bar-fill.s-info { background: var(--accent); }
+.v2-onb-prog-sub { font-size: 11px; color: var(--muted); }
+
+/* ---------- Milestone checklist ---------- */
+.v2-onb-miles {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+}
+.v2-onb-mile {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.v2-onb-mile-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--line);
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.v2-onb-mile.done .v2-onb-mile-ic {
+  background: var(--ok-bg);
+  color: var(--ok);
+}
+.v2-onb-mile.done .v2-onb-mile-lbl {
+  color: var(--text);
+}
+.v2-onb-mile.unknown .v2-onb-mile-ic {
+  background: transparent;
+  border: 1px dashed var(--line);
+}
+.v2-onb-mile-lbl { flex: 1; }
+.v2-onb-mile-unk {
+  font-size: 10px;
+  color: var(--muted);
+  opacity: .7;
+  font-style: italic;
+}
+
+/* ---------- Unused feature chips ---------- */
+.v2-onb-feat-h {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  color: var(--muted);
+  margin-bottom: 7px;
+}
+.v2-onb-feat-ct {
+  color: var(--high);
+  background: var(--high-bg);
+  border-radius: 20px;
+  padding: 0 6px;
+  font-size: 10px;
+}
+.v2-onb-feat-none { font-size: 12px; color: var(--ok); }
+.v2-onb-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.v2-onb-chip {
+  font-size: 11.5px;
+  color: var(--text);
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 8px;
+  cursor: default;
+}
+.v2-onb-chip.top {
+  color: var(--high);
+  background: var(--high-bg);
+  border-color: var(--high);
+  font-weight: 600;
+}
+
+/* ---------- Actions + draft preview ---------- */
+.v2-onb-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.v2-onb-draft { font-size: 12px; }
+.v2-onb-hint { font-size: 10.5px; color: var(--muted); }
+.v2-onb-err {
+  font-size: 11.5px;
+  color: var(--crit);
+  background: var(--crit-bg);
+  border-radius: 6px;
+  padding: 6px 9px;
+}
+
+.v2-onb-preview {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface2);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.v2-onb-preview-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  color: var(--muted);
+}
+.v2-onb-tag { font-size: 10px; }
+.v2-onb-preview-subj {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.v2-onb-preview-body {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+}
+.v2-onb-queue { font-size: 12px; align-self: flex-start; }
+.v2-onb-queued {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 11.5px;
+  color: var(--ok);
+}
+.v2-onb-queued-note { color: var(--muted); }
+.v2-onb-link { color: var(--accent); text-decoration: underline; }
+
+/* ---------- Footer ---------- */
+.v2-onb-foot {
+  margin-top: 20px;
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.5;
+}
