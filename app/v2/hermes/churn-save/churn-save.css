@@ -1,0 +1,133 @@
+/* ============================================================================
+   Sentinel v2 — Churn-Save Outreach page styles. Scoped to `.v2-cs-*` so it never
+   collides with the shared v2 shell classes in app/v2/v2.css. All colour comes
+   from the shell tokens (var(--...)) so light/dark themes both work.
+   ========================================================================== */
+
+.v2-cs-green { color: var(--ok); font-weight: 700; }
+
+/* ---------- Grid of at-risk cards ---------- */
+.v2-cs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.v2-cs-item {
+  position: relative;
+  padding: 16px 16px 14px 20px;
+  overflow: hidden;
+}
+.v2-cs-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--tint, var(--accent));
+}
+
+/* ---------- Header: name + risk score ---------- */
+.v2-cs-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.v2-cs-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.v2-cs-label { font-size: 14px; font-weight: 700; color: var(--text-strong); }
+.v2-cs-sub { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+.v2-cs-score { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; flex-shrink: 0; }
+.v2-cs-score-n {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--tint, var(--accent));
+  font-variant-numeric: tabular-nums;
+}
+.v2-cs-band { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+
+/* ---------- Stat chips ---------- */
+.v2-cs-stats { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 8px; }
+.v2-cs-stat {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+}
+.v2-cs-stat.crit { color: var(--crit); border-color: var(--crit); }
+.v2-cs-stat.muted { color: var(--faint); }
+
+/* ---------- Reason list ---------- */
+.v2-cs-reasons { margin: 4px 0 0; padding-left: 16px; }
+.v2-cs-reasons li { font-size: 12px; color: var(--muted); margin: 2px 0; }
+
+/* ---------- Drafted email ---------- */
+.v2-cs-draft {
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface2);
+  padding: 10px 12px;
+}
+.v2-cs-draft-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.v2-cs-draft-lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.v2-cs-tag { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; border: 1px solid var(--line); }
+.v2-cs-tag.ai { color: var(--accent); border-color: var(--accent-brd); background: var(--accent-bg); }
+.v2-cs-tag.tpl { color: var(--faint); }
+.v2-cs-field { font-size: 12px; color: var(--text); margin: 2px 0; }
+.v2-cs-k { display: inline-block; min-width: 52px; color: var(--faint); font-weight: 600; }
+.v2-cs-body {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-radius: 6px;
+  max-height: 260px;
+  overflow: auto;
+  font-family: inherit;
+}
+
+/* ---------- Errors ---------- */
+.v2-cs-err { margin-top: 10px; font-size: 12px; color: var(--crit); }
+
+/* ---------- Actions ---------- */
+.v2-cs-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.v2-cs-btn { display: inline-flex; align-items: center; gap: 6px; }
+.v2-cs-btn.primary {
+  background: var(--accent-bg);
+  border-color: var(--accent-brd);
+  color: var(--text-strong);
+}
+.v2-cs-btn.primary:hover { border-color: var(--accent); }
+.v2-cs-queued {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ok);
+}
+
+/* ---------- Empty + footer ---------- */
+.v2-cs-card { padding: 22px; margin-top: 18px; }
+.v2-cs-empty { color: var(--muted); font-size: 13px; }
+.v2-cs-empty-note { color: var(--faint); font-size: 12px; margin-top: 6px; }
+.v2-cs-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--faint);
+}
