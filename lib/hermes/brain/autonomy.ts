@@ -59,11 +59,17 @@ export const DEFAULT_TOOL_MODES: AutonomyToolRow[] = [
   { persona: 'billing', tool: 'refundCharge', mode: 'gated' },
   { persona: 'billing', tool: 'issueCredit', mode: 'gated' },
   { persona: 'billing', tool: 'sendEmail', mode: 'gated' },
-  // Incident (ops / CTO-adjacent): GitHub reads (auto); deploy / commit (gated).
-  { persona: 'incident', tool: 'listWorkflowRuns', mode: 'auto' },
-  { persona: 'incident', tool: 'getFileContents', mode: 'auto' },
-  { persona: 'incident', tool: 'triggerWorkflow', mode: 'gated' },
-  { persona: 'incident', tool: 'commitFile', mode: 'gated' },
+  // ---- Exec personas -------------------------------------------------------
+  // CTO / Engineering: the GitHub deploy/commit path (moved here from incident).
+  // Safe estate reads + GitHub reads AUTO; the two GitHub WRITES gated so they
+  // interrupt for human approval before run() ships code / changes a repo.
+  { persona: 'cto', tool: 'getTicket', mode: 'auto' },
+  { persona: 'cto', tool: 'listTickets', mode: 'auto' },
+  { persona: 'cto', tool: 'getDeployStatus', mode: 'auto' },
+  { persona: 'cto', tool: 'listWorkflowRuns', mode: 'auto' },
+  { persona: 'cto', tool: 'getFileContents', mode: 'auto' },
+  { persona: 'cto', tool: 'triggerWorkflow', mode: 'gated' },
+  { persona: 'cto', tool: 'commitFile', mode: 'gated' },
 ];
 
 export const DEFAULT_THRESHOLDS: AutonomyThresholdRow[] = [

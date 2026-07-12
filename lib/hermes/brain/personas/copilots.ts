@@ -202,17 +202,11 @@ const BILLING_TOOLS = [
   'sendEmail',
 ];
 
-// Incident response is the ops/deploy-facing copilot on this Brain (the CTO-adjacent
-// role — there is no standalone CTO copilot persona in this registry yet, so the
-// GitHub deploy tools live here). It carries the GitHub read tools (auto) plus the
-// GATED writes triggerWorkflow (kick a deploy) and commitFile (repo change).
-const INCIDENT_TOOLS = [
-  ...COPILOT_READ_TOOLS,
-  'listWorkflowRuns',
-  'getFileContents',
-  'triggerWorkflow',
-  'commitFile',
-];
+// Incident response assesses incidents and recommends — it is DRAFT/READ-ONLY on
+// this Brain. The GitHub deploy/commit tools it used to carry have MOVED to the
+// CTO exec persona (lib/hermes/brain/personas/execs.ts), where roadmap/CI/deploy
+// ownership actually sits. Incident keeps only the safe estate reads.
+const INCIDENT_TOOLS = [...COPILOT_READ_TOOLS];
 
 export const COPILOT_PERSONAS: CopilotPersonaDef[] = [
   {
@@ -262,10 +256,9 @@ export const COPILOT_PERSONAS: CopilotPersonaDef[] = [
     id: 'incident',
     systemPrompt: INCIDENT_SYSTEM_PROMPT,
     allowedTools: INCIDENT_TOOLS,
-    // triggerWorkflow (deploy) and commitFile (repo write) can ship code / change
-    // infra — GATED so they interrupt for human approval. The GitHub read tools
-    // (listWorkflowRuns / getFileContents) stay auto via their own default.
-    autonomyByTool: { triggerWorkflow: 'gated', commitFile: 'gated' },
+    // Read-only: the GitHub deploy/commit tools (and their gated autonomy) moved
+    // to the CTO exec persona. Incident's safe estate reads stay auto via their
+    // own tool defaults, so no per-tool autonomy override is needed here.
     copilot: {
       userLead: 'Assess the following incident. Do not take action — assess and recommend.',
       kbHeader: 'Relevant runbook / knowledge-base articles (cite the ones you use by title):',

@@ -79,10 +79,22 @@ insert into hermes.autonomy_config (persona, tool, mode) values
   ('billing',    'refundCharge',    'gated'),
   ('billing',    'issueCredit',     'gated'),
   ('billing',    'sendEmail',       'gated'),
-  ('incident',   'listWorkflowRuns','auto'),
-  ('incident',   'getFileContents', 'auto'),
-  ('incident',   'triggerWorkflow', 'gated'),
-  ('incident',   'commitFile',      'gated')
+  -- ---- CTO exec: the GitHub deploy/commit path -----------------------------
+  -- These rows MOVED from the `incident` copilot to the `cto` exec persona (where
+  -- roadmap/CI/deploy ownership sits). Safe estate + GitHub reads auto; the two
+  -- GitHub WRITES gated so the graph interrupts for human approval before run().
+  -- NOTE: ON CONFLICT DO NOTHING (below) means an environment already seeded with
+  -- the OLD ('incident', 'triggerWorkflow'/'commitFile'/…) rows keeps them — those
+  -- stale incident rows are now inert (incident no longer carries the tools, so it
+  -- can never call them) and can be cleared on the Hermes governance page. Fresh
+  -- installs seed the cto rows directly.
+  ('cto',        'getTicket',       'auto'),
+  ('cto',        'listTickets',     'auto'),
+  ('cto',        'getDeployStatus', 'auto'),
+  ('cto',        'listWorkflowRuns','auto'),
+  ('cto',        'getFileContents', 'auto'),
+  ('cto',        'triggerWorkflow', 'gated'),
+  ('cto',        'commitFile',      'gated')
 on conflict (persona, tool) do nothing;
 
 insert into hermes.autonomy_thresholds (key, label, value, sort) values

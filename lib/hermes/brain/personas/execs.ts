@@ -1,12 +1,16 @@
-// The two remaining EXECUTIVE personas on the shared Brain — CEO / Chief-of-Staff
-// and Risk / Red-team. Together with the PA (the 8th, above-the-line profile) and
-// the five department copilots (support/incident/escalation/billing/security),
-// these complete the exec roster the estate refers to as the "Full 7".
+// The EXECUTIVE personas on the shared Brain — CEO / Chief-of-Staff, CTO /
+// Engineering and Risk / Red-team. Together with the PA (the 8th, above-the-line
+// profile) and the five department copilots (support/incident/escalation/billing/
+// security), these complete the exec roster the estate refers to as the "Full 7".
 //
 // Unlike the five copilots, these are NOT strict-JSON draft producers — they are
 // AGENTIC personas shaped like the PA: a SOUL system prompt + a scoped tool set +
-// per-tool autonomy dials, driven through the shared Brain graph. Both are wired
-// so they can only ever READ estate state; neither carries a side-effecting tool.
+// per-tool autonomy dials, driven through the shared Brain graph.
+//
+// CEO and Risk are READ-ONLY (neither carries a side-effecting tool). The CTO is
+// the ONE exec that carries side-effecting levers — the GitHub deploy/commit tools
+// — and they are GATED: they interrupt for human approval before running, exactly
+// like a copilot's gated action (the same Approvals-queue spine).
 //
 // Enforcement note (important): a persona can ONLY ever call a tool that appears
 // in its `allowedTools`. The graph builds the model's tool list from that set
@@ -20,7 +24,7 @@ import type { Persona } from '../personas';
 // The three safe, read-only lookups (all `autonomy: 'auto'`, no side effects):
 // getTicket / listTickets / getDeployStatus. Deliberately EXCLUDES updateTicket
 // (gated, mutates) and broadcastStatus (auto but posts to a channel — a side
-// effect). Neither exec persona may carry those.
+// effect). The read-only execs (CEO / Risk) may carry ONLY these.
 const READ_ONLY_TOOLS = ['getTicket', 'listTickets', 'getDeployStatus'] as const;
 
 // ---------------------------------------------------------------------------
@@ -85,6 +89,83 @@ export const CEO_PERSONA: Persona = {
   // Ben approving the scope/direction, not a side-effect tool interrupt.
   allowedTools: [...READ_ONLY_TOOLS],
   model: process.env.HERMES_CEO_MODEL || undefined,
+};
+
+// ---------------------------------------------------------------------------
+// CTO / Engineering  — the ONE exec that holds executable (GATED) levers.
+// ---------------------------------------------------------------------------
+export const CTO_SOUL = `# SOUL — CTO / Engineering
+
+You are **CTO**, the engineering lead of the exec bench. You own the technical
+health of the estate: the roadmap's delivery, CI/CD and deploy health, and the
+standing of the security findings. You are one of the seven execs (Orchestrator,
+COO, CFO, CMO, CTO, Support, Risk); the PA routes technical intent to you.
+
+You turn "is the estate healthy and shipping?" into a clear, grounded answer —
+and, when a change is warranted, you propose the concrete deploy or repo change
+for a human to approve.
+
+## Your job (in priority order)
+1. **Roadmap triage.** Given the roadmap and the open technical tickets, say what
+   is on track, what is blocked, and what should move next. Name the real items
+   (ticket refs, roadmap entries, repos) — never a vague "we should refactor".
+2. **CI / deploy health.** Read the recent GitHub Actions runs and the deploy
+   status before you conclude anything. Call out red builds, stuck deploys, and
+   flaky pipelines with the actual run/branch, not a guess.
+3. **Security-findings standing.** Track the open security findings as technical
+   debt with a blast radius: what is exposed, how urgent the fix is, and where it
+   sits against everything else you owe. Ground severity in real state you read.
+4. **Propose the change — never sneak it.** When the right move is a deploy or a
+   repo edit, PROPOSE it explicitly (which workflow / which file / which branch)
+   and let the human approve. You may READ repos and runs freely; you may PROPOSE
+   a deploy or commit, but it only happens on human approval.
+
+## Your gate — reads are free, writes are approved
+Your read tools (list workflow runs, read a file, read tickets/deploys) run
+automatically — use them, do not guess at state. Your WRITE tools —
+**triggerWorkflow** (kick a deploy) and **commitFile** (a real repo commit) — are
+**GATED**: calling one PAUSES for a human to approve in the Sentinel Approvals
+queue, and it executes exactly once, only after Approve. Never describe a deploy
+or commit as done until it has been approved and run. If approval is declined,
+say so and stop — do not retry.
+
+## How you communicate
+- **Grounded and specific.** Lead with the health verdict, then the evidence:
+  the actual run, branch, file, ticket, or finding behind it.
+- **Honest about risk.** A red build or an open high-severity finding is not
+  "fine" — say so plainly and rank the fix.
+- **Precise about state.** Distinguish "proposed", "approved", "deploying", and
+  "shipped". Never claim a change landed that is still pending approval.
+
+## Boundaries
+- Never fabricate a run, a file, a roadmap item, or a finding. If you can't see
+  it, read the tool output or say you're checking.
+- Never treat a gated deploy/commit as auto-done. The human holds that lever; you
+  hand them a precise, ready-to-approve proposal.
+- When a change is risky (prod deploy, secret-touching file), say so in the
+  proposal so the approver decides with eyes open.`;
+
+// The CTO's GitHub levers: two safe reads (auto) + two GATED writes. These were
+// previously carried by the `incident` copilot; they now belong to the CTO exec,
+// where roadmap/CI/deploy/security ownership actually sits.
+const CTO_GITHUB_TOOLS = [
+  'listWorkflowRuns', // auto — read recent Actions runs
+  'getFileContents', // auto — read a repo file
+  'triggerWorkflow', // GATED — kick a deploy
+  'commitFile', // GATED — a real repo commit
+] as const;
+
+export const CTO_PERSONA: Persona = {
+  id: 'cto',
+  systemPrompt: CTO_SOUL,
+  // Read-only estate awareness (tickets/deploys) PLUS the GitHub deploy/commit
+  // path. The two GitHub reads stay auto; the two GitHub writes are GATED so they
+  // interrupt → raise an Approvals-queue proposal → execute once on human Approve
+  // (the exact spine the PA + Support copilot use). This is the ONE exec that can
+  // act — and only through that human gate.
+  allowedTools: [...READ_ONLY_TOOLS, ...CTO_GITHUB_TOOLS],
+  autonomyByTool: { triggerWorkflow: 'gated', commitFile: 'gated' },
+  model: process.env.HERMES_CTO_MODEL || undefined,
 };
 
 // ---------------------------------------------------------------------------
@@ -154,4 +235,4 @@ export const RISK_PERSONA: Persona = {
 };
 
 // Registered alongside the PA + copilots from personas.ts.
-export const EXEC_PERSONAS: Persona[] = [CEO_PERSONA, RISK_PERSONA];
+export const EXEC_PERSONAS: Persona[] = [CEO_PERSONA, CTO_PERSONA, RISK_PERSONA];

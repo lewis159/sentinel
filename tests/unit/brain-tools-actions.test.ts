@@ -157,7 +157,7 @@ describe('github tools', () => {
     const fetchFn = mockFetch({ ok: true, status: 204, body: {} });
     const res = await triggerWorkflowTool.run(
       { repo: 'owner/repo', workflowId: 'deploy.yml', ref: 'main' },
-      { ...CTX, persona: 'incident' },
+      { ...CTX, persona: 'cto' },
     );
     expect(res.ok).toBe(true);
     const [url, init] = fetchFn.mock.calls[0];
@@ -171,7 +171,7 @@ describe('github tools', () => {
     const fetchFn = mockFetch({ body: { commit: { sha: 'abc123' }, content: { sha: 'blob1' } } });
     const res = await commitFileTool.run(
       { repo: 'owner/repo', path: 'config/roadmap.json', content: 'hello', message: 'update' },
-      { ...CTX, persona: 'incident' },
+      { ...CTX, persona: 'cto' },
     );
     expect(res.ok).toBe(true);
     const [url, init] = fetchFn.mock.calls[0];
@@ -187,7 +187,7 @@ describe('github tools', () => {
     const fetchFn = mockFetch({});
     const res = await triggerWorkflowTool.run(
       { repo: 'owner/repo', workflowId: 'deploy.yml', ref: 'main' },
-      { ...CTX, persona: 'incident' },
+      { ...CTX, persona: 'cto' },
     );
     expect(res.ok).toBe(false);
     expect(res.error).toBe('not_configured');
