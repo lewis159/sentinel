@@ -269,6 +269,15 @@ export async function getTicketsNeedingHuman(
          from ops.tickets
         where coalesce((attrs->>'needs_human')::boolean, false) = true
            or attrs->>'escalation_level' = 'human'
+           -- SLA breach on an open ticket also demands a human (additive).
+           or (
+             sla_due is not null
+             and sla_due < now()
+             and lower(coalesce(status, 'open')) not in (
+               'resolved', 'closed', 'fulfilled', 'cancelled', 'canceled',
+               'implemented', 'done', 'completed'
+             )
+           )
         order by opened_at desc nulls last
         limit $1`,
       [limit],

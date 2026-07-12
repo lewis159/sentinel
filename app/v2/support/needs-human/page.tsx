@@ -96,6 +96,7 @@ export default async function NeedsHumanPage() {
                   <th>Customer</th>
                   <th>Why</th>
                   <th>Priority</th>
+                  <th>SLA</th>
                   <th>Age</th>
                   <th>Owner</th>
                   {showActions && <th style={{ textAlign: 'right' }}>Actions</th>}
@@ -135,6 +136,9 @@ export default async function NeedsHumanPage() {
                       </td>
                       <td>
                         <span className={`v2-pill ${t.priorityCls}`}>{t.priorityLabel}</span>
+                      </td>
+                      <td>
+                        <span className={`v2-sup-sla ${t.slaClass}`}>{t.slaLabel}</span>
                       </td>
                       <td>
                         <span className="v2-nh-age">{t.age}</span>
