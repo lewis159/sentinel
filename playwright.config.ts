@@ -14,6 +14,14 @@ import { defineConfig, devices } from '@playwright/test';
 
 const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:3100';
 const USE_LOCAL_SERVER = !process.env.E2E_BASE_URL;
+// Readiness is probed against the lightweight /api/ping route handler rather than
+// the app root '/'. The root pulls in the whole v1 shell + provider tree, so on a
+// COLD CI runner (fresh `npm ci`, no .next cache, first-ever SWC/Turbopack setup)
+// compiling it can blow the webServer boot budget before the server is declared
+// ready. /api/ping is a trivial handler that compiles in a few seconds, so the
+// server reports ready promptly; the heavier page routes then compile lazily on
+// first navigation, comfortably inside each test's own timeout.
+const READY_URL = `${BASE_URL}/api/ping`;
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -26,7 +34,9 @@ export default defineConfig({
   // keeps each route's cold compile inside the per-test budget.
   workers: 1,
   // Per-test timeout — generous headroom for a cold dev compile + client hydrate.
-  timeout: 90_000,
+  // Bumped for CI, where a first-ever route compile (no .next cache) can be
+  // several times slower than a warm local one.
+  timeout: 120_000,
   expect: {
     timeout: 15_000,
   },
@@ -37,7 +47,7 @@ export default defineConfig({
     // Follow redirects and behave like a real browser navigation.
     ignoreHTTPSErrors: true,
     // Cold dev compiles can be slow; don't wait on the full 'load' event.
-    navigationTimeout: 60_000,
+    navigationTimeout: 90_000,
   },
   projects: [
     {
@@ -50,7 +60,9 @@ export default defineConfig({
   webServer: USE_LOCAL_SERVER
     ? {
         command: 'npm run dev -- -p 3100',
-        url: 'http://localhost:3100',
+        // Probe the lightweight /api/ping route (see READY_URL) so boot doesn't
+        // hang on compiling the full app shell.
+        url: READY_URL,
         reuseExistingServer: false,
         // E2E_TEST_MODE=1 activates the test-only auth shim (double-gated in the
         // app), which short-circuits ALL auth logic so no real Clerk API call is
@@ -64,8 +76,10 @@ export default defineConfig({
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: 'pk_test_Y2xlcmsuZXhhbXBsZS5jb20k',
           CLERK_SECRET_KEY: 'sk_test_dummydummydummydummydummydummydummydummy',
         },
-        // Next dev can be slow on a cold start; give it plenty of headroom.
-        timeout: 120_000,
+        // Next dev can be slow on a cold start; give it plenty of headroom. A
+        // fresh CI runner has no .next cache and pays a one-time SWC/Turbopack
+        // setup cost on the first compile, so this is deliberately generous.
+        timeout: 240_000,
       }
     : undefined,
 });
