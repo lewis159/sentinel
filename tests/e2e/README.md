@@ -1,70 +1,83 @@
 # Sentinel E2E tests (Playwright)
 
-End-to-end tests for the Sentinel Next.js app.
+End-to-end tests for the Sentinel Next.js app. They run against a **dedicated
+E2E-mode dev server on port 3100** that Playwright boots for you, with the
+TEST-ONLY auth shim enabled (`E2E_TEST_MODE=1`, double-gated so it can never
+activate in a real deployment — see `middleware.ts` / `lib/auth.ts`).
 
-## Layout
-
-- `smoke.spec.ts` — runnable **without authentication**. Hits the public
-  `/api/ping` endpoint and verifies the Clerk middleware redirects protected
-  routes (`/` and `/v2`) to sign-in. Use this as the default CI smoke suite.
-- `v2.authed.spec.ts` — **skipped** scaffold for authenticated v2 feature checks.
-  Enable once Clerk testing tokens are wired (see below).
-
-## Running the smoke suite (no auth needed)
-
-From the repo root (`C:\dev\sentinel\code`):
+## Running
 
 ```bash
-npm i
-npx playwright install chromium
-npm run test:e2e
+npm ci
+npx playwright install chromium   # one-time: download the browser
+npm run test:e2e                  # = playwright test
 ```
 
-- `npm run test:e2e` runs `playwright test`.
+- `npm run test:e2e` runs `playwright test` (boots the :3100 server itself).
 - `npm run test:e2e:ui` opens the interactive Playwright UI.
-
-### How the app under test is provided
-
-- **Default:** with `E2E_BASE_URL` unset, Playwright starts the app itself via
-  `npm run dev` on port 3000 (`reuseExistingServer: true`, so an already-running
-  dev server is reused). No manual server start needed.
-- **Against a running instance:** set `E2E_BASE_URL` to skip the built-in dev
-  server and test that target as-is:
+- List specs without running them (no browser needed):
+  `npx playwright test --list`.
+- Point at an already-running instance (skips the built-in server; that target
+  must itself be started with `E2E_TEST_MODE=1`):
 
   ```bash
-  # bash / sh
-  E2E_BASE_URL=https://ops.bentech.dev npm run test:e2e
+  E2E_BASE_URL=http://localhost:3100 npm run test:e2e   # bash
+  $env:E2E_BASE_URL='http://localhost:3100'; npm run test:e2e   # PowerShell
   ```
 
-  ```powershell
-  # PowerShell
-  $env:E2E_BASE_URL = 'https://ops.bentech.dev'; npm run test:e2e
-  ```
+## How auth works (no real Clerk session)
 
-> Note: the smoke suite only asserts public behavior and redirects, so it passes
-> against any environment where the app is up — no Clerk secrets required.
+The app is Clerk-gated, but a double-gated TEST-ONLY shim
+(`E2E_TEST_MODE === '1'` **and** `NODE_ENV !== 'production'`) makes
+`getSessionRole()` / `getSessionAccess()` return a synthetic identity instead of
+hitting Clerk. Per-test identity is tuned with request headers:
 
-## Enabling the authenticated suite later
+- `x-e2e-role` → role (default `global_admin`, which satisfies every section)
+- `x-e2e-sections` → comma-separated section override (only meaningful for a
+  non-admin role)
 
-`v2.authed.spec.ts` is wrapped in `test.describe.skip(...)`. To turn it on:
+No Clerk secrets or testing tokens are required for the active specs.
 
-1. Dependencies are already in `package.json`: `@playwright/test` and
-   `@clerk/testing`.
-2. Provide env vars from a Clerk **test/dev** instance:
+## Specs
 
-   ```
-   CLERK_PUBLISHABLE_KEY=pk_test_...
-   CLERK_SECRET_KEY=sk_test_...
-   ```
+- `smoke.spec.ts` — server up + shim wired (`/api/ping`, `/v2`, `/` render
+  without a sign-in redirect).
+- `v2.spec.ts` — authed v2 shell, RBAC hiding, and the Hermes support copilot
+  draft flow (LLM mocked at the network boundary).
+- `hermes-approvals.spec.ts` — the **approval queue** (human gate): a pending
+  gated-action card shows the tool + args ("what will execute"); Approve/Deny hit
+  the right endpoint and flip the row to Executed/Denied. Feed + mutations stubbed.
+- `support-widget.spec.ts` — the embeddable **customer support-chat widget**
+  (`public/support-chat.js`) loaded onto a blank fixture page: open it, ask a
+  question, assert the reply bubble; plus the "Talk to a human" escalation.
+  `/api/public/support/chat` is stubbed.
+- `hermes-governance.spec.ts` — the **governance console**: autonomy matrix +
+  budget-cap + escalation cards render; toggling an autonomy dial POSTs the change
+  to the settings API. Settings APIs stubbed.
+- `support-needs-human.spec.ts` — the **needs-human queue** renders its table or
+  the empty state (server-rendered mock data; no stubbing needed).
+- `v2.authed.spec.ts` — **skipped** scaffold for tests that need a REAL Clerk
+  session (testing tokens). Enable per the notes in that file once secrets are
+  wired.
 
-   Also provision a test user that maps to a Sentinel `global_admin`, since the
-   `/v2` pages call `requireGlobalAdminPage()`.
-3. Bootstrap the Clerk testing token before the browser context is created —
-   either a `globalSetup` calling `clerkSetup()`, or
-   `setupClerkTestingToken({ page })` in a `beforeEach` (both from
-   `@clerk/testing/playwright`; the import is stubbed at the top of the spec).
-4. Establish an authenticated session (drive the Clerk sign-in flow with a test
-   email + code, or seed `storageState`).
-5. Remove `.skip` from the `describe` block.
+## Hermetic strategy
 
-Reference: https://clerk.com/docs/testing/playwright/overview
+The active specs never depend on real Postgres, a Brain run, or an LLM key:
+- Most `/v2` pages degrade to **mock mode** with no `DATABASE_URL`.
+- Data feeds and mutations are **stubbed via `page.route`** (role/text selectors
+  over live data), so tests are deterministic.
+
+## Typechecking the specs
+
+The base `tsconfig.json` excludes `tests` (so the Next build ignores them). To
+typecheck the specs:
+
+```bash
+node_modules/.bin/tsc -p tsconfig.e2e.json --noEmit
+```
+
+## CI
+
+CI must run `npx playwright install --with-deps chromium` before
+`npm run test:e2e` (the workflow lives on a separate branch and already calls the
+`test:e2e` script). Browsers are intentionally NOT vendored in the repo.
