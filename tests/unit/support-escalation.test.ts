@@ -31,7 +31,14 @@ vi.mock('@/lib/db', () => ({
   q: H.q,
   q1: H.q1,
 }));
-vi.mock('@/lib/data', () => ({ addTicketComment: H.addTicketComment }));
+vi.mock('@/lib/data', () => ({
+  addTicketComment: H.addTicketComment,
+  // escalateTicket / getTicketsNeedingHuman route through the tenant-RLS wrapper.
+  // A pass-through stub reproduces the flag-OFF behaviour (fn() runs unchanged),
+  // so these tests exercise the same query path as before the wrap.
+  withTenantRls: <T,>(fn: () => Promise<T>) => fn(),
+  OPERATOR_IDENTITY: { tenantRef: null, isOperator: true },
+}));
 vi.mock('@/lib/hermes/proposals', () => ({ saveProposal: H.saveProposal }));
 
 import {

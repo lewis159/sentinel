@@ -24,12 +24,15 @@
 --          behaviour and therefore zero-risk. Bake it in / soak it.
 --
 --   2. VERIFY the app sets the GUCs on EVERY ops.tickets path (see the
---      "REMAINING PATHS" checklist below). Any unwrapped read/write will
+--      "WRAPPED PATHS" checklist below). Any unwrapped read/write will
 --      fail-closed (reads → 0 rows; writes → WITH CHECK violation) the instant
---      step 3 runs. As of the P3 tenant-RLS change, ONLY getTicketsByKind and
---      getCustomer360 are routed through the GUC path. The other ops.tickets
---      paths MUST be wrapped (with an operator identity for service/console
---      surfaces) before this migration is safe to apply estate-wide.
+--      step 3 runs. As of the RLS-wrapping follow-up, EVERY ops.tickets access
+--      path in lib/ is now routed through the GUC path (lib/data.ts withTenantRls
+--      → lib/db.ts withDbTransaction). Operator/service/console surfaces pass an
+--      explicit OPERATOR_IDENTITY ({ isOperator: true, tenantRef: null }) so they
+--      resolve to app.is_operator='on' (ALL rows) and never fail-closed. The
+--      only tenant-scoped (customer-facing) reads are getTicketsByKind /
+--      getCustomer360, which pass the caller's resolved tenant.
 --
 --   3. Run THIS migration (in a maintenance window). Then immediately verify:
 --        * an operator session still sees ALL tickets, and
@@ -40,15 +43,25 @@
 --        alter table ops.tickets disable row level security;
 --
 -- ---------------------------------------------------------------------------
--- REMAINING ops.tickets PATHS to wrap BEFORE this is safe estate-wide
--- (each needs GUCs set — operator identity for console/service surfaces):
---   reads : getTickets, getServiceTicket, getRecentTickets (Discord bot poll —
---           needs a SERVICE operator identity, NOT getSessionTenant),
---           getTicketsAssignedTo, findTicketByEmailMessageIds, getGraph's
---           ops.tickets metadata read.
+-- ops.tickets PATHS — ALL now wrapped (GUCs set on every access). Every entry
+-- below passes the explicit OPERATOR_IDENTITY unless noted, because they are
+-- trusted server-side operator/service/console surfaces (not customer-scoped):
+--   reads : getTickets, getOneTicket, getServiceTicket, getRecentTickets
+--           (Discord bot poll — SERVICE operator identity, NOT getSessionTenant),
+--           getTicketsAssignedTo, findTicketByEmailMessageIds (email ingest —
+--           service operator identity), getTicketComments, getGraph's
+--           ops.tickets metadata read, createLink's nodeExists() ticket check,
+--           and (lib/support/data.ts) getTicketsNeedingHuman, and
+--           (lib/hermes/kb-index.ts) reindexKb + loadResolvedTicketText's
+--           ops.tickets reads (wrapped per-read, not the whole reindex).
 --   writes: createTicket, updateTicket, assignTicket, raiseTicketFromFinding,
 --           createRelatedTicket, linkTicketToTicket, appendEmailMessageId
+--           (email ingest — service operator identity), addTicketComment, and
+--           (lib/support/data.ts) escalateTicket
 --           (WITH CHECK on the policy applies to INSERT/UPDATE too).
+--   tenant-scoped (NOT operator): getTicketsByKind, getCustomer360 pass the
+--           caller's resolved tenant (getSessionTenant) — these are the only
+--           customer-facing surfaces.
 -- ---------------------------------------------------------------------------
 --
 -- Idempotent: ENABLE/FORCE are no-ops when already set, and the guard below

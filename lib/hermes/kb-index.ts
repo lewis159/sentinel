@@ -13,6 +13,7 @@
 import 'server-only';
 import { createHash } from 'crypto';
 import { hasDb, q } from '@/lib/db';
+import { withTenantRls, OPERATOR_IDENTITY } from '@/lib/data';
 import { listDocs, getDocRaw } from '@/lib/kb';
 import { embed, toVectorLiteral } from './embeddings';
 
@@ -157,7 +158,14 @@ type ResolvedTicket = { ref: string; title: string; description: string | null }
 async function loadResolvedTicketText(t: ResolvedTicket): Promise<string> {
   let comments: { body: string | null }[] = [];
   try {
-    const row = await q<{ id: string }>(`select id from ops.tickets where ref = $1`, [t.ref]);
+    // P3: operator identity — the KB indexer runs as a service (no Clerk session);
+    // this ops.tickets id-lookup would fail-closed to 0 rows under RLS otherwise.
+    // Wrapped per-read (not the whole reindex) so the embed/upsert work stays out
+    // of a long-held transaction.
+    const row = await withTenantRls(
+      () => q<{ id: string }>(`select id from ops.tickets where ref = $1`, [t.ref]),
+      OPERATOR_IDENTITY,
+    );
     if (row[0]) {
       comments = await q<{ body: string | null }>(
         `select body from ops.comments where ticket_id = $1 order by created_at asc`,
@@ -202,11 +210,17 @@ export async function reindexKb(): Promise<IndexStats> {
     // 2) Resolved / closed tickets (title + description + resolution comments).
     let tickets: ResolvedTicket[] = [];
     try {
-      tickets = await q<ResolvedTicket>(
-        `select ref, title, description from ops.tickets
+      // P3: operator identity — service-context read (no Clerk session); returns
+      // 0 rows under RLS without it. Wrapped per-read to avoid a long transaction
+      // spanning the subsequent embed/upsert loop.
+      tickets = await withTenantRls(
+        () => q<ResolvedTicket>(
+          `select ref, title, description from ops.tickets
           where status = any($1)
           order by coalesce(updated_at, opened_at, created_at) desc`,
-        [RESOLVED_STATUSES],
+          [RESOLVED_STATUSES],
+        ),
+        OPERATOR_IDENTITY,
       );
     } catch {
       tickets = [];

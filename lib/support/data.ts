@@ -9,7 +9,7 @@
 // so the desk still renders.
 import 'server-only';
 import { hasDb, q, q1 } from '@/lib/db';
-import { addTicketComment } from '@/lib/data';
+import { addTicketComment, withTenantRls, OPERATOR_IDENTITY } from '@/lib/data';
 import { saveProposal } from '@/lib/hermes/proposals';
 import {
   type EscalationLevel,
@@ -125,6 +125,10 @@ export async function escalateTicket(
   reason: string,
   actor: string,
 ): Promise<{ ok: boolean; level?: EscalationLevel; id?: string; error?: string }> {
+  // P3: operator identity — reads + UPDATEs ops.tickets (both fail-closed under
+  // RLS without it). Server-side support-desk action across all tenants. Inner
+  // addTicketComment reuses this transaction.
+  return withTenantRls(async () => {
   if (!hasDb) return { ok: false, error: 'no database in this environment' };
   try {
     await ensureTables();
@@ -185,6 +189,7 @@ export async function escalateTicket(
   } catch (e: any) {
     return { ok: false, error: e?.message ?? 'escalation failed' };
   }
+  }, OPERATOR_IDENTITY);
 }
 
 // The escalation history for a ticket, newest first.
@@ -262,6 +267,9 @@ export async function raiseHumanGateProposal(p: {
 export async function getTicketsNeedingHuman(
   limit = 50,
 ): Promise<{ ref: string; title: string; level: EscalationLevel }[]> {
+  // P3: operator identity — the "needs human" lead/admin queue is a server-side
+  // console read of ops.tickets across all tenants (fails-closed under RLS otherwise).
+  return withTenantRls(async () => {
   if (!hasDb) return [];
   try {
     const rows = await q<any>(
@@ -285,6 +293,7 @@ export async function getTicketsNeedingHuman(
   } catch {
     return [];
   }
+  }, OPERATOR_IDENTITY);
 }
 
 function safeJson(s: string): any {

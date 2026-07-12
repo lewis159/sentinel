@@ -60,6 +60,8 @@ export async function getFindings(): Promise<Sourced<Finding>> {
 
 // ---------- Tickets (ops.tickets) ----------
 export async function getTickets(): Promise<Sourced<Ticket>> {
+  // P3: operator identity — this is the ops console ticket list (all tenants).
+  return withTenantRls(async () => {
   if (!hasDb) return { rows: mock.tickets, live: false, note: 'no DB' };
   try {
     const data = await q<any>(
@@ -70,6 +72,7 @@ export async function getTickets(): Promise<Sourced<Ticket>> {
   } catch (e: any) {
     return { rows: mock.tickets, live: false, note: e?.message ?? 'error' };
   }
+  }, OPERATOR_IDENTITY);
 }
 
 // ---------- Alerts (ops.alerts) ----------
@@ -162,6 +165,8 @@ export async function getOneFinding(ref: string): Promise<{ row: Finding | null;
 
 // ---------- Single ticket (ops.tickets) ----------
 export async function getOneTicket(ref: string): Promise<{ row: Ticket | null; live: boolean }> {
+  // P3: operator identity — legacy single-ticket console read (all tenants).
+  return withTenantRls(async () => {
   const fallback = () => mock.tickets.find((t) => t.ref === ref) ?? null;
   if (!hasDb) return { row: fallback(), live: false };
   try {
@@ -174,6 +179,7 @@ export async function getOneTicket(ref: string): Promise<{ row: Ticket | null; l
   } catch {
     return { row: fallback(), live: false };
   }
+  }, OPERATOR_IDENTITY);
 }
 
 // ---------- Components (ops.components) — hybrid derive-then-curate ----------
@@ -397,6 +403,9 @@ export async function saveUserLayout(clerkUserId: string, layoutKey: string, lay
 
 // ---------- Writes (server-only) ----------
 export async function raiseTicketFromFinding(findingRef: string): Promise<{ ref: string }> {
+  // P3: operator identity — server-side write; the INSERT must satisfy the
+  // policy WITH CHECK under FORCE (operator identity does), else it'd be rejected.
+  return withTenantRls(async () => {
   if (!hasDb) throw new Error('no DB');
   const { row: finding } = await getOneFinding(findingRef);
   if (!finding) throw new Error(`finding ${findingRef} not found`);
@@ -414,6 +423,7 @@ export async function raiseTicketFromFinding(findingRef: string): Promise<{ ref:
     [findingRef, newRef]
   );
   return { ref: newRef };
+  }, OPERATOR_IDENTITY);
 }
 
 export async function updateFindingStatus(ref: string, status: string): Promise<void> {
@@ -683,6 +693,15 @@ export async function withTenantRls<T>(
   return withDbTransaction(gucSettings(id), fn);
 }
 
+// Operator/service identity for the TRUSTED server-side ops.tickets paths below
+// (operator console reads, the Discord-bot poll, email-ingest writes, the KB
+// indexer). These surfaces are NOT customer/tenant-scoped, so they must run with
+// operator identity — the RLS policy then resolves to app.is_operator='on' (ALL
+// rows). We pass this explicitly rather than relying on getSessionTenant() so the
+// bot/service/no-Clerk paths do not fail-closed to 0 rows once RLS is enabled
+// (migration 17). Flag OFF ⇒ withTenantRls ignores it entirely (pure pass-through).
+export const OPERATOR_IDENTITY: TenantIdentity = { tenantRef: null, isOperator: true };
+
 // All ITIL records of a given kind (incident|request|change|problem|release).
 //
 // P2 tenant scoping: pass `opts.tenantRef` to restrict results to a single
@@ -753,6 +772,9 @@ export async function getRecentTickets(
   sinceIso: string,
   limit = 50,
 ): Promise<Sourced<ServiceTicket>> {
+  // P3: operator identity is MANDATORY here — the Discord-bot poll runs with NO
+  // Clerk session, so getSessionTenant() would fail-closed to 0 rows under RLS.
+  return withTenantRls(async () => {
   if (!hasDb) return { rows: [], live: false, note: 'no DB' };
   try {
     const data = await q<any>(
@@ -767,10 +789,14 @@ export async function getRecentTickets(
   } catch (e: any) {
     return { rows: [], live: false, note: e?.message ?? 'error' };
   }
+  }, OPERATOR_IDENTITY);
 }
 
 // Single ITIL record by ref (used by the detail pane / detail route).
 export async function getServiceTicket(ref: string): Promise<{ row: ServiceTicket | null; live: boolean }> {
+  // P3: operator identity — server-side detail-pane read (all tenants). Called by
+  // updateTicket/createRelatedTicket too; nested withTenantRls reuses the outer tx.
+  return withTenantRls(async () => {
   const fallback = () => mock.serviceTickets.find((t) => t.ref === ref) ?? null;
   if (!hasDb) return { row: fallback(), live: false };
   try {
@@ -780,6 +806,7 @@ export async function getServiceTicket(ref: string): Promise<{ row: ServiceTicke
   } catch {
     return { row: fallback(), live: false };
   }
+  }, OPERATOR_IDENTITY);
 }
 
 // ---------- Customer 360 (P2 multi-tenancy) ----------
@@ -961,6 +988,9 @@ export type CreateTicketInput = {
 // via ops.next_ticket_ref() and passes it explicitly so the legacy OPS- trigger
 // is bypassed. Returns the new ref.
 export async function createTicket(input: CreateTicketInput): Promise<{ ref: string }> {
+  // P3: operator identity — server-side write. The INSERT (and the fallback
+  // count read) must satisfy the policy under FORCE; operator identity does.
+  return withTenantRls(async () => {
   if (!hasDb) throw new Error('no DB');
   const kind = input.kind;
   const status = input.status ?? (KIND_STATUSES[kind]?.[0] ?? 'open');
@@ -1022,6 +1052,7 @@ export async function createTicket(input: CreateTicketInput): Promise<{ ref: str
   );
   if (!inserted) throw new Error('insert failed');
   return { ref: inserted.ref };
+  }, OPERATOR_IDENTITY);
 }
 
 export type UpdateTicketInput = {
@@ -1040,6 +1071,9 @@ export async function updateTicket(
   ref: string,
   patch: UpdateTicketInput
 ): Promise<{ row: ServiceTicket | null }> {
+  // P3: operator identity — server-side UPDATE; must satisfy the policy WITH
+  // CHECK under FORCE. Inner getServiceTicket reuses this transaction.
+  return withTenantRls(async () => {
   if (!hasDb) throw new Error('no DB');
 
   // Merge attrs first (assignee lives in attrs alongside any passed attrs).
@@ -1065,6 +1099,7 @@ export async function updateTicket(
     vals
   );
   return { row: data ? mapServiceTicket(data) : null };
+  }, OPERATOR_IDENTITY);
 }
 
 // ---------- P3 — ticket ownership (assignment) ----------
@@ -1076,6 +1111,8 @@ export async function assignTicket(
   ref: string,
   assigneeId: string,
 ): Promise<{ row: ServiceTicket | null }> {
+  // P3: operator identity — server-side assignment UPDATE (policy WITH CHECK).
+  return withTenantRls(async () => {
   if (!hasDb) throw new Error('no DB');
   const clean = (assigneeId ?? '').trim();
   const unassign = clean === '' || clean === '—';
@@ -1092,6 +1129,7 @@ export async function assignTicket(
     [ref, unassign ? null : clean],
   );
   return { row: data ? mapServiceTicket(data) : null };
+  }, OPERATOR_IDENTITY);
 }
 
 // Every open-ish ticket owned by `assigneeId` (a Clerk user id / label), newest
@@ -1100,6 +1138,9 @@ export async function assignTicket(
 export async function getTicketsAssignedTo(
   assigneeId: string,
 ): Promise<Sourced<ServiceTicket>> {
+  // P3: operator identity — the "assigned to me" queue is a server-side console
+  // read across all tenants (assignee is a Clerk user id, not a tenant scope).
+  return withTenantRls(async () => {
   const id = (assigneeId ?? '').trim();
   if (!hasDb || !id) {
     return {
@@ -1123,6 +1164,7 @@ export async function getTicketsAssignedTo(
       note: e?.message ?? 'error',
     };
   }
+  }, OPERATOR_IDENTITY);
 }
 
 // ---------- Related-record creation + linking (ops.links) ----------
@@ -1144,6 +1186,9 @@ export async function createRelatedTicket(
   sourceRef: string,
   kind: 'problem' | 'change'
 ): Promise<{ ok: boolean; ref?: string; error?: string }> {
+  // P3: operator identity — spawns a ticket (createTicket) from a source ticket
+  // (getServiceTicket) + links them. Both inner ops.tickets calls reuse this tx.
+  return withTenantRls(async () => {
   if (!hasDb) throw new Error('no DB');
 
   const { row: source } = await getServiceTicket(sourceRef);
@@ -1179,6 +1224,7 @@ export async function createRelatedTicket(
   );
 
   return { ok: true, ref: newRef };
+  }, OPERATOR_IDENTITY);
 }
 
 // Link a source ticket to an EXISTING target ticket (both by ref). Validates the
@@ -1191,6 +1237,9 @@ export async function linkTicketToTicket(
   relation = 'related',
   createdBy = 'manual'
 ): Promise<{ ok: boolean; error?: string }> {
+  // P3: operator identity — the two ops.tickets existence checks would return 0
+  // rows (→ false "not found") under RLS without it. Server-side console action.
+  return withTenantRls(async () => {
   if (!hasDb) throw new Error('no DB');
 
   const target = await q1<{ ref: string }>('select ref from ops.tickets where ref=$1', [targetRef]);
@@ -1208,6 +1257,7 @@ export async function linkTicketToTicket(
   );
 
   return { ok: true };
+  }, OPERATOR_IDENTITY);
 }
 
 // ---------- Generic manual link (ops.links) — powers POST /api/links ----------
@@ -1252,6 +1302,10 @@ export type CreateLinkInput = {
 // Validates both node types are in the vocab, the relation is in the vocab, and
 // (for DB-backed types) that both ends exist. Self-loops are rejected.
 export async function createLink(input: CreateLinkInput): Promise<{ ok: boolean; error?: string }> {
+  // P3: operator identity — nodeExists() does a `select ref from ops.tickets`
+  // existence check that would return 0 rows under RLS without it. One tx covers
+  // both node checks + the ops.links insert. Server-side console action.
+  return withTenantRls(async () => {
   if (!hasDb) throw new Error('no DB');
   const { srcType, srcId, dstType, dstId } = input;
   const relation = input.relation && input.relation.trim() ? input.relation.trim() : 'related';
@@ -1273,6 +1327,7 @@ export async function createLink(input: CreateLinkInput): Promise<{ ok: boolean;
     [srcType, srcId, dstType, dstId, relation, createdBy]
   );
   return { ok: true };
+  }, OPERATOR_IDENTITY);
 }
 
 // ---------- Ticket activity / updates (ops.comments) ----------
@@ -1298,6 +1353,9 @@ function mapComment(r: any): TicketComment {
 // Timeline of updates/comments for one ITIL ticket (oldest → newest). Resolves
 // ref → ticket id, then reads ops.comments. Mock fallback returns [].
 export async function getTicketComments(ref: string): Promise<TicketComment[]> {
+  // P3: operator identity — resolves ref→id via ops.tickets; that lookup returns
+  // 0 rows under RLS without it (→ empty timeline). Server-side console read.
+  return withTenantRls(async () => {
   if (!hasDb) return [];
   try {
     const t = await q1<{ id: string }>('select id from ops.tickets where ref=$1', [ref]);
@@ -1310,6 +1368,7 @@ export async function getTicketComments(ref: string): Promise<TicketComment[]> {
   } catch {
     return [];
   }
+  }, OPERATOR_IDENTITY);
 }
 
 // Append an update/comment to a ticket. The author LABEL (Clerk user name/id, or
@@ -1322,6 +1381,9 @@ export async function addTicketComment(
   author: string,
   kind = 'update'
 ): Promise<TicketComment | null> {
+  // P3: operator identity — resolves ref→id via ops.tickets before inserting the
+  // comment; that lookup fails-closed to 0 rows under RLS without it.
+  return withTenantRls(async () => {
   if (!hasDb) throw new Error('no DB');
   const t = await q1<{ id: string }>('select id from ops.tickets where ref=$1', [ref]);
   if (!t) return null;
@@ -1332,6 +1394,7 @@ export async function addTicketComment(
     [t.id, body, kind, JSON.stringify({ author })]
   );
   return row ? mapComment(row) : null;
+  }, OPERATOR_IDENTITY);
 }
 
 // ---------- Email-to-ticket threading (attrs.email_message_ids) ----------
@@ -1344,6 +1407,9 @@ export async function addTicketComment(
 // (the inbound message's In-Reply-To + References header ids). Returns the most
 // recently opened match, or null. Used to thread replies onto the same ticket.
 export async function findTicketByEmailMessageIds(ids: string[]): Promise<ServiceTicket | null> {
+  // P3: operator identity is MANDATORY — the email-ingest threading lookup runs
+  // with NO Clerk session, so it would fail-closed to 0 rows under RLS otherwise.
+  return withTenantRls(async () => {
   if (!hasDb) return null;
   const clean = ids.map((s) => (typeof s === 'string' ? s.trim() : '')).filter(Boolean);
   if (clean.length === 0) return null;
@@ -1360,12 +1426,16 @@ export async function findTicketByEmailMessageIds(ids: string[]): Promise<Servic
   } catch {
     return null;
   }
+  }, OPERATOR_IDENTITY);
 }
 
 // Append a Message-ID to a ticket's attrs.email_message_ids array (dedup-safe),
 // so a later reply that references it threads back onto this ticket. No-op if the
 // id is already present. Best-effort; never throws to the caller path.
 export async function appendEmailMessageId(ref: string, messageId: string): Promise<void> {
+  // P3: operator identity is MANDATORY — email-ingest write with NO Clerk session;
+  // the UPDATE must satisfy the policy WITH CHECK under FORCE (operator does).
+  return withTenantRls(async () => {
   if (!hasDb) return;
   const id = (messageId ?? '').trim();
   if (!id) return;
@@ -1388,6 +1458,7 @@ export async function appendEmailMessageId(ref: string, messageId: string): Prom
   } catch {
     /* threading metadata is best-effort */
   }
+  }, OPERATOR_IDENTITY);
 }
 
 // ---------- Roadmap (ops.roadmap_items) ----------
@@ -1670,6 +1741,10 @@ function gid(type: string, ref: string): string { return `${type}:${ref}`; }
 // node referenced by an edge is materialised even if its metadata lookup misses,
 // so the graph never has dangling edges. DB-only; empty graph on no-DB / error.
 export async function getGraph(): Promise<Graph> {
+  // P3: operator identity — the bulk `select ... from ops.tickets` metadata read
+  // would return 0 rows under RLS without it, dropping every ticket node's label/
+  // status. Server-side console read across all tenants.
+  return withTenantRls(async () => {
   if (!hasDb) return { nodes: [], edges: [], live: false };
   try {
     const links = await q<any>(
@@ -1725,6 +1800,7 @@ export async function getGraph(): Promise<Graph> {
   } catch {
     return { nodes: [], edges: [], live: false };
   }
+  }, OPERATOR_IDENTITY);
 }
 
 // ---------- Connectivity probe (for a status badge) ----------
