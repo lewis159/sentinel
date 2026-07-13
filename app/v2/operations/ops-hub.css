@@ -1,0 +1,41 @@
+/* Operations hub header — additive to the functional board below. Reuses the
+   Hermes hub primitives (.hub / .hub-title-row / .hub-strip / .hub-stat, see
+   ../hermes/hermes-hub.css) so the section root reads as a consistent hub. This
+   file only adds the quick-nav chip row that links across the Operations pages.
+   Dark-first via the shared v2 tokens (works in both themes — references only
+   --surface/--line/--accent/etc). */
+
+/* Quick-nav chip row */
+.ops-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ops-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px 7px 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  text-decoration: none;
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1;
+  transition: border-color .15s ease, background .15s ease, color .15s ease;
+}
+.ops-chip:hover {
+  border-color: var(--accent-brd);
+  background: var(--surface2);
+  color: var(--text-strong);
+}
+.ops-chip .ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.ops-chip:hover .ic { color: var(--accent); }
