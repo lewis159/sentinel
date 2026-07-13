@@ -39,11 +39,16 @@ function humanize(v: string): string {
 // ---------------------------------------------------------------------------
 // TicketComposer — post a free-text update to a ticket's timeline.
 // ---------------------------------------------------------------------------
+type Visibility = 'internal' | 'external';
+
 export function TicketComposer({ refId }: { refId: string }) {
   const router = useRouter();
   const [text, setText] = useState('');
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Fail-safe default: a new note is INTERNAL (team-only) until the operator
+  // deliberately flips it to external. Nothing leaks to a customer by accident.
+  const [visibility, setVisibility] = useState<Visibility>('internal');
 
   async function handlePost() {
     const body = text.trim();
@@ -58,7 +63,7 @@ export function TicketComposer({ refId }: { refId: string }) {
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ body }),
+          body: JSON.stringify({ body, visibility }),
         },
       );
       const data = await res.json().catch(() => null);
@@ -71,6 +76,8 @@ export function TicketComposer({ refId }: { refId: string }) {
 
       setText('');
       setPosting(false);
+      // Reset to the safe default after every post.
+      setVisibility('internal');
       router.refresh();
     } catch {
       setError('Network error — could not post update.');
@@ -89,13 +96,38 @@ export function TicketComposer({ refId }: { refId: string }) {
       />
       {error && <div className="v2-ta-err">{error}</div>}
       <div className="v2-ta-composer-foot">
+        <div className="v2-ta-vis" role="group" aria-label="Comment visibility">
+          <button
+            type="button"
+            className={`v2-ta-vis-opt${visibility === 'internal' ? ' active internal' : ''}`}
+            onClick={() => setVisibility('internal')}
+            disabled={posting}
+            aria-pressed={visibility === 'internal'}
+          >
+            Internal note
+          </button>
+          <button
+            type="button"
+            className={`v2-ta-vis-opt${visibility === 'external' ? ' active external' : ''}`}
+            onClick={() => setVisibility('external')}
+            disabled={posting}
+            aria-pressed={visibility === 'external'}
+          >
+            Reply to customer
+          </button>
+        </div>
+        <span className="v2-ta-vis-hint">
+          {visibility === 'external'
+            ? 'The customer will see this.'
+            : 'Team-only — hidden from the customer.'}
+        </span>
         <button
           type="button"
           className="v2-btn"
           onClick={handlePost}
           disabled={posting || !text.trim()}
         >
-          {posting ? 'Posting…' : 'Post update'}
+          {posting ? 'Posting…' : visibility === 'external' ? 'Send reply' : 'Post note'}
         </button>
       </div>
     </div>
