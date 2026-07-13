@@ -45,9 +45,10 @@ export default clerkMiddleware(async (auth, req) => {
   // stamping x-sentinel-shell=v2 for /v2 paths (mirrors the logic below). Real
   // deployments never set E2E_TEST_MODE, so normal behavior is unchanged.
   if (process.env.E2E_TEST_MODE === '1' && process.env.NODE_ENV !== 'production') {
-    if (req.nextUrl.pathname.startsWith('/v2')) {
+    const shell = shellFor(req.nextUrl.pathname);
+    if (shell) {
       const headers = new Headers(req.headers);
-      headers.set('x-sentinel-shell', 'v2');
+      headers.set('x-sentinel-shell', shell);
       return NextResponse.next({ request: { headers } });
     }
     return NextResponse.next();
@@ -60,14 +61,24 @@ export default clerkMiddleware(async (auth, req) => {
     }
   }
 
-  // Additive v2 shell signal: tag requests under /v2 with a header the root
-  // layout reads to swap in the parallel v2 shell. v1 paths are untouched.
-  if (req.nextUrl.pathname.startsWith('/v2')) {
+  // Additive shell signal: tag requests under /v2 (operator v2 shell) or /portal
+  // (customer portal shell) with a header the root layout reads to render
+  // {children} bare — each supplies its own shell. v1 paths are untouched.
+  const shell = shellFor(req.nextUrl.pathname);
+  if (shell) {
     const headers = new Headers(req.headers);
-    headers.set('x-sentinel-shell', 'v2');
+    headers.set('x-sentinel-shell', shell);
     return NextResponse.next({ request: { headers } });
   }
 });
+
+// Which parallel shell (if any) owns this path. Kept in one place so the E2E and
+// normal branches stay in step. Returns null for v1/operator paths.
+function shellFor(pathname: string): 'v2' | 'portal' | null {
+  if (pathname.startsWith('/v2')) return 'v2';
+  if (pathname.startsWith('/portal')) return 'portal';
+  return null;
+}
 
 export const config = {
   matcher: ['/((?!.+\\.[\\w]+$|_next).*)', '/', '/(api|trpc)(.*)'],

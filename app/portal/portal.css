@@ -1,0 +1,129 @@
+/* Customer self-service portal — a self-contained, branded surface distinct from
+   the operator console. Reuses the estate CSS variables (theme-aware) but ships
+   its own layout so NONE of the operator shell (sidebar/topbar/command palette)
+   bleeds through. Sentinel blue accent. */
+
+.p-shell {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* Header */
+.p-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 24px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.p-brand { display: flex; align-items: center; gap: 10px; }
+.p-brand-mark {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: var(--blue);
+  display: inline-flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 800; font-size: 15px;
+}
+.p-brand-name { font-weight: 700; font-size: 15px; color: var(--text-strong); }
+.p-brand-sub { font-size: 11.5px; color: var(--muted); }
+
+.p-nav { display: flex; align-items: center; gap: 6px; }
+.p-nav a {
+  color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 600;
+  padding: 7px 12px; border-radius: 8px;
+}
+.p-nav a:hover { color: var(--text); background: var(--hover-soft); }
+
+.p-header-right { display: flex; align-items: center; gap: 12px; }
+.p-user { font-size: 12.5px; color: var(--muted); }
+
+/* Content wrapper */
+.p-main { max-width: 860px; margin: 0 auto; padding: 28px 24px 64px; }
+.p-page-head { margin-bottom: 20px; }
+.p-h1 { font-size: 22px; font-weight: 800; color: var(--text-strong); }
+.p-sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+/* Buttons */
+.p-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: var(--blue); color: #fff; border: none; border-radius: 8px;
+  padding: 8px 15px; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.p-btn:hover:not(:disabled) { background: var(--deep); }
+.p-btn:disabled { opacity: .55; cursor: default; }
+.p-btn.ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+.p-btn.ghost:hover { background: var(--hover-soft); }
+
+/* Card + list */
+.p-card {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 18px;
+}
+.p-list { display: flex; flex-direction: column; gap: 10px; }
+.p-ticket {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 16px; text-decoration: none; color: inherit;
+}
+.p-ticket:hover { border-color: var(--accent-border); background: var(--hover-faint); }
+.p-ticket-main { min-width: 0; }
+.p-ticket-subject { font-weight: 650; font-size: 14px; color: var(--text-strong); }
+.p-ticket-meta { font-size: 12px; color: var(--muted); margin-top: 3px; }
+.p-ticket-ref { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+/* Status pill */
+.p-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 700;
+  white-space: nowrap; text-transform: capitalize;
+  border: 1px solid var(--border); color: var(--muted);
+}
+.p-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.p-pill.open { color: var(--low); border-color: color-mix(in srgb, var(--low) 40%, transparent); }
+.p-pill.in_progress { color: var(--high); border-color: color-mix(in srgb, var(--high) 40%, transparent); }
+.p-pill.resolved, .p-pill.closed, .p-pill.fulfilled { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+
+/* Empty state (never fake data — a real blank slate) */
+.p-empty {
+  border: 1px dashed var(--border); border-radius: var(--radius);
+  padding: 44px 24px; text-align: center; color: var(--muted);
+}
+.p-empty .big { font-size: 16px; color: var(--text); margin-bottom: 6px; font-weight: 650; }
+
+/* Detail — timeline */
+.p-crumb { font-size: 12.5px; color: var(--muted); margin-bottom: 14px; }
+.p-crumb a { color: var(--blue); text-decoration: none; }
+.p-timeline { display: flex; flex-direction: column; gap: 14px; }
+.p-msg { display: flex; align-items: flex-start; gap: 11px; }
+.p-avatar {
+  width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+  background: var(--panel); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: var(--text);
+}
+.p-msg-body { flex: 1; min-width: 0; }
+.p-msg-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.p-msg-author { font-size: 12.5px; font-weight: 700; }
+.p-msg-when { font-size: 11px; color: var(--muted); }
+.p-msg-text { font-size: 13px; color: var(--text); margin-top: 3px; line-height: 1.6; white-space: pre-wrap; }
+
+/* Forms */
+.p-reply, .p-form { display: flex; flex-direction: column; gap: 10px; }
+.p-label { font-size: 12px; font-weight: 650; color: var(--muted); }
+.p-input, .p-textarea {
+  width: 100%; background: var(--bg); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;
+  font-size: 13px; font-family: inherit; resize: vertical;
+}
+.p-input:focus, .p-textarea:focus { outline: none; border-color: var(--accent-border); }
+.p-reply-foot, .p-form-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.p-hint { font-size: 11.5px; color: var(--muted); }
+.p-err { font-size: 12px; color: var(--crit); }
+
+.p-section-h { font-size: 13px; font-weight: 700; color: var(--text-strong); margin: 22px 0 12px; }
