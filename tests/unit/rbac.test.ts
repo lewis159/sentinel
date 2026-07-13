@@ -52,7 +52,10 @@ describe('sectionForPath', () => {
     ['/v2/admin', 'admin'],
     ['/v2/access/apps', 'admin'],
     ['/v2/settings', 'admin'],
+    ['/v2/hermes', 'hermes'],
     ['/v2/hermes/floor', 'hermes'],
+    ['/v2/hermes/integrations', 'admin'],
+    ['/v2/hermes/governance', 'admin'],
     ['/v2/kb', 'overview'],
     ['/v2/support/OPS-1', 'support'],
   ];

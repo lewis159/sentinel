@@ -112,9 +112,13 @@ export function sectionForPath(pathname: string): Section {
   const seg = segs[0] ?? '';
 
   // Admin-gated pages that live under another top-level segment for URL grouping.
-  // The Integrations page sits under /hermes/ for nav placement but is gated by
-  // the 'admin' section (it manages estate secrets + flags), so map it explicitly.
-  if (seg === 'hermes' && segs[1] === 'integrations') return 'admin';
+  // The Integrations + Governance pages sit under /hermes/ for nav placement but
+  // are gated by the 'admin' section (they manage estate secrets, flags and the
+  // autonomy/budget dials), so map them explicitly. The Hermes hub root
+  // (/v2/hermes, no sub-segment) and every other /hermes/* page stay 'hermes'.
+  if (seg === 'hermes' && (segs[1] === 'integrations' || segs[1] === 'governance')) {
+    return 'admin';
+  }
 
   switch (seg) {
     case '':
