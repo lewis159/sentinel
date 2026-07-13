@@ -47,3 +47,17 @@ export function leadsEnabled(): boolean {
   const v = (process.env.HERMES_LEADS_ENABLED ?? '').trim().toLowerCase();
   return v === '1' || v === 'true' || v === 'yes' || v === 'on';
 }
+
+// Sub-flag: the TELEGRAM channel surface (inbound webhook → Brain → reply). This
+// is the first external messaging surface for the Hermes PA. Independent of
+// brainEnabled() so the channel plumbing can be turned on/off on its own — though
+// with the Brain flag OFF the PA turn short-circuits to a disabled reply, so an
+// enabled channel with a disabled Brain just tells the user the assistant is off.
+// When THIS flag is OFF (the default) the webhook route 404s and NOTHING new is
+// reachable — the shipped app is completely unaffected until it is enabled.
+//
+//   HERMES_TELEGRAM_ENABLED=1|true|yes|on → /api/hermes/channels/telegram is live.
+export function telegramEnabled(): boolean {
+  const v = (process.env.HERMES_TELEGRAM_ENABLED ?? '').trim().toLowerCase();
+  return v === '1' || v === 'true' || v === 'yes' || v === 'on';
+}

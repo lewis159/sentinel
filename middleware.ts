@@ -21,6 +21,7 @@ import { NextResponse } from 'next/server';
 //   - /api/public/leads       : public lead-capture form (OPS_SUPPORT_TOKEN token/HMAC in-route)
 //   - /api/bot/(.*)           : Discord bot surface (OPS_BOT_TOKEN token/HMAC in-route)
 //   - /api/inngest(.*)        : self-hosted Inngest server↔app sync/invoke (Inngest request-signature verified in-handler)
+//   - /api/hermes/channels/(.*): external messaging surfaces (Telegram webhook — X-Telegram-Bot-Api-Secret-Token verified in-route)
 const isPublicRoute = createRouteMatcher([
   '/sign-in(.*)',
   '/api/ping',
@@ -35,6 +36,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/public/leads',
   '/api/bot/(.*)',
   '/api/inngest(.*)',
+  '/api/hermes/channels/(.*)',
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

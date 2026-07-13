@@ -18,7 +18,12 @@
 
 import 'server-only';
 import { hasDb, q, q1 } from '@/lib/db';
-import { brainEnabled, intakeEnabled, kbPgvectorEnabled } from '@/lib/hermes/brain/flags';
+import {
+  brainEnabled,
+  intakeEnabled,
+  kbPgvectorEnabled,
+  telegramEnabled,
+} from '@/lib/hermes/brain/flags';
 
 // Small env boolean parser, matching the semantics of the sync flag helpers.
 function parseBool(v: string | undefined): boolean {
@@ -34,6 +39,7 @@ export const RUNTIME_FLAG_DEFAULTS: Record<string, () => boolean> = {
   HERMES_INTAKE_ENABLED: intakeEnabled,
   HERMES_KB_PGVECTOR: kbPgvectorEnabled,
   HERMES_INNGEST_ENABLED: () => parseBool(process.env.HERMES_INNGEST_ENABLED),
+  HERMES_TELEGRAM_ENABLED: telegramEnabled,
 };
 
 /** True when `flag` is one this store is allowed to manage. */

@@ -34,7 +34,12 @@ export type AuditAction =
   // Console Settings hub (lib/settings/*) — an admin saved one or more
   // console-level settings. detail records the section + the keys changed
   // (never the values themselves).
-  | 'console.settings.updated';
+  | 'console.settings.updated'
+  // External channel surfaces (lib/hermes/channels/*) — an inbound message from
+  // an allowlisted user on an external channel (Telegram now) was routed to the
+  // Brain. detail records channel + chat/user id + outcome status (never the
+  // message text). Widened at the DB by db/init/25_channel_audit.sql.
+  | 'channel.telegram.message';
 
 export type AuditEntry = {
   actor?: string | null;
