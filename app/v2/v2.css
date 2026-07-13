@@ -627,6 +627,9 @@
   border-radius: var(--r-sm);
 }
 .v2-nav-acc:hover { color: var(--muted); }
+.v2-nav-acc-lab { display: inline-flex; align-items: center; gap: 8px; }
+.v2-nav-acc-lab .ic { width: 15px; height: 15px; flex-shrink: 0; opacity: .8; }
+.v2-nav-acc.open .v2-nav-acc-lab .ic { color: var(--accent); opacity: 1; }
 .v2-nav-caret {
   display: inline-flex;
   align-items: center;

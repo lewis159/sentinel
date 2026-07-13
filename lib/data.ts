@@ -1340,13 +1340,27 @@ export async function createLink(input: CreateLinkInput): Promise<{ ok: boolean;
 }
 
 // ---------- Ticket activity / updates (ops.comments) ----------
+// Comment visibility (migration 24). 'internal' = team-only note; 'external' =
+// safe to show a customer in a customer-facing portal. Default is ALWAYS
+// 'internal' (fail-safe): a customer read filters to 'external' only, so an
+// operator note can never leak, even one that predates the flag.
+export type CommentVisibility = 'internal' | 'external';
+
 export type TicketComment = {
   id: string;
   author: string;
   kind: string;
   body: string;
+  visibility: CommentVisibility;
   createdAt: string;
 };
+
+// Normalise any DB/legacy value to a safe visibility: ONLY the explicit string
+// 'external' is treated as external — anything else (null, unknown, undefined)
+// collapses to 'internal'. This keeps the read path fail-safe by construction.
+function normVisibility(v: unknown): CommentVisibility {
+  return v === 'external' ? 'external' : 'internal';
+}
 
 function mapComment(r: any): TicketComment {
   const meta = (typeof r.metadata === 'string' ? safeJson(r.metadata) : r.metadata) ?? {};
@@ -1355,13 +1369,22 @@ function mapComment(r: any): TicketComment {
     author: meta.author ?? 'System',
     kind: r.kind ?? 'comment',
     body: r.body ?? '',
+    visibility: normVisibility(r.visibility),
     createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : r.created_at,
   };
 }
 
 // Timeline of updates/comments for one ITIL ticket (oldest → newest). Resolves
 // ref → ticket id, then reads ops.comments. Mock fallback returns [].
-export async function getTicketComments(ref: string): Promise<TicketComment[]> {
+//
+// `externalOnly` is the customer-facing gate: when true, ONLY comments explicitly
+// marked visibility='external' are returned (the safe subset a customer portal
+// may render). Operator/console callers omit it and get the full timeline —
+// existing behaviour is unchanged.
+export async function getTicketComments(
+  ref: string,
+  opts: { externalOnly?: boolean } = {}
+): Promise<TicketComment[]> {
   // P3: operator identity — resolves ref→id via ops.tickets; that lookup returns
   // 0 rows under RLS without it (→ empty timeline). Server-side console read.
   return withTenantRls(async () => {
@@ -1369,8 +1392,9 @@ export async function getTicketComments(ref: string): Promise<TicketComment[]> {
   try {
     const t = await q1<{ id: string }>('select id from ops.tickets where ref=$1', [ref]);
     if (!t) return [];
+    const externalFilter = opts.externalOnly ? " and visibility='external'" : '';
     const rows = await q<any>(
-      'select id, body, kind, metadata, created_at from ops.comments where ticket_id=$1 order by created_at asc',
+      `select id, body, kind, visibility, metadata, created_at from ops.comments where ticket_id=$1${externalFilter} order by created_at asc`,
       [t.id]
     );
     return rows.map(mapComment);
@@ -1384,11 +1408,16 @@ export async function getTicketComments(ref: string): Promise<TicketComment[]> {
 // 'Claude') is stored in metadata->>'author'; author_user_id stays null because
 // ops.comments.author_user_id is a uuid and Clerk ids are text. Returns the new
 // row, or null if the ticket ref doesn't resolve / no DB.
+//
+// `visibility` defaults to 'internal' (fail-safe): a comment is customer-visible
+// only when a caller explicitly asks for 'external'. Existing callers that don't
+// pass it keep writing internal notes exactly as before.
 export async function addTicketComment(
   ref: string,
   body: string,
   author: string,
-  kind = 'update'
+  kind = 'update',
+  visibility: CommentVisibility = 'internal'
 ): Promise<TicketComment | null> {
   // P3: operator identity — resolves ref→id via ops.tickets before inserting the
   // comment; that lookup fails-closed to 0 rows under RLS without it.
@@ -1396,11 +1425,13 @@ export async function addTicketComment(
   if (!hasDb) throw new Error('no DB');
   const t = await q1<{ id: string }>('select id from ops.tickets where ref=$1', [ref]);
   if (!t) return null;
+  // Belt-and-braces: never persist an unexpected value into the flag.
+  const vis = normVisibility(visibility);
   const row = await q1<any>(
-    `insert into ops.comments (ticket_id, author_user_id, body, kind, metadata)
-     values ($1, null, $2, $3, $4::jsonb)
-     returning id, body, kind, metadata, created_at`,
-    [t.id, body, kind, JSON.stringify({ author })]
+    `insert into ops.comments (ticket_id, author_user_id, body, kind, visibility, metadata)
+     values ($1, null, $2, $3, $4, $5::jsonb)
+     returning id, body, kind, visibility, metadata, created_at`,
+    [t.id, body, kind, vis, JSON.stringify({ author })]
   );
   return row ? mapComment(row) : null;
   }, OPERATOR_IDENTITY);

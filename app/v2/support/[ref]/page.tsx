@@ -312,6 +312,20 @@ const LINK_KIND: Record<'incident' | 'change' | 'finding' | 'kb', string> = {
   kb: 'KB article',
 };
 
+// Per-comment visibility badge — makes the internal/external gate visible on the
+// timeline so an operator can see at a glance which notes a customer would see.
+function VisBadge({ visibility }: { visibility: 'internal' | 'external' }) {
+  return visibility === 'external' ? (
+    <span className="v2-td-vis external" title="Visible to the customer">
+      External · customer sees
+    </span>
+  ) : (
+    <span className="v2-td-vis internal" title="Team-only — hidden from the customer">
+      Internal · team only
+    </span>
+  );
+}
+
 export default async function Page({ params }: { params: Promise<{ ref: string }> }) {
   await requireSectionPage('support');
   const { ref } = await params;
@@ -417,6 +431,8 @@ export default async function Page({ params }: { params: Promise<{ ref: string }
                   <div className="v2-td-msg-head">
                     <b>{d.conversation.customerName}</b>
                     <span className="v2-td-msg-tag">Customer</span>
+                    {/* Customer's own message is part of the customer-visible thread. */}
+                    <VisBadge visibility="external" />
                     <span className="v2-td-msg-time">{d.conversation.customerTime}</span>
                   </div>
                   <div className="v2-td-msg-text">{d.conversation.customerBody}</div>
@@ -429,6 +445,8 @@ export default async function Page({ params }: { params: Promise<{ ref: string }
                   <div className="v2-td-msg-head">
                     <b>{d.conversation.staffName}</b>
                     <span className="v2-td-msg-tag staff">Agent</span>
+                    {/* This staff message was sent to the customer → external. */}
+                    <VisBadge visibility="external" />
                     <span className="v2-td-msg-time">{d.conversation.staffTime}</span>
                   </div>
                   <div className="v2-td-msg-text">{d.conversation.staffBody}</div>

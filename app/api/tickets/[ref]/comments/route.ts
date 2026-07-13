@@ -71,10 +71,13 @@ export async function POST(
     return Response.json({ error: 'body is required' }, { status: 400 });
   }
   const kind = typeof body?.kind === 'string' && body.kind.trim() ? body.kind.trim() : 'update';
+  // Visibility: default 'internal' (fail-safe) — only an explicit 'external' makes
+  // an operator's note customer-visible. Any other value collapses to internal.
+  const visibility = body?.visibility === 'external' ? 'external' : 'internal';
 
   try {
     const author = await authorLabel();
-    const comment = await addTicketComment(ref, text, author, kind);
+    const comment = await addTicketComment(ref, text, author, kind, visibility);
     if (!comment) return Response.json({ ok: false, error: 'ticket not found' }, { status: 404 });
     return Response.json({ ok: true, comment }, { status: 201 });
   } catch (e: any) {

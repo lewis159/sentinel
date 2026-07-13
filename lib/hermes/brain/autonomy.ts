@@ -35,6 +35,12 @@ export const DEFAULT_TOOL_MODES: AutonomyToolRow[] = [
   { persona: 'pa', tool: 'getDeployStatus', mode: 'auto' },
   { persona: 'pa', tool: 'broadcastStatus', mode: 'auto' },
   { persona: 'pa', tool: 'updateTicket', mode: 'gated' },
+  // PA personal ops (Google Calendar + Gmail + Resend send): reads auto, writes gated.
+  { persona: 'pa', tool: 'listUpcomingEvents', mode: 'auto' },
+  { persona: 'pa', tool: 'createCalendarEvent', mode: 'gated' },
+  { persona: 'pa', tool: 'listRecentEmail', mode: 'auto' },
+  { persona: 'pa', tool: 'draftEmailReply', mode: 'gated' },
+  { persona: 'pa', tool: 'sendEmail', mode: 'gated' },
   // The five department copilots: safe reads AUTO so an agentic copilot turn can
   // look things up on its own. Support additionally carries updateTicket as a
   // GATED action (interrupt → approval → execute once — the same spine as the PA).

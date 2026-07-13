@@ -15,6 +15,8 @@ import {
   triggerWorkflowTool,
   commitFileTool,
 } from './github';
+import { listUpcomingEventsTool, createCalendarEventTool } from './calendar';
+import { listRecentEmailTool, draftEmailReplyTool } from './pa-email';
 
 // The tool set. Order is not significant. The graph resolves each tool's autonomy
 // (auto → run; gated → interrupt for human approval) per (persona, tool) at call
@@ -34,6 +36,12 @@ export const ALL_TOOLS: BrainTool[] = [
   getFileContentsTool,
   triggerWorkflowTool,
   commitFileTool,
+  // PA personal-ops tools (Google Calendar + Gmail). Reads are auto; the
+  // create-event / draft writes are gated (interrupt → approval → run once).
+  listUpcomingEventsTool,
+  createCalendarEventTool,
+  listRecentEmailTool,
+  draftEmailReplyTool,
 ];
 
 const BY_NAME = new Map<string, BrainTool>(ALL_TOOLS.map((t) => [t.name, t]));

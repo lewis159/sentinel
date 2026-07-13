@@ -133,7 +133,8 @@ export async function POST(req: Request) {
 
     if (existing) {
       const commentBody = `Re: ${subject}\n\n${messageBody}`;
-      await addTicketComment(existing.ref, commentBody, name ?? fromEmail ?? 'Customer', 'customer');
+      // Inbound customer email is part of the customer-visible thread → external.
+      await addTicketComment(existing.ref, commentBody, name ?? fromEmail ?? 'Customer', 'customer', 'external');
       if (messageId) await appendEmailMessageId(existing.ref, messageId);
       return json(req, { ok: true, ref: existing.ref, threaded: true }, 201);
     }
@@ -166,7 +167,8 @@ export async function POST(req: Request) {
           input: { ref, title: subject, description: messageBody, priority: 'medium', status: 'new' },
         });
         if (proposal.ok && str(proposal.draft)) {
-          await addTicketComment(ref, proposal.draft as string, 'Hermes · Support', 'ai-draft');
+          // Draft-only assist — never auto-sent to the customer → internal (default).
+          await addTicketComment(ref, proposal.draft as string, 'Hermes · Support', 'ai-draft', 'internal');
         }
       } catch {
         /* draft is best-effort; the ticket already exists */

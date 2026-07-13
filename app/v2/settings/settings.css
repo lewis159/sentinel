@@ -347,3 +347,70 @@
 /* section header inside plain cards (reuses v2-card-h styling but with subtitle) */
 .v2-set-ch { display: flex; flex-direction: column; gap: 2px; }
 .v2-set-ch .st { font-size: 11px; color: var(--muted); font-weight: 500; }
+
+/* ============================================================================
+   Interactive settings hub (functional panels — inputs, toggles, nav buttons).
+   Layered on the static classes above so the mockup styling is reused verbatim.
+   ========================================================================== */
+
+/* Left-nav items that switch a panel are <button>s — reset native chrome so they
+   look identical to the <Link>/<div> nav rows. */
+button.v2-set-item {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* Real form controls reuse the input look. Override the static (div) rule so an
+   actual <input>/<select> is styled and interactive. */
+input.v2-set-input,
+select.v2-set-input,
+textarea.v2-set-input {
+  width: 100%;
+  display: block;
+  font-family: inherit;
+  outline: none;
+  cursor: text;
+}
+select.v2-set-input { cursor: pointer; appearance: none; padding-right: 28px; }
+input.v2-set-input:focus,
+select.v2-set-input:focus,
+textarea.v2-set-input:focus {
+  border-color: var(--accent-brd, var(--accent));
+  box-shadow: 0 0 0 1px var(--accent-brd, var(--accent));
+}
+input.v2-set-input::placeholder { color: var(--faint); }
+
+/* Interactive toggle switch (a <button> with .on). */
+.v2-set-switch.btn { cursor: pointer; padding: 0; }
+.v2-set-switch.btn::after { transition: none; }
+
+/* Save row + status pills. */
+.v2-set-save { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.v2-set-status { font-size: 11.5px; font-weight: 600; }
+.v2-set-status.saved { color: var(--ok); }
+.v2-set-status.error { color: var(--high, #f87171); }
+
+/* Informational panels (SSO / navigation / billing note). */
+.v2-set-info {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--muted);
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 14px 16px;
+}
+.v2-set-info code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  color: var(--text-strong);
+  background: rgba(255, 255, 255, .06);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.v2-set-link { color: var(--accent); font-weight: 600; }
+.v2-set-link:hover { text-decoration: underline; }
