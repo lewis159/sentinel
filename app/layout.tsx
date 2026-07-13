@@ -22,7 +22,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // middleware. v2 supplies its own shell (sidebar/topbar) via app/v2/layout.tsx,
   // so here we render {children} bare. All other paths get the untouched v1 shell.
   const h = await headers();
-  const isV2 = h.get('x-sentinel-shell') === 'v2';
+  const shell = h.get('x-sentinel-shell');
+  const isV2 = shell === 'v2';
+  // The customer portal (/portal) supplies its own shell via app/portal/layout.tsx
+  // and must show NONE of the operator chrome (sidebar/topbar/command palette/
+  // "Switch to v2" FAB). Render its children bare, same as v2.
+  const isPortal = shell === 'portal';
+  const bare = isV2 || isPortal;
   return (
     <ClerkProvider>
       <html lang="en" data-theme="dark" suppressHydrationWarning>
@@ -30,7 +36,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <script dangerouslySetInnerHTML={{ __html: NO_FLASH_THEME }} />
         </head>
         <body>
-          {isV2 ? (
+          {bare ? (
             children
           ) : (
             <div className="shell">
@@ -42,8 +48,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               </div>
             </div>
           )}
-          {!isV2 && <CommandPalette />}
-          {!isV2 && (
+          {!bare && <CommandPalette />}
+          {!bare && (
             // Additive v1→v2 switch. v2 supplies its own v2→v1 toggle in its topbar.
             <a
               href="/v2"
