@@ -32,7 +32,37 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 10px;
+}
+
+/* ---- Visibility toggle (internal note vs customer reply) ---- */
+.v2-shell .v2-ta-vis {
+  display: inline-flex;
+  margin-right: auto; /* push the toggle to the left, keep the button on the right */
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+.v2-shell .v2-ta-vis-opt {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 11px;
+  background: var(--surface2);
+  color: var(--muted);
+  border: none;
+  cursor: pointer;
+}
+.v2-shell .v2-ta-vis-opt + .v2-ta-vis-opt { border-left: 1px solid var(--line); }
+.v2-shell .v2-ta-vis-opt:hover:not(:disabled) { color: var(--text); }
+.v2-shell .v2-ta-vis-opt:disabled { opacity: .6; cursor: not-allowed; }
+.v2-shell .v2-ta-vis-opt.active.internal { color: var(--text-strong); background: var(--surface); }
+.v2-shell .v2-ta-vis-opt.active.external { color: var(--accent); background: var(--accent-bg); }
+.v2-shell .v2-ta-vis-hint {
+  font-size: 11px;
+  color: var(--faint);
+  white-space: nowrap;
 }
 
 /* ---- Status control (header) ---- */

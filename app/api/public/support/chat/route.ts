@@ -168,7 +168,8 @@ export async function POST(req: Request) {
     }
 
     // --- 2. Record the customer's message ----------------------------------
-    await addTicketComment(ref, message, name ?? email ?? 'Customer', 'customer');
+    // The customer's own message is part of the customer-visible thread → external.
+    await addTicketComment(ref, message, name ?? email ?? 'Customer', 'customer', 'external');
 
     // --- 3. Explicit escalation → hand to a human, no L1 draft -------------
     if (escalate) {
@@ -181,7 +182,8 @@ export async function POST(req: Request) {
         'Thanks — I’ve passed this to a member of our team, who will follow up' +
         (email ? ` by email at ${email}` : ' shortly') +
         `. Your reference is ${ref}.`;
-      await addTicketComment(ref, reply, 'Hermes · Support', 'ai-reply');
+      // This reply IS shown to the customer → external.
+      await addTicketComment(ref, reply, 'Hermes · Support', 'ai-reply', 'external');
       return json(req, { reply, chunks: [reply], ticketRef: ref, conversationId: ref, escalated: true, confidence: null });
     }
 
@@ -197,7 +199,8 @@ export async function POST(req: Request) {
     const answered = proposal.ok && Boolean(draft) && !lowConfidence;
 
     if (answered && draft) {
-      await addTicketComment(ref, draft, 'Hermes · Support', 'ai-reply');
+      // Answered L1 reply is returned to the customer → external.
+      await addTicketComment(ref, draft, 'Hermes · Support', 'ai-reply', 'external');
       if (proposal.priority) {
         // Keep the ticket's priority in step with the copilot's read (no status change).
         await updateTicket(ref, { priority: toSeverity(proposal.priority) });
@@ -214,8 +217,9 @@ export async function POST(req: Request) {
 
     // No usable answer (model off, parse failure, or low confidence) → flag for a
     // human and return a soft holding reply. The draft (if any) is still stored
-    // as a comment so a human sees what was attempted.
-    if (draft) await addTicketComment(ref, draft, 'Hermes · Support', 'ai-draft');
+    // as a comment so a human sees what was attempted. This draft was NOT sent to
+    // the customer → keep it internal (default).
+    if (draft) await addTicketComment(ref, draft, 'Hermes · Support', 'ai-draft', 'internal');
     await updateTicket(ref, {
       status: 'in_progress',
       attrs: {
@@ -230,7 +234,8 @@ export async function POST(req: Request) {
       'passed this to a member of our team who will follow up' +
       (email ? ` at ${email}` : ' shortly') +
       `. Your reference is ${ref}.`;
-    await addTicketComment(ref, holding, 'Hermes · Support', 'ai-reply');
+    // The holding message IS shown to the customer → external.
+    await addTicketComment(ref, holding, 'Hermes · Support', 'ai-reply', 'external');
     return json(req, {
       reply: holding,
       chunks: [holding],
