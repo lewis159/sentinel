@@ -31,9 +31,31 @@ export type Persona = {
 export const PA_PERSONA: Persona = {
   id: 'pa',
   systemPrompt: PA_SOUL,
-  allowedTools: ['getTicket', 'listTickets', 'updateTicket', 'broadcastStatus', 'getDeployStatus'],
-  // updateTicket stays gated (the P0 demo side-effect); everything else auto.
-  autonomyByTool: { updateTicket: 'gated' },
+  allowedTools: [
+    'getTicket',
+    'listTickets',
+    'updateTicket',
+    'broadcastStatus',
+    'getDeployStatus',
+    // PA personal ops — Google Calendar + Gmail, plus the estate's Resend send.
+    'listUpcomingEvents',
+    'createCalendarEvent',
+    'listRecentEmail',
+    'draftEmailReply',
+    'sendEmail',
+  ],
+  // updateTicket stays gated (the P0 demo side-effect). Personal-ops READS are
+  // auto (calendar/inbox lookups); every WRITE — create an event, draft a Gmail
+  // message, send mail — is gated so the graph interrupts for Ben's approval and
+  // run() only fires post-approval.
+  autonomyByTool: {
+    updateTicket: 'gated',
+    listUpcomingEvents: 'auto',
+    createCalendarEvent: 'gated',
+    listRecentEmail: 'auto',
+    draftEmailReply: 'gated',
+    sendEmail: 'gated',
+  },
   model: process.env.HERMES_PA_MODEL || undefined,
 };
 

@@ -50,6 +50,14 @@ insert into hermes.autonomy_config (persona, tool, mode) values
   ('pa', 'getDeployStatus',  'auto'),
   ('pa', 'broadcastStatus',  'auto'),
   ('pa', 'updateTicket',     'gated'),
+  -- PA personal ops (Google Calendar + Gmail + Resend send). Reads AUTO (calendar
+  -- + inbox lookups); every WRITE gated so the graph interrupts for Ben's approval
+  -- before it creates an event, saves a Gmail draft, or sends mail.
+  ('pa', 'listUpcomingEvents',  'auto'),
+  ('pa', 'createCalendarEvent', 'gated'),
+  ('pa', 'listRecentEmail',     'auto'),
+  ('pa', 'draftEmailReply',     'gated'),
+  ('pa', 'sendEmail',           'gated'),
   -- The five department copilots: safe reads AUTO so an agentic copilot turn can
   -- look things up on its own. Support additionally carries updateTicket as a
   -- GATED action — it interrupts, raises an approval-queue proposal, and executes
