@@ -35,7 +35,7 @@ import { getPersona, autonomyFor, type Persona } from './personas';
 import { getTool, toolsFor, toOpenAiTools } from './tools';
 import type { ToolContext, BrainTool, ToolResult } from './tools/types';
 import { getCheckpointer } from './checkpointer';
-import { brainEnabled } from './flags';
+import { brainEnabledRuntime } from '@/lib/hermes/runtime-flags';
 import { resolveAutonomy, type AutonomyMode } from './autonomy';
 import { checkBudget, recordSpend } from '@/lib/hermes/budget';
 
@@ -324,7 +324,9 @@ export async function runPaTurn(opts: {
   persona?: string;
   actor?: string;
 }): Promise<PaTurnResult> {
-  if (!brainEnabled()) return { status: 'disabled' };
+  // Resolve the Brain gate through the runtime store (DB override → env default)
+  // so an Integrations-page toggle takes effect with no redeploy.
+  if (!(await brainEnabledRuntime())) return { status: 'disabled' };
   const personaId = opts.persona ?? 'pa';
   const persona = getPersona(personaId);
   if (!persona) return { status: 'error', error: `unknown persona: ${personaId}` };
@@ -373,7 +375,7 @@ export async function resumeThread(opts: {
   threadId: string;
   decision: ApprovalDecision;
 }): Promise<ResumeResult> {
-  if (!brainEnabled()) return { status: 'disabled' };
+  if (!(await brainEnabledRuntime())) return { status: 'disabled' };
   try {
     const { app, hasCheckpointer } = await getGraph();
     if (!hasCheckpointer)

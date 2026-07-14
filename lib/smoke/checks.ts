@@ -21,7 +21,7 @@
 import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { hasDb, q, q1 } from '@/lib/db';
-import { brainEnabled, intakeEnabled, kbPgvectorEnabled } from '@/lib/hermes/brain/flags';
+import { getRuntimeFlag } from '@/lib/hermes/runtime-flags';
 import { inngestEnabled } from '@/lib/inngest/client';
 import { getHermesRuntimeConfig } from '@/lib/hermes/config';
 import { runPaTurn } from '@/lib/hermes/brain/graph';
@@ -103,11 +103,18 @@ export const flagsCheck: CheckImpl = async () => {
   } else {
     rls = 'n/a (no DB)';
   }
+  // Report the RESOLVED (runtime) value — DB override → env default — so the row
+  // reflects reality after an Integrations-page toggle, not just the stack env.
+  const [brain, intake, kb] = await Promise.all([
+    getRuntimeFlag('HERMES_BRAIN_ENABLED'),
+    getRuntimeFlag('HERMES_INTAKE_ENABLED'),
+    getRuntimeFlag('HERMES_KB_PGVECTOR'),
+  ]);
   const detail =
-    `HERMES_BRAIN_ENABLED=${on(brainEnabled())} · ` +
+    `HERMES_BRAIN_ENABLED=${on(brain)} · ` +
     `HERMES_INNGEST_ENABLED=${on(inngestEnabled())} · ` +
-    `HERMES_INTAKE_ENABLED=${on(intakeEnabled())} · ` +
-    `HERMES_KB_PGVECTOR=${on(kbPgvectorEnabled())} · ` +
+    `HERMES_INTAKE_ENABLED=${on(intake)} · ` +
+    `HERMES_KB_PGVECTOR=${on(kb)} · ` +
     `ops.tickets RLS=${rls}`;
   return { status: 'pass', detail };
 };
@@ -117,7 +124,7 @@ export const flagsCheck: CheckImpl = async () => {
 // valid deployment states, not smoke failures. When both are present, make one
 // trivial turn on a throwaway thread and assert a non-empty reply.
 export const brainRepliesCheck: CheckImpl = async () => {
-  if (!brainEnabled())
+  if (!(await getRuntimeFlag('HERMES_BRAIN_ENABLED')))
     return { status: 'skip', detail: 'HERMES_BRAIN_ENABLED is off — brain routes are inert' };
   const cfg = await getHermesRuntimeConfig();
   if (!cfg.hasKey)

@@ -32,6 +32,15 @@ vi.mock('@/lib/hermes/brain/knowledge', () => ({
   answerKnowledgeQuestion: h.answerKnowledgeQuestion,
   BRAIN_DISABLED_MESSAGE: 'Hermes Brain is disabled — set HERMES_BRAIN_ENABLED and a model key to enable Knowledge Q&A.',
 }));
+// The route now resolves the brain gate through the runtime store. Mock it so the
+// test stays deterministic (no real DB) while still driving the gate off the env
+// var it toggles per case — DB override → env default is proven in runtime-flags.test.ts.
+vi.mock('@/lib/hermes/runtime-flags', () => ({
+  brainEnabledRuntime: async () => {
+    const v = (process.env.HERMES_BRAIN_ENABLED ?? '').trim().toLowerCase();
+    return v === '1' || v === 'true' || v === 'yes' || v === 'on';
+  },
+}));
 
 function post(body: unknown) {
   return new Request('http://localhost/api/v2/admin/knowledge/ask', {

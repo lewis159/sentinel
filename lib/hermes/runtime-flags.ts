@@ -86,6 +86,17 @@ export async function getRuntimeFlag(flag: string): Promise<boolean> {
   }
 }
 
+/**
+ * Convenience resolver for the PRIMARY Brain gate (HERMES_BRAIN_ENABLED): DB
+ * override → env default. Use this at ASYNC boundaries (graph runPaTurn/resume,
+ * knowledge Q&A, the live smoke checks) so an admin toggle from the Integrations
+ * page takes effect with NO redeploy. With no DB it falls back to brainEnabled()
+ * (the env default) — identical to the previous behaviour, so nothing breaks.
+ */
+export function brainEnabledRuntime(): Promise<boolean> {
+  return getRuntimeFlag('HERMES_BRAIN_ENABLED');
+}
+
 export type RuntimeFlagState = {
   flag: string;
   enabled: boolean;

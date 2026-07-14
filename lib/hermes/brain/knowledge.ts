@@ -26,7 +26,7 @@
 import 'server-only';
 import { callModel, type ChatMsg } from './model';
 import { getPersona } from './personas';
-import { brainEnabled } from './flags';
+import { brainEnabledRuntime } from '@/lib/hermes/runtime-flags';
 import { retrieveKb } from '@/lib/hermes/kb-context';
 import { getRecentTickets, getRoadmap } from '@/lib/data';
 
@@ -187,8 +187,10 @@ export async function answerKnowledgeQuestion(question: string): Promise<Knowled
     return { status: 'error', answer: 'Ask a question to search the estate knowledge.', sources: [], error: 'empty question' };
   }
 
-  // Dormant-safe: never retrieve or hit the model when the brain is off.
-  if (!brainEnabled()) {
+  // Dormant-safe: never retrieve or hit the model when the brain is off. Resolved
+  // through the runtime store (DB override → env default) so an Integrations-page
+  // toggle takes effect immediately, no redeploy.
+  if (!(await brainEnabledRuntime())) {
     return { status: 'disabled', answer: BRAIN_DISABLED_MESSAGE, sources: [] };
   }
 

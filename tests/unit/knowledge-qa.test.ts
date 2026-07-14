@@ -49,6 +49,15 @@ const h = vi.hoisted(() => {
 });
 
 vi.mock('server-only', () => ({}));
+// The gate now resolves through the runtime store. Mock it so the test stays
+// deterministic (no real DB) while still driving the gate off the env var toggled
+// per case — DB override → env default is proven in runtime-flags.test.ts.
+vi.mock('@/lib/hermes/runtime-flags', () => ({
+  brainEnabledRuntime: async () => {
+    const v = (process.env.HERMES_BRAIN_ENABLED ?? '').trim().toLowerCase();
+    return v === '1' || v === 'true' || v === 'yes' || v === 'on';
+  },
+}));
 vi.mock('@/lib/hermes/brain/model', () => ({ callModel: h.callModel }));
 vi.mock('@/lib/hermes/kb-context', () => ({ retrieveKb: h.retrieveKb }));
 vi.mock('@/lib/data', () => ({

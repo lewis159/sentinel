@@ -40,10 +40,14 @@ const F = vi.hoisted(() => ({
   brain: false,
   hasKey: false,
 }));
+// checks.ts now resolves flags through the runtime store (lib/hermes/runtime-flags),
+// which imports these env-default helpers — including telegramEnabled — so the mock
+// must expose every one the store references (vitest throws on a missing export).
 vi.mock('@/lib/hermes/brain/flags', () => ({
   brainEnabled: () => F.brain,
   intakeEnabled: () => false,
   kbPgvectorEnabled: () => false,
+  telegramEnabled: () => false,
 }));
 vi.mock('@/lib/inngest/client', () => ({ inngestEnabled: () => false }));
 
