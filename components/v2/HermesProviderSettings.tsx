@@ -183,8 +183,16 @@ export default function HermesProviderSettings() {
         )}
       </div>
 
-      {settings.source === 'env' ? (
-        <div className="v2-hp-note env">Currently using the OPENROUTER_API_KEY env var.</div>
+      {settings.hasKey ? (
+        <div className="v2-hp-note env">
+          {settings.source === 'infisical'
+            ? 'Resolved from Infisical (hermes/prod) — the preferred secret store.'
+            : settings.source === 'env'
+              ? 'Resolved from the OPENROUTER_API_KEY env var.'
+              : settings.source === 'db'
+                ? 'Saved in the database (ops.app_config) — persists across redeploys, no env var needed.'
+                : null}
+        </div>
       ) : null}
 
       {/* Save */}

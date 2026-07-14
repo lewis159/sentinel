@@ -1,0 +1,56 @@
+/* Hermes core runtime controls card — a flag list with a toggle + resolved-source
+   badge per row. Self-contained: it redefines the toggle + source-badge styles
+   (identical to components/v2/integrations.css) so the card renders correctly on
+   the Hermes settings route without depending on the integrations stylesheet. */
+
+.v2-hrc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.v2-hrc-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.v2-hrc-row:last-child { border-bottom: none; }
+
+.v2-hrc-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.v2-hrc-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.v2-hrc-name { font-size: 13px; font-weight: 700; color: var(--text); }
+.v2-hrc-flag {
+  font-size: 11px; color: var(--muted);
+  padding: 1px 6px; border-radius: 5px;
+  background: var(--surface); border: 1px solid var(--line);
+}
+.v2-hrc-help { font-size: 11.5px; color: var(--faint); line-height: 1.4; }
+.v2-hrc-err { margin-top: 12px; }
+
+/* Resolved-source badge (matches .v2-int-src in integrations.css). */
+.v2-int-src {
+  font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--muted);
+}
+.v2-int-src.db { color: var(--accent); border-color: var(--accent-brd); }
+
+/* Toggle switch (matches .v2-int-toggle in integrations.css). */
+.v2-int-toggle { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+.v2-int-toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
+.v2-int-toggle .track {
+  width: 38px; height: 21px; border-radius: 999px;
+  background: var(--surface); border: 1px solid var(--line);
+  position: relative; transition: background .15s, border-color .15s;
+}
+.v2-int-toggle .track::after {
+  content: ''; position: absolute; top: 2px; left: 2px;
+  width: 15px; height: 15px; border-radius: 50%;
+  background: var(--muted); transition: transform .15s, background .15s;
+}
+.v2-int-toggle input:checked + .track { background: color-mix(in srgb, var(--ok) 30%, transparent); border-color: var(--ok); }
+.v2-int-toggle input:checked + .track::after { transform: translateX(17px); background: var(--ok); }
+.v2-int-toggle input:disabled + .track { opacity: .5; }
+.v2-int-toggle .lbl { font-size: 12px; font-weight: 600; color: var(--text); min-width: 58px; }

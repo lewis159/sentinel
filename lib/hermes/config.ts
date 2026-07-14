@@ -113,32 +113,78 @@ export async function getPublicHermesConfig(): Promise<{
 /**
  * Admin write path.
  *
- * The API key is a SECRET and is written to Infisical (not the DB). The model is
+ * The API key is written to Infisical (the PREFERRED store) when Infisical is
+ * configured, AND ALSO persisted to ops.app_config (KEY_APIKEY) as the durable
+ * fallback so the UI "Save key" works with NO Infisical and NO env var. The read
+ * path (getHermesRuntimeConfig) already resolves Infisical → env → DB, so the
+ * DB-persisted key is picked up on the fly and survives redeploys. The model is
  * NOT secret and is persisted to ops.app_config as before.
  *
- *   - clearKey        → blank the API key in Infisical (falls back to env)
- *   - apiKey (set)    → write the API key to Infisical
+ *   - clearKey        → blank the key in Infisical (if configured) + delete the DB row
+ *   - apiKey (set)    → write to Infisical (if configured) + upsert the DB row
  *   - model (set)     → upsert the model in the DB
  *   - model === ''    → delete the model row (falls back to default)
  *
  * When both model + apiKey are provided, both are written and the call only
  * succeeds if both succeed (the first error is surfaced).
+ *
+ * SECURITY: persisting the key in ops.app_config is PLAINTEXT-AT-REST — the same
+ * exposure class as an OPENROUTER_API_KEY env var. Infisical remains the
+ * preferred store; the DB row is a fallback so the feature works without it. The
+ * key is NEVER logged and NEVER echoed to the client (getPublicHermesConfig
+ * masks it). Encrypting this column is a tracked follow-up.
  */
 export async function setHermesConfig(input: {
   model?: string;
   apiKey?: string;
   clearKey?: boolean;
 }): Promise<{ ok: boolean; error?: string }> {
-  // --- Secret (API key) → Infisical -----------------------------------------
+  // --- Secret (API key) → Infisical (preferred) + DB (durable fallback) ------
   if (input.clearKey) {
     // Best-effort: blank the key in Infisical. Skip silently if not configured.
     if (hasInfisical()) {
       const res = await setSecret(INFISICAL_OPENROUTER_KEY, '');
       if (!res.ok) return res;
     }
+    // Remove the DB-persisted key so the runtime falls back to env/none.
+    if (hasDb) {
+      try {
+        await ensureTable();
+        await q(`delete from ops.app_config where key = $1`, [KEY_APIKEY]);
+      } catch (e: any) {
+        return { ok: false, error: e?.message ?? 'Failed to clear Hermes API key' };
+      }
+    }
   } else if (typeof input.apiKey === 'string' && input.apiKey.trim()) {
-    const res = await setSecret(INFISICAL_OPENROUTER_KEY, input.apiKey.trim());
-    if (!res.ok) return res;
+    const key = input.apiKey.trim();
+    // Write to Infisical when configured (preferred store).
+    if (hasInfisical()) {
+      const res = await setSecret(INFISICAL_OPENROUTER_KEY, key);
+      if (!res.ok) return res;
+    }
+    // ALSO persist to the DB so the key survives without Infisical / env, and is
+    // resolved by getHermesRuntimeConfig's existing `db` branch. Mirror exactly
+    // how the model is upserted below.
+    if (hasDb) {
+      try {
+        await ensureTable();
+        await q(
+          `insert into ops.app_config (key, value, updated_at)
+           values ($1, $2, now())
+           on conflict (key) do update set value = excluded.value, updated_at = now()`,
+          [KEY_APIKEY, key],
+        );
+      } catch (e: any) {
+        return { ok: false, error: e?.message ?? 'Failed to save Hermes API key' };
+      }
+    } else if (!hasInfisical()) {
+      // No Infisical AND no DB → nowhere durable to store the key.
+      return {
+        ok: false,
+        error:
+          'No database or Infisical in this environment — set OPENROUTER_API_KEY via an env var instead.',
+      };
+    }
   }
 
   // --- Model → DB -----------------------------------------------------------
