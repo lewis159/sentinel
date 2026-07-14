@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { requireSectionPage } from '@/lib/auth';
 import HermesProviderSettings from '@/components/v2/HermesProviderSettings';
+import HermesRuntimeControls from '@/components/v2/HermesRuntimeControls';
 import HermesAutonomyDials from '@/components/v2/HermesAutonomyDials';
 import '../settings.css';
 
@@ -58,6 +59,25 @@ export default async function V2HermesGovernancePage() {
             </div>
           </div>
           <HermesProviderSettings />
+        </div>
+
+        {/* 0b — Brain runtime controls — toggle the CORE Hermes flags (the Brain
+            itself + intake / KB pgvector / Inngest / Telegram) at runtime. Writes
+            the DB override (ops.hermes_runtime_flags); the resolver reads it on the
+            next request, so this turns the Brain on with NO redeploy and NO stack
+            env edit. Distinct from the Integrations page (third-party flags only). */}
+        <div className="v2-card v2-set-hcard">
+          <div className="v2-card-h">
+            <div className="v2-set-ch">
+              <h3>Brain runtime controls</h3>
+              <span className="st">
+                The core Hermes feature flags — the Brain master switch plus intake, KB search,
+                background jobs and the Telegram channel. Toggle each at runtime (DB override →
+                env default); no redeploy, no env edit.
+              </span>
+            </div>
+          </div>
+          <HermesRuntimeControls />
         </div>
 
         {/* 1 — Agents */}
