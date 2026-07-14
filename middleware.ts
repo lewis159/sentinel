@@ -63,9 +63,20 @@ export default clerkMiddleware(async (auth, req) => {
     }
   }
 
+  // v1 RETIREMENT: v2 is the only console. Every legacy v1 route 308-redirects
+  // to its v2 equivalent (permanent — safe to cache). Routes with a same-name v2
+  // twin map to /v2/<same>; v1-only routes map to the nearest v2 hub. The check
+  // runs on the FIRST path segment and never touches /v2, /portal, /api,
+  // /sign-in, /unauthorized, _next, or static files (those are excluded below).
+  const redirect = v1RedirectFor(req.nextUrl.pathname);
+  if (redirect) {
+    // Carry the original query string across the redirect.
+    return NextResponse.redirect(new URL(redirect + req.nextUrl.search, req.url), 308);
+  }
+
   // Additive shell signal: tag requests under /v2 (operator v2 shell) or /portal
   // (customer portal shell) with a header the root layout reads to render
-  // {children} bare — each supplies its own shell. v1 paths are untouched.
+  // {children} bare — each supplies its own shell.
   const shell = shellFor(req.nextUrl.pathname);
   if (shell) {
     const headers = new Headers(req.headers);
@@ -73,6 +84,62 @@ export default clerkMiddleware(async (auth, req) => {
     return NextResponse.next({ request: { headers } });
   }
 });
+
+// Legacy v1 route → v2 target, keyed by first path segment. Routes with a
+// same-name v2 twin redirect to /v2/<same>; v1-only routes redirect to the
+// nearest v2 hub. Root ('') → /v2.
+const V1_REDIRECTS: Record<string, string> = {
+  // v1 routes with a same-name v2 twin → /v2/<same>
+  access: '/v2/access',
+  activity: '/v2/activity',
+  alerts: '/v2/alerts',
+  changelog: '/v2/changelog',
+  changes: '/v2/changes',
+  components: '/v2/components',
+  graph: '/v2/graph',
+  incidents: '/v2/incidents',
+  kb: '/v2/kb',
+  problems: '/v2/problems',
+  releases: '/v2/releases',
+  reports: '/v2/reports',
+  requests: '/v2/requests',
+  resilience: '/v2/resilience',
+  roadmap: '/v2/roadmap',
+  scans: '/v2/scans',
+  settings: '/v2/settings',
+  // v1-only routes (no same-name v2 twin) → nearest v2 hub
+  tickets: '/v2/support',
+  users: '/v2/access',
+  account: '/v2/settings',
+  findings: '/v2/security',
+  infra: '/v2/operations',
+  monitoring: '/v2/operations',
+  status: '/v2/operations',
+};
+
+// Compute the v2 redirect target for a legacy v1 path, or null if the path is
+// not a retired v1 route. Preserves any sub-path/query beyond the first segment
+// (e.g. /findings/F-12?x=1 → /v2/security/F-12?x=1). Never matches paths owned
+// by a live shell/route: /v2, /portal, /api, /sign-in, /unauthorized (the
+// matcher already excludes _next and static files).
+function v1RedirectFor(pathname: string): string | null {
+  if (
+    pathname.startsWith('/v2') ||
+    pathname.startsWith('/portal') ||
+    pathname.startsWith('/api') ||
+    pathname.startsWith('/sign-in') ||
+    pathname.startsWith('/unauthorized')
+  ) {
+    return null;
+  }
+  const segs = pathname.split('/').filter(Boolean); // '/foo/bar' → ['foo','bar']
+  const first = segs[0] ?? ''; // '' for the root path '/'
+  if (first === '') return '/v2';
+  const target = V1_REDIRECTS[first];
+  if (!target) return null;
+  const rest = segs.slice(1).join('/'); // sub-path after the first segment
+  return rest ? `${target}/${rest}` : target;
+}
 
 // Which parallel shell (if any) owns this path. Kept in one place so the E2E and
 // normal branches stay in step. Returns null for v1/operator paths.

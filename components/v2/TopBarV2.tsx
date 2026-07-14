@@ -1,7 +1,6 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { VersionToggle } from '@/components/v2/VersionToggle';
 import RefreshControl from '@/components/v2/RefreshControl';
 import CommandPalette, { OPEN_CMDK_EVENT } from '@/components/v2/CommandPalette';
 
@@ -120,8 +119,6 @@ export default function TopBarV2() {
           <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
         </svg>
       </button>
-
-      <VersionToggle />
 
       <CommandPalette />
     </header>
