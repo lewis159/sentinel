@@ -14,7 +14,7 @@ import { TicketComposer, TicketStatusControl } from '@/components/v2/ticket-acti
 import HermesPanel from '@/components/v2/HermesPanel';
 import '@/app/v2/requests/[ref]/detail.css';
 
-type Kind = 'request' | 'problem' | 'release';
+type Kind = 'request' | 'problem' | 'release' | 'incident' | 'change';
 
 type Props = {
   refId: string;
@@ -172,8 +172,9 @@ export default async function ServiceTicketDetail({ refId, kind }: Props) {
 
         {/* ===== RIGHT ===== */}
         <div className="v2-st-col">
-          {/* Hermes · Support — live copilot draft panel */}
-          <HermesPanel refId={row.ref} />
+          {/* Hermes copilot draft panel — incident assessment for incidents,
+              support draft otherwise. */}
+          <HermesPanel refId={row.ref} agent={kind === 'incident' ? 'incident' : undefined} />
 
           {/* Linked records */}
           <div className="v2-card">
