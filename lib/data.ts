@@ -148,6 +148,80 @@ export async function getScanRuns(limit = 20): Promise<Sourced<ScanRun>> {
   }
 }
 
+// ---------- Activity feed (union of recent ops events) ----------
+// A real estate-activity timeline assembled from the ops tables that already
+// carry timestamps: recent tickets (opened/updated), findings (first/last seen)
+// and scan/worker jobs. No dedicated ops.activity table exists, so this unions
+// the three sources in-app and sorts newest-first. Mock-safe: returns an empty
+// feed (never fabricated events) when there's no DB or the query can't run — the
+// page then shows an honest "no activity yet" state.
+export type ActivityEvent = {
+  icon: string; text: string; when: string; tone: string; at: string;
+};
+
+function isoOf(v: any): string {
+  if (!v) return '';
+  const d = v instanceof Date ? v : new Date(v);
+  return Number.isNaN(d.getTime()) ? '' : d.toISOString();
+}
+
+function humanizeStatus(s?: string | null): string {
+  return (s ?? '').toString().replace(/_/g, ' ');
+}
+
+export async function getActivity(limit = 20): Promise<Sourced<ActivityEvent>> {
+  if (!hasDb) return { rows: [], live: false, note: 'no DB' };
+  // Operator identity — the ops.tickets read fails-closed to 0 rows under RLS
+  // without it (same as the other server-side console reads here).
+  return withTenantRls(async () => {
+  try {
+    const [ticketRows, findingRows, jobRows] = await Promise.all([
+      q<any>(
+        `select ref, title, kind, status, coalesce(updated_at, opened_at, created_at) as at
+           from ops.tickets order by at desc nulls last limit $1`,
+        [limit],
+      ),
+      q<any>(
+        `select ref, title, severity, status, coalesce(last_seen_at, first_seen_at) as at
+           from ops.findings order by at desc nulls last limit $1`,
+        [limit],
+      ),
+      q<any>(
+        `select id, type, status, updated_at as at
+           from ops.jobs order by updated_at desc nulls last limit $1`,
+        [limit],
+      ),
+    ]);
+
+    const evs: ActivityEvent[] = [];
+    for (const t of ticketRows) {
+      const kind = (t.kind ?? 'ticket').toString();
+      evs.push({
+        icon: '🎫', tone: 'support', at: isoOf(t.at), when: rel(t.at),
+        text: `${kind.charAt(0).toUpperCase() + kind.slice(1)} ${t.ref} · ${t.title}${t.status ? ` (${humanizeStatus(t.status)})` : ''}`,
+      });
+    }
+    for (const f of findingRows) {
+      evs.push({
+        icon: '🛡', tone: 'security', at: isoOf(f.at), when: rel(f.at),
+        text: `Finding ${f.ref} · ${f.title}${f.severity ? ` (${f.severity})` : ''}`,
+      });
+    }
+    for (const j of jobRows) {
+      evs.push({
+        icon: '⟳', tone: 'ops', at: isoOf(j.at), when: rel(j.at),
+        text: `Scan ${j.type ?? String(j.id).slice(0, 8)} ${humanizeStatus(j.status)}`.trim(),
+      });
+    }
+
+    evs.sort((a, b) => (b.at || '').localeCompare(a.at || ''));
+    return { rows: evs.slice(0, limit), live: true };
+  } catch (e: any) {
+    return { rows: [], live: false, note: e?.message ?? 'error' };
+  }
+  }, OPERATOR_IDENTITY);
+}
+
 // ---------- Single finding (ops.findings) ----------
 export async function getOneFinding(ref: string): Promise<{ row: Finding | null; live: boolean }> {
   const fallback = () => mock.findings.find((f) => f.ref === ref) ?? null;
