@@ -14,7 +14,7 @@
 // + a model key are configured. Rate-limited per user to bound LLM spend.
 import { NextResponse } from 'next/server';
 import { requireSectionApi, getSessionAccess } from '@/lib/auth';
-import { brainEnabled } from '@/lib/hermes/brain/flags';
+import { brainEnabledRuntime } from '@/lib/hermes/runtime-flags';
 import {
   answerKnowledgeQuestion,
   BRAIN_DISABLED_MESSAGE,
@@ -30,8 +30,10 @@ export async function POST(req: Request) {
   const denied = await requireSectionApi('hermes');
   if (denied) return denied;
 
-  // Flag OFF → clear disabled message, no model call, never an error.
-  if (!brainEnabled()) {
+  // Flag OFF → clear disabled message, no model call, never an error. Resolved via
+  // the runtime store (DB override → env default) so the Integrations-page toggle
+  // takes effect with no redeploy.
+  if (!(await brainEnabledRuntime())) {
     return NextResponse.json({
       status: 'disabled',
       answer: BRAIN_DISABLED_MESSAGE,
