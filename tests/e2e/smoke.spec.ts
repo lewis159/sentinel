@@ -35,11 +35,13 @@ test.describe('smoke (E2E shim active)', () => {
     await expect(page.getByRole('heading', { name: 'Estate overview' })).toBeVisible();
   });
 
-  test('/ renders the v1 app under the E2E shim (no sign-in redirect)', async ({ page }) => {
+  test('/ redirects to the v2 console (v1 retired)', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     expect(page.url()).not.toContain('/sign-in');
-    // The v1 shell mounts.
-    await expect(page.locator('.shell')).toBeVisible();
+    // v1 is retired: the root path now lands on the v2 console (app/page.tsx
+    // server-redirects '/' → '/v2'; the middleware 308s it outside E2E mode).
+    expect(page.url()).toContain('/v2');
+    await expect(page.locator('.v2-rail')).toContainText('SENTINEL');
   });
 });
