@@ -1,0 +1,13 @@
+# Sentinel migration-runner image: psql + the ordered db/init/*.sql migrations +
+# the apply script. Runs as a one-shot Swarm job ON THE HOST (the DB is
+# network-isolated on ytdb_ytdb, unreachable from CI). Reads the DB URL from the
+# mounted Docker secret `sentinel_migrator_db_uri` at runtime, applies any pending
+# migrations (tracked in ops.schema_migrations), then exits.
+#
+# The secret's role must be privileged enough for Sentinel's DDL (CREATE SCHEMA,
+# CREATE EXTENSION vector, etc.) — see docs/sentinel-autodeploy.md.
+FROM postgres:16-alpine
+COPY db/init/ /migrations/
+COPY scripts/apply-migrations.sh /usr/local/bin/apply-migrations.sh
+RUN chmod +x /usr/local/bin/apply-migrations.sh
+ENTRYPOINT ["/bin/sh","-c","export DATABASE_URL=\"$(cat /run/secrets/sentinel_migrator_db_uri)\"; exec apply-migrations.sh"]
