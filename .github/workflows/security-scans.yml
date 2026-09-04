@@ -190,7 +190,7 @@ jobs:
       # aquasecurity/trivy-action emits JSON we transform below. exit-code 0 so a
       # vulnerable image doesn't fail CI — Sentinel is the system of record.
       - name: Run Trivy
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@v0.36.0
         continue-on-error: true
         with:
           image-ref: 'sentinel:scan'
