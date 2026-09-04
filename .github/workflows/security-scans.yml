@@ -14,7 +14,10 @@
 # and self-heals: when a later scan no longer reports a finding, that source's
 # stale findings are auto-marked `fixed` (unless an operator override-locked them).
 #
-# ── Required GitHub repository secrets ───────────────────────────────────────
+# ── Repository secrets ───────────────────────────────────────────────────────
+# If these are unset the scans still run and still fail the build on their own
+# findings; only the delivery to Sentinel is skipped, with a warning and a job
+# summary note. A missing sink is a configuration gap, not a scan failure.
 #   SENTINEL_INGEST_URL   Base URL of the Sentinel app, e.g. https://sentinel.bentech.dev
 #                         (NO trailing slash — the workflow appends /api/ops/ingest/<source>)
 #   OPS_INGEST_SECRET     Shared HMAC secret. MUST match the OPS_INGEST_SECRET env
@@ -96,6 +99,14 @@ jobs:
           SENTINEL_INGEST_URL: ${{ secrets.SENTINEL_INGEST_URL }}
           OPS_INGEST_SECRET: ${{ secrets.OPS_INGEST_SECRET }}
         run: |
+          if [ -z "${SENTINEL_INGEST_URL:-}" ] || [ -z "${OPS_INGEST_SECRET:-}" ]; then
+            echo "::warning title=Sentinel ingest skipped::SENTINEL_INGEST_URL / OPS_INGEST_SECRET are not set on this repository, so the npm-audit findings were scanned but not delivered to Sentinel. Set both repository secrets to re-enable delivery."
+            {
+              echo "### ⚠️ Sentinel ingest skipped (npm-audit)"
+              echo "\`SENTINEL_INGEST_URL\` / \`OPS_INGEST_SECRET\` are not set, so these findings were **not** delivered to Sentinel."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           SIG=$(openssl dgst -sha256 -hmac "$OPS_INGEST_SECRET" payload.json | awk '{print $NF}')
           curl -sS -X POST "$SENTINEL_INGEST_URL/api/ops/ingest/npm-audit" \
             -H "content-type: application/json" \
@@ -149,6 +160,14 @@ jobs:
           SENTINEL_INGEST_URL: ${{ secrets.SENTINEL_INGEST_URL }}
           OPS_INGEST_SECRET: ${{ secrets.OPS_INGEST_SECRET }}
         run: |
+          if [ -z "${SENTINEL_INGEST_URL:-}" ] || [ -z "${OPS_INGEST_SECRET:-}" ]; then
+            echo "::warning title=Sentinel ingest skipped::SENTINEL_INGEST_URL / OPS_INGEST_SECRET are not set on this repository, so the gitleaks findings were scanned but not delivered to Sentinel. Set both repository secrets to re-enable delivery."
+            {
+              echo "### ⚠️ Sentinel ingest skipped (gitleaks)"
+              echo "\`SENTINEL_INGEST_URL\` / \`OPS_INGEST_SECRET\` are not set, so these findings were **not** delivered to Sentinel."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           SIG=$(openssl dgst -sha256 -hmac "$OPS_INGEST_SECRET" payload.json | awk '{print $NF}')
           curl -sS -X POST "$SENTINEL_INGEST_URL/api/ops/ingest/gitleaks" \
             -H "content-type: application/json" \
@@ -211,6 +230,14 @@ jobs:
           SENTINEL_INGEST_URL: ${{ secrets.SENTINEL_INGEST_URL }}
           OPS_INGEST_SECRET: ${{ secrets.OPS_INGEST_SECRET }}
         run: |
+          if [ -z "${SENTINEL_INGEST_URL:-}" ] || [ -z "${OPS_INGEST_SECRET:-}" ]; then
+            echo "::warning title=Sentinel ingest skipped::SENTINEL_INGEST_URL / OPS_INGEST_SECRET are not set on this repository, so the trivy findings were scanned but not delivered to Sentinel. Set both repository secrets to re-enable delivery."
+            {
+              echo "### ⚠️ Sentinel ingest skipped (trivy)"
+              echo "\`SENTINEL_INGEST_URL\` / \`OPS_INGEST_SECRET\` are not set, so these findings were **not** delivered to Sentinel."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           SIG=$(openssl dgst -sha256 -hmac "$OPS_INGEST_SECRET" payload.json | awk '{print $NF}')
           curl -sS -X POST "$SENTINEL_INGEST_URL/api/ops/ingest/trivy" \
             -H "content-type: application/json" \
